@@ -2,6 +2,8 @@
 
 纯前端的浏览器小游戏站。技术栈是 **Vite + TypeScript + Phaser 4**，构建产物是纯静态文件，直接丢到 Cloudflare Pages 就能跑。
 
+> 项目方案见 [`docs/plan.md`](docs/plan.md)，技术选型见 [`docs/tech-selection.md`](docs/tech-selection.md)。
+
 ## 为什么是这套
 
 - **零后端**：没有服务器就是没有服务器。存档走 `localStorage`，将来要排行榜再加 Cloudflare 的 KV / D1。
@@ -44,9 +46,18 @@ npm run preview
 
 ## 部署到 Cloudflare Pages
 
+### 首次推送
+
+本地仓库已经初始化好（分支 `main`，含首次提交）。在 GitHub 上新建一个**空仓库**（不要勾选自动生成 README 或 .gitignore），然后：
+
+```bash
+git remote add origin git@github.com:<你的用户名>/<仓库名>.git
+git push -u origin main
+```
+
 ### 方式一：连接 Git（推荐）
 
-把仓库推到 GitHub / GitLab，然后在 Cloudflare Dashboard 里：
+在 Cloudflare Dashboard 里：
 
 1. Workers & Pages → Create → Pages → Connect to Git，选仓库
 2. 构建设置：
@@ -56,8 +67,9 @@ npm run preview
    | Framework preset | None |
    | Build command | `npm run build` |
    | Build output directory | `dist` |
+   | Node 版本 | 自动读根目录的 `.nvmrc`（22） |
 
-3. 保存并部署。之后每次 `git push` 自动重新构建。
+3. 保存并部署。之后每次 `git push` 自动重新构建，非 `main` 分支会生成独立的预览 URL。
 
 免费版额度：500 次构建/月、单次构建 20 分钟超时、每个项目 100 个自定义域名。构建并发是 1。
 
