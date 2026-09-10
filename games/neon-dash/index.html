@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <title>Neon Dash — 在线玩，无需下载 | Neon Arcade</title>
+    <meta
+      name="description"
+      content="Neon Dash 是一款在浏览器里直接玩的小游戏：一根手指跳过越来越快的障碍，不断刷新你的最高分。无需下载、无需注册，手机和电脑打开即玩。"
+    />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="canonical" href="https://example.com/games/neon-dash/" />
+    <meta property="og:type" content="article" />
+    <meta property="og:title" content="Neon Dash — 在线玩，无需下载" />
+    <meta
+      property="og:description"
+      content="一根手指跳过越来越快的障碍，不断刷新你的最高分。打开即玩。"
+    />
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        background: #0b0d12;
+        overflow: hidden;
+        font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+      }
+      #stage {
+        width: 100vw;
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #stage canvas {
+        display: block;
+        touch-action: none;
+      }
+      .back-link {
+        position: fixed;
+        right: 18px;
+        bottom: 16px;
+        z-index: 20;
+        font-size: 13px;
+        color: #8b95ab;
+        text-decoration: none;
+        padding: 7px 13px;
+        border-radius: 999px;
+        background: rgba(20, 24, 33, 0.82);
+        border: 1px solid #252c3d;
+        transition: color 0.15s, border-color 0.15s;
+      }
+      .back-link:hover {
+        color: #e9edf6;
+        border-color: #3a4359;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="stage"></div>
+    <a class="back-link" href="/">← 全部游戏</a>
+    <script type="module" src="/games/neon-dash/main.ts"></script>
+  </body>
+</html>

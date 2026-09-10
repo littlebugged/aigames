@@ -1,0 +1,10 @@
+node_modules
+dist
+.wrangler
+.DS_Store
+*.local
+.env
+.env.*
+
+# AI 助手的工作记录，不进版本库（如需备份可删掉这一行）
+.workbuddy/

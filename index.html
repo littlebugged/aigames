@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Neon Arcade — 打开就能玩的浏览器小游戏</title>
+    <meta
+      name="description"
+      content="Neon Arcade 是一个纯浏览器小游戏站。无需下载、无需注册，点击即玩。全部游戏本地运行，加载快、不卡顿。"
+    />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="canonical" href="https://example.com/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Neon Arcade — 打开就能玩的浏览器小游戏" />
+    <meta
+      property="og:description"
+      content="无需下载、无需注册，点击即玩。全部游戏本地运行。"
+    />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="/">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-name">Neon Arcade</span>
+      </a>
+      <nav class="site-nav">
+        <a href="/#games">全部游戏</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <h1>打开就能玩的小游戏</h1>
+        <p class="hero-sub">
+          不用下载，不用注册，不用等进度条。全部在你自己的浏览器里跑，关掉页面什么都不留下。
+        </p>
+      </section>
+
+      <section id="games" class="game-section">
+        <h2>全部游戏</h2>
+        <div class="game-grid">
+          <a class="game-card" href="/games/neon-dash/">
+            <div class="game-thumb" data-thumb="neon-dash" aria-hidden="true">
+              <span class="thumb-glyph"></span>
+            </div>
+            <div class="game-body">
+              <h3>Neon Dash</h3>
+              <p>一根手指就能玩。跳过一个又一个障碍，速度只会越来越快。</p>
+              <p class="game-best" data-best-key="neon-dash:best"></p>
+              <div class="game-tags">
+                <span class="tag">反应</span>
+                <span class="tag">休闲</span>
+                <span class="tag">无限</span>
+              </div>
+            </div>
+          </a>
+        </div>
+        <p class="more-note">新游戏正在做，会陆续加到这里。</p>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>Neon Arcade · 所有游戏均在浏览器本地运行</p>
+    </footer>
+
+    <script type="module" src="/src/home.ts"></script>
+  </body>
+</html>

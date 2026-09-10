@@ -1,0 +1,19 @@
+{
+  "name": "aigames",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "deploy": "npm run build && npx wrangler pages deploy dist"
+  },
+  "dependencies": {
+    "phaser": "^4.2.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "vite": "^8.2.2"
+  }
+}
