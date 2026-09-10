@@ -182,15 +182,19 @@ Cloudflare 没有大陆节点。`*.pages.dev` 从 2022 年起在国内就不稳�
 | 项 | 值 |
 |---|---|
 | Production branch | `main` |
-| Framework preset | None |
+| Framework preset | `React (Vite)` |
 | Build command | `npm run build` |
 | Build output directory | `dist` |
-| Node 版本 | 由仓库根目录的 `.nvmrc` 指定 |
+| Node 版本 | 由仓库根目录的 `.nvmrc` 指定（22） |
+
+**关于框架预设**：官方的预设列表里没有单独的 "Vite" 条目，最接近的是 `React (Vite)` 和 `Vue`，两者的默认值都是 `npm run build` + `dist`——正好是我们要的，选任一个即可。
+
+也可以选 `None`，但**必须手动把 Build command 改成 `npm run build`**。不选预设时官方建议填 `exit 0`，而 `exit 0` 会让构建"成功"却不产出任何文件，最后部署出一个空站。这是这条链路上最容易踩的坑。
 
 几个必须照做的点：
 
 - **提交 `package-lock.json`**。Pages 用 `npm ci` 装依赖，锁文件保证本地和 CI 装出完全一样的依赖树。
-- **用 `.nvmrc` 锁 Node 版本**。Cloudflare 的构建镜像换过默认 Node 版本（2025 年从 18 换到 22），不锁的话哪天 CI 突然挂了都不知道为什么。
+- **Node 版本只能靠 `.nvmrc` / `.node-version` / `NODE_VERSION` 三者之一来锁**。Pages 的 v3 构建镜像当前默认 Node 22.16.0，但**它不支持从 `package.json` 的 `engines` 字段读取版本**——写 `engines` 是无效的，必须在仓库根放 `.nvmrc`（本项目已建）。
 - **每个非生产分支和 PR 都会自动生成独立预览 URL**。这对做游戏特别有用：改完手感直接推一版，手机扫码就能试，不用先合 main。
 - **不要额外写 GitHub Actions**。Pages 自带的 Git 集成已经覆盖"构建 + 部署"全流程，再加 Actions 只是多一份要维护的配置。
 

@@ -64,10 +64,13 @@ git push -u origin main
 
    | 项 | 值 |
    |---|---|
-   | Framework preset | None |
+   | Framework preset | `React (Vite)` |
    | Build command | `npm run build` |
    | Build output directory | `dist` |
    | Node 版本 | 自动读根目录的 `.nvmrc`（22） |
+
+   > 预设列表里没有单独的 "Vite"，选 `React (Vite)` 或 `Vue` 都会自动填成 `npm run build` + `dist`，值是对的。
+   > 如果选 `None`，**务必手动把 Build command 改成 `npm run build`** —— 留空或停在 `exit 0` 会构建成功但部署出一个空站。
 
 3. 保存并部署。之后每次 `git push` 自动重新构建，非 `main` 分支会生成独立的预览 URL。
 
