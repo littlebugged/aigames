@@ -12,8 +12,8 @@ const TICK_MS_STEP = 4
 
 const START_LEN = 3
 const SWIPE_THRESHOLD = 24
-const FOOD_GLOW_SIZE = 40
-const FOOD_SIZE = 18
+const FOOD_R = 9.5
+const STAR_COUNT = 26
 
 const BEST_KEY = 'neon-snake:best'
 const RESTART_LOCK_MS = 420
@@ -21,13 +21,18 @@ const RESTART_LOCK_MS = 420
 const FONT = 'system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif'
 
 const COLOR = {
-  grid: 0x161c2b,
+  checker: 0x0f1626,
+  grid: 0x1b2233,
   frame: 0x252c3d,
+  outline: 0x0b0d12,
   head: 0x4cc9f0,
   tail: 0x7b61ff,
   food: 0xff4f9a,
   foodGlow: 0xff4f9a,
+  star: 0x4c8fd6,
 }
+
+const rand = (min: number, max: number): number => min + Math.random() * (max - min)
 
 const DIR_VEC: Record<Dir, Cell> = {
   up: { x: 0, y: -1 },
@@ -50,6 +55,12 @@ type Dir = 'up' | 'down' | 'left' | 'right'
 type Phase = 'idle' | 'playing' | 'over'
 
 type Cell = { x: number; y: number }
+
+type Star = {
+  node: Phaser.GameObjects.Rectangle
+  speed: number
+  phase: number
+}
 
 type Debris = {
   node: Phaser.GameObjects.Rectangle
@@ -122,9 +133,9 @@ class Sfx {
 }
 
 class SnakeScene extends Phaser.Scene {
-  private headGlow!: Phaser.GameObjects.Rectangle
-  private foodNode!: Phaser.GameObjects.Rectangle
-  private foodGlow!: Phaser.GameObjects.Rectangle
+  private snakeGfx!: Phaser.GameObjects.Graphics
+  private foodContainer!: Phaser.GameObjects.Container
+  private foodStar!: Phaser.GameObjects.Graphics
   private scoreText!: Phaser.GameObjects.Text
   private bestText!: Phaser.GameObjects.Text
   private overlay!: Phaser.GameObjects.Container
@@ -132,7 +143,7 @@ class SnakeScene extends Phaser.Scene {
   private overlayDetail!: Phaser.GameObjects.Text
   private overlayHint!: Phaser.GameObjects.Text
 
-  private readonly segmentNodes: Phaser.GameObjects.Rectangle[] = []
+  private readonly stars: Star[] = []
   private readonly debris: Debris[] = []
   private readonly sfx = new Sfx()
 
@@ -158,8 +169,10 @@ class SnakeScene extends Phaser.Scene {
   create(): void {
     this.best = this.readBest()
 
+    this.buildBackground()
+    this.buildStars()
     this.buildBoard()
-    this.buildHeadGlow()
+    this.buildSnake()
     this.buildFood()
     this.buildHud()
     this.buildOverlay()
@@ -181,7 +194,9 @@ class SnakeScene extends Phaser.Scene {
     this.showIdle()
   }
 
-  update(_time: number, delta: number): void {
+  update(time: number, delta: number): void {
+    this.updateStars(time)
+    this.updateFoodFx(time)
     this.updateScorePulse(delta)
     this.updateDebris(delta)
 
@@ -195,32 +210,102 @@ class SnakeScene extends Phaser.Scene {
     }
   }
 
+  private buildBackground(): void {
+    // 一张 Canvas 纹理：竖向渐变 + 中心淡光 + 四周暗角
+    const tex = this.textures.createCanvas('bg', GAME_W, GAME_H)
+    if (tex) {
+      const ctx = tex.getContext()
+      const grad = ctx.createLinearGradient(0, 0, 0, GAME_H)
+      grad.addColorStop(0, '#0e1526')
+      grad.addColorStop(0.55, '#0a0e1a')
+      grad.addColorStop(1, '#070910')
+      ctx.fillStyle = grad
+      ctx.fillRect(0, 0, GAME_W, GAME_H)
+
+      const glow = ctx.createRadialGradient(
+        GAME_W / 2, GAME_H / 2, 60,
+        GAME_W / 2, GAME_H / 2, 520,
+      )
+      glow.addColorStop(0, 'rgba(76, 201, 240, 0.055)')
+      glow.addColorStop(1, 'rgba(0, 0, 0, 0)')
+      ctx.fillStyle = glow
+      ctx.fillRect(0, 0, GAME_W, GAME_H)
+
+      const vig = ctx.createRadialGradient(
+        GAME_W / 2, GAME_H / 2, 190,
+        GAME_W / 2, GAME_H / 2, 660,
+      )
+      vig.addColorStop(0, 'rgba(0, 0, 0, 0)')
+      vig.addColorStop(1, 'rgba(0, 0, 0, 0.42)')
+      ctx.fillStyle = vig
+      ctx.fillRect(0, 0, GAME_W, GAME_H)
+
+      tex.refresh()
+    }
+    this.add.image(0, 0, 'bg').setOrigin(0).setDepth(0)
+  }
+
+  private buildStars(): void {
+    for (let i = 0; i < STAR_COUNT; i += 1) {
+      const size = randInt(1, 2)
+      const node = this.add
+        .rectangle(rand(0, GAME_W), rand(0, GAME_H), size, size, COLOR.star, 0)
+        .setDepth(1)
+      this.stars.push({ node, speed: rand(0.6, 1.8), phase: Math.random() * Math.PI * 2 })
+    }
+  }
+
+  private updateStars(time: number): void {
+    for (const s of this.stars) {
+      const t = (time / 1000) * s.speed + s.phase
+      s.node.setAlpha(0.1 + 0.24 * (0.5 + 0.5 * Math.sin(t)))
+    }
+  }
+
   private buildBoard(): void {
-    // 网格线 + 外框，静态画一次
-    const g = this.add.graphics()
-    g.lineStyle(1, COLOR.grid, 0.6)
+    const g = this.add.graphics().setDepth(2)
+    // 2×2 棋盘格，画在渐变之上产生"板面"感
+    g.fillStyle(COLOR.checker, 0.5)
+    for (let cy = 0; cy < ROWS; cy += 2) {
+      for (let cx = 0; cx < COLS; cx += 2) {
+        if (((cx + cy) / 2) % 2 === 0) {
+          g.fillRect(cx * GRID, cy * GRID, GRID * 2, GRID * 2)
+        }
+      }
+    }
+    // 细网格线
+    g.lineStyle(1, COLOR.grid, 0.5)
     for (let c = 1; c < COLS; c += 1) {
       g.lineBetween(c * GRID, 0, c * GRID, GAME_H)
     }
     for (let r = 1; r < ROWS; r += 1) {
       g.lineBetween(0, r * GRID, GAME_W, r * GRID)
     }
+    // 外框：内层微光 + 实线
+    g.lineStyle(1, COLOR.head, 0.18)
+    g.strokeRect(3, 3, GAME_W - 6, GAME_H - 6)
     g.lineStyle(2, COLOR.frame, 1)
     g.strokeRect(1, 1, GAME_W - 2, GAME_H - 2)
   }
 
-  private buildHeadGlow(): void {
-    this.headGlow = this.add
-      .rectangle(0, 0, GRID + 2, GRID + 2, COLOR.head, 0.16)
-      .setDepth(7)
-      .setVisible(false)
+  private buildSnake(): void {
+    this.snakeGfx = this.add.graphics().setDepth(8)
   }
 
   private buildFood(): void {
-    this.foodGlow = this.add
-      .rectangle(0, 0, FOOD_GLOW_SIZE, FOOD_GLOW_SIZE, COLOR.foodGlow, 0.18)
-      .setDepth(5)
-    this.foodNode = this.add.rectangle(0, 0, FOOD_SIZE, FOOD_SIZE, COLOR.food, 1).setDepth(6)
+    // 发光宝珠：光晕 + 半透明环 + 主体 + 高光 + 旋转星芒
+    this.foodContainer = this.add.container(0, 0).setDepth(6).setVisible(false)
+    const glow = this.add.circle(0, 0, GRID * 0.78, COLOR.foodGlow, 0.15)
+    const halo = this.add.circle(0, 0, FOOD_R + 6, COLOR.food, 0.2)
+    const orb = this.add.circle(0, 0, FOOD_R, COLOR.food, 1)
+    const core = this.add.circle(-FOOD_R * 0.36, -FOOD_R * 0.4, FOOD_R * 0.34, 0xffffff, 0.9)
+    this.foodStar = this.add.graphics()
+    this.foodStar.lineStyle(2, 0xffffff, 0.38)
+    this.foodStar.lineBetween(-18, 0, -12, 0)
+    this.foodStar.lineBetween(12, 0, 18, 0)
+    this.foodStar.lineBetween(0, -18, 0, -12)
+    this.foodStar.lineBetween(0, 12, 0, 18)
+    this.foodContainer.add([glow, halo, orb, core, this.foodStar])
   }
 
   private buildHud(): void {
@@ -344,18 +429,14 @@ class SnakeScene extends Phaser.Scene {
     this.renderSnake()
     this.spawnFood()
     this.scoreText.setText('0').setScale(1)
-    this.headGlow.setVisible(true)
-    this.playerAlpha(1)
+    this.snakeGfx.setAlpha(1)
 
     this.overlay.setVisible(false)
     this.phase = 'playing'
   }
 
   private playerAlpha(alpha: number): void {
-    for (const node of this.segmentNodes) {
-      node.setAlpha(alpha)
-    }
-    this.headGlow.setAlpha(alpha * 0.16)
+    this.snakeGfx.setAlpha(alpha)
   }
 
   private tick(): void {
@@ -428,18 +509,14 @@ class SnakeScene extends Phaser.Scene {
   private setFoodPosition(): void {
     const px = (this.food.x + 0.5) * GRID
     const py = (this.food.y + 0.5) * GRID
-    this.foodNode.setPosition(px, py).setScale(1)
-    this.foodGlow.setPosition(px, py).setScale(1)
-    // 呼吸脉冲
-    this.tweens.killTweensOf([this.foodNode, this.foodGlow])
-    this.tweens.add({
-      targets: [this.foodNode, this.foodGlow],
-      scale: 1.22,
-      duration: 450,
-      yoyo: true,
-      repeat: -1,
-      ease: 'sine.inout',
-    })
+    this.foodContainer.setPosition(px, py).setScale(1).setAlpha(1).setVisible(true)
+  }
+
+  // 呼吸 + 星芒旋转，由 update 驱动（与暂停状态无关，纯视觉）
+  private updateFoodFx(time: number): void {
+    if (!this.foodContainer.visible) return
+    this.foodContainer.setScale(1 + Math.sin(time / 200) * 0.08)
+    this.foodStar.rotation = (time / 2600) * Math.PI * 2
   }
 
   private isOnSnake(x: number, y: number): boolean {
@@ -458,27 +535,18 @@ class SnakeScene extends Phaser.Scene {
   }
 
   private renderSnake(): void {
-    // 按当前蛇长补齐 / 裁剪可见节
-    while (this.segmentNodes.length < this.snake.length) {
-      const node = this.add
-        .rectangle(0, 0, GRID - 4, GRID - 4, COLOR.head)
-        .setOrigin(0.5)
-        .setDepth(8)
-      this.segmentNodes.push(node)
-    }
-    while (this.segmentNodes.length > this.snake.length) {
-      this.segmentNodes.pop()?.destroy()
-    }
+    const g = this.snakeGfx
+    g.clear()
 
-    // 环绕展开：从头出发按相邻单元格差渲染，穿墙时蛇身保持连续不撕裂
-    let screenX = 0
-    let screenY = 0
+    // 环绕展开：从头出发按相邻单元格差计算屏幕坐标，穿墙时蛇身保持连续不撕裂
+    const len = this.snake.length
+    const pts: { x: number; y: number }[] = []
+    let sx = 0
+    let sy = 0
     this.snake.forEach((cell, i) => {
-      const node = this.segmentNodes[i]
-      if (!node) return
       if (i === 0) {
-        screenX = (cell.x + 0.5) * GRID
-        screenY = (cell.y + 0.5) * GRID
+        sx = (cell.x + 0.5) * GRID
+        sy = (cell.y + 0.5) * GRID
       } else {
         const prev = this.snake[i - 1] as Cell
         let offX = cell.x - prev.x
@@ -487,17 +555,44 @@ class SnakeScene extends Phaser.Scene {
         if (offX < -1) offX += COLS
         if (offY > 1) offY -= ROWS
         if (offY < -1) offY += ROWS
-        screenX += offX * GRID
-        screenY += offY * GRID
+        sx += offX * GRID
+        sy += offY * GRID
       }
-      node
-        .setPosition(screenX, screenY)
-        .setFillStyle(this.segmentColor(i, this.snake.length))
+      pts.push({ x: sx, y: sy })
     })
 
-    // 蛇头光晕跟随（头永远在画布内）
-    const head = this.snake[0] as Cell
-    this.headGlow.setPosition((head.x + 0.5) * GRID, (head.y + 0.5) * GRID)
+    // 身体：从尾画到第二节，圆角矩形 + 深色描边，尾部渐细
+    for (let i = len - 1; i >= 1; i -= 1) {
+      const p = pts[i] as { x: number; y: number }
+      const taper = Math.max(0, i - (len - 4)) * 2.5
+      const size = GRID - 5 - taper
+      const color = this.segmentColor(i, len)
+      g.fillStyle(color, 1)
+      g.fillRoundedRect(p.x - size / 2, p.y - size / 2, size, size, 8)
+      g.lineStyle(1.5, COLOR.outline, 0.3)
+      g.strokeRoundedRect(p.x - size / 2, p.y - size / 2, size, size, 8)
+    }
+
+    // 头部：光晕 + 圆头 + 高光 + 朝移动方向的眼睛
+    const head = pts[0] as { x: number; y: number }
+    g.fillStyle(COLOR.head, 0.1)
+    g.fillCircle(head.x, head.y, GRID * 0.95)
+    g.fillStyle(COLOR.head, 1)
+    g.fillCircle(head.x, head.y, GRID / 2 - 3)
+    g.fillStyle(0xffffff, 0.26)
+    g.fillCircle(head.x - 4, head.y - 4.5, 4.5)
+
+    const dv = DIR_VEC[this.dir]
+    const px = -dv.y
+    const py = dv.x
+    for (const side of [-1, 1] as const) {
+      const ex = head.x + dv.x * 6 + px * 7.5 * side
+      const ey = head.y + dv.y * 6 + py * 7.5 * side
+      g.fillStyle(0xffffff, 1)
+      g.fillCircle(ex, ey, 4.6)
+      g.fillStyle(COLOR.outline, 1)
+      g.fillCircle(ex + dv.x * 1.8, ey + dv.y * 1.8, 2.3)
+    }
   }
 
   private updateScorePulse(delta: number): void {
@@ -557,7 +652,6 @@ class SnakeScene extends Phaser.Scene {
     this.phase = 'over'
     this.overAt = this.time.now
     this.paused = false
-    this.tweens.killTweensOf([this.foodNode, this.foodGlow])
 
     if (this.score > this.best) {
       this.best = this.score
