@@ -65,9 +65,89 @@ type Pit = {
 
 type Phase = 'idle' | 'playing' | 'over'
 
+type Debris = {
+  node: Phaser.GameObjects.Rectangle
+  vx: number
+  vy: number
+  life: number
+  maxLife: number
+}
+
+class Sfx {
+  private ctx: AudioContext | null = null
+
+  private ensure(): AudioContext | null {
+    if (!this.ctx) {
+      try {
+        this.ctx = new AudioContext()
+      } catch {
+        return null
+      }
+    }
+    if (this.ctx.state === 'suspended') {
+      void this.ctx.resume().catch(() => {})
+    }
+    return this.ctx
+  }
+
+  warm(): void {
+    this.ensure()
+  }
+
+  private tone(
+    freqA: number,
+    freqB: number,
+    dur: number,
+    type: OscillatorType,
+    vol: number,
+    delay = 0,
+  ): void {
+    const ctx = this.ensure()
+    if (!ctx) return
+    const t0 = ctx.currentTime + delay
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.type = type
+    osc.frequency.setValueAtTime(freqA, t0)
+    osc.frequency.exponentialRampToValueAtTime(Math.max(1, freqB), t0 + dur)
+    gain.gain.setValueAtTime(0, t0)
+    gain.gain.linearRampToValueAtTime(vol, t0 + 0.008)
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur)
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.start(t0)
+    osc.stop(t0 + dur + 0.02)
+  }
+
+  jump(): void {
+    this.tone(330, 660, 0.12, 'square', 0.1)
+  }
+
+  score(): void {
+    this.tone(988, 988, 0.07, 'square', 0.08)
+    this.tone(1319, 1319, 0.1, 'square', 0.08, 0.07)
+  }
+
+  hit(): void {
+    this.tone(260, 60, 0.3, 'sawtooth', 0.14)
+  }
+
+  pit(): void {
+    this.tone(380, 50, 0.42, 'sawtooth', 0.14)
+  }
+}
+
 class DashScene extends Phaser.Scene {
-  private player!: Phaser.GameObjects.Rectangle
+  private player!: Phaser.GameObjects.Container
   private playerGlow!: Phaser.GameObjects.Rectangle
+  private eyeL!: Phaser.GameObjects.Container
+  private eyeR!: Phaser.GameObjects.Container
+  private legL!: Phaser.GameObjects.Container
+  private legR!: Phaser.GameObjects.Container
+  private antennaLight!: Phaser.GameObjects.Arc
+  private animT = 0
+  private blinkT = 2
+  private blinkDur = 0
   private scoreText!: Phaser.GameObjects.Text
   private bestText!: Phaser.GameObjects.Text
   private overlay!: Phaser.GameObjects.Container
@@ -78,12 +158,16 @@ class DashScene extends Phaser.Scene {
   private readonly obstacles: Obstacle[] = []
   private readonly pits: Pit[] = []
   private readonly stars: Star[] = []
+  private readonly debris: Debris[] = []
+  private readonly sfx = new Sfx()
 
   private phase: Phase = 'idle'
   private playerY = GROUND_TOP - PLAYER_H / 2
   private playerVY = 0
   private onGround = true
   private sunk = false
+  private squashX = 1
+  private squashY = 1
 
   private score = 0
   private best = 0
@@ -122,6 +206,9 @@ class DashScene extends Phaser.Scene {
 
     this.updateBackdrop(dt)
     this.updateScorePulse(dt)
+    this.updateSquash(dt)
+    this.updateDebris(dt)
+    this.updateCharacter(dt)
 
     if (this.phase !== 'playing') return
 
@@ -170,10 +257,59 @@ class DashScene extends Phaser.Scene {
     this.playerGlow = this.add
       .rectangle(PLAYER_X, this.playerY, PLAYER_W + 14, PLAYER_H + 14, COLOR.player, 0.16)
       .setDepth(9)
-    this.player = this.add
-      .rectangle(PLAYER_X, this.playerY, PLAYER_W, PLAYER_H, COLOR.player)
-      .setDepth(10)
-    this.player.setStrokeStyle(2, 0xffffff, 0.35)
+
+    this.player = this.add.container(PLAYER_X, this.playerY).setDepth(10)
+
+    // 圆脑袋（大头小身比例更可爱）
+    const head = this.add.circle(0, -10, 14, COLOR.player)
+    head.setStrokeStyle(2, 0xffffff, 0.35)
+    // 身体 + 肚皮高光 + 小短手
+    const body = this.add.rectangle(0, 9.5, 18, 15, COLOR.player)
+    body.setStrokeStyle(2, 0xffffff, 0.2)
+    const belly = this.add.rectangle(0, 9.5, 10, 7, 0xffffff, 0.16)
+    const armL = this.add.rectangle(-11, 9, 4, 5, 0x2f9ecb)
+    const armR = this.add.rectangle(11, 9, 4, 5, 0x2f9ecb)
+    // 天线
+    const antenna = this.add.rectangle(0, -27, 2.5, 5, 0x2f3a55)
+    this.antennaLight = this.add.circle(0, -30, 2.8, 0x7b61ff)
+    // 眼睛（眼白 + 右偏瞳孔，眨眼时整体缩放）、腮红、嘴巴
+    this.eyeL = this.add.container(-5.5, -11, [
+      this.add.circle(0, 0, 4, 0xffffff),
+      this.add.circle(1.5, 0, 2.2, 0x0b0d12),
+    ])
+    this.eyeR = this.add.container(5.5, -11, [
+      this.add.circle(0, 0, 4, 0xffffff),
+      this.add.circle(1.5, 0, 2.2, 0x0b0d12),
+    ])
+    const cheekL = this.add.circle(-10, -4, 2, 0xff8f9e, 0.7)
+    const cheekR = this.add.circle(10, -4, 2, 0xff8f9e, 0.7)
+    const mouth = this.add.rectangle(0, 1.5, 5, 2.2, 0x0b0d12, 0.85)
+    // 长腿（细腿 + 前伸脚垫一体，跑步时整条腿摆动）
+    this.legL = this.add.container(-5, 0, [
+      this.add.rectangle(0, 21, 4, 9, 0x2f9ecb),
+      this.add.rectangle(1, 26, 9, 4.5, 0x2f9ecb),
+    ])
+    this.legR = this.add.container(5, 0, [
+      this.add.rectangle(0, 21, 4, 9, 0x2f9ecb),
+      this.add.rectangle(1, 26, 9, 4.5, 0x2f9ecb),
+    ])
+
+    this.player.add([
+      head,
+      body,
+      belly,
+      armL,
+      armR,
+      antenna,
+      this.antennaLight,
+      this.eyeL,
+      this.eyeR,
+      cheekL,
+      cheekR,
+      mouth,
+      this.legL,
+      this.legR,
+    ])
   }
 
   private buildHud(): void {
@@ -236,6 +372,8 @@ class DashScene extends Phaser.Scene {
   private startRun(): void {
     this.clearObstacles()
     this.clearPits()
+    this.clearDebris()
+    this.sfx.warm()
 
     this.score = 0
     this.elapsed = 0
@@ -249,6 +387,9 @@ class DashScene extends Phaser.Scene {
     this.onGround = true
     this.sunk = false
     this.deathBy = 'hit'
+    this.squashX = 1
+    this.squashY = 1
+    this.player.setScale(1, 1)
     this.player.y = this.playerY
     this.playerGlow.y = this.playerY
     this.player.setAlpha(1)
@@ -263,6 +404,15 @@ class DashScene extends Phaser.Scene {
     if (!this.onGround) return
     this.playerVY = JUMP_V
     this.onGround = false
+    this.squashX = 0.72
+    this.squashY = 1.32
+    this.sfx.jump()
+  }
+
+  private land(): void {
+    this.squashX = 1.3
+    this.squashY = 0.68
+    this.burstDebris(PLAYER_X, GROUND_TOP - 2, 0x4cc9f0, 3, 50, 130)
   }
 
   private updatePlayer(dt: number): void {
@@ -275,6 +425,7 @@ class DashScene extends Phaser.Scene {
     if (overPit && this.playerY > floor) this.sunk = true
 
     if (this.playerY >= floor && !this.sunk) {
+      if (!this.onGround) this.land()
       this.playerY = floor
       this.playerVY = 0
       this.onGround = true
@@ -373,10 +524,87 @@ class DashScene extends Phaser.Scene {
     this.scoreText.setScale(1 + this.scorePulse * 0.18)
   }
 
+  private updateSquash(dt: number): void {
+    const k = Math.min(1, dt * 14)
+    this.squashX += (1 - this.squashX) * k
+    this.squashY += (1 - this.squashY) * k
+    this.player.setScale(this.squashX, this.squashY)
+  }
+
+  private updateCharacter(dt: number): void {
+    this.animT += dt
+
+    // 眨眼：间隔随机，闭眼 90ms
+    this.blinkT -= dt
+    if (this.blinkT <= 0) {
+      this.blinkT = rand(2, 4.5)
+      this.blinkDur = 0.09
+    }
+    if (this.blinkDur > 0) this.blinkDur -= dt
+    const eyeScaleY = this.blinkDur > 0 ? 0.12 : 1
+    this.eyeL.setScale(1, eyeScaleY)
+    this.eyeR.setScale(1, eyeScaleY)
+
+    // 跑步摆腿：贴地时交替小步，空中收腿
+    const step = this.phase === 'playing' && this.onGround ? Math.sin(this.animT * 22) : 0
+    const tuck = this.onGround ? 0 : -5
+    this.legL.y = step * 2 + tuck
+    this.legR.y = -step * 2 + tuck
+
+    // 天线灯呼吸
+    this.antennaLight.setAlpha(0.55 + 0.45 * Math.sin(this.animT * 4))
+  }
+
+  private updateDebris(dt: number): void {
+    for (let i = this.debris.length - 1; i >= 0; i -= 1) {
+      const d = this.debris[i] as Debris
+      d.life += dt
+      d.vy += 900 * dt
+      d.node.x += d.vx * dt
+      d.node.y += d.vy * dt
+      d.node.setAlpha(Math.max(0, 1 - d.life / d.maxLife))
+      if (d.life >= d.maxLife) {
+        d.node.destroy()
+        this.debris.splice(i, 1)
+      }
+    }
+  }
+
+  private burstDebris(
+    x: number,
+    y: number,
+    color: number,
+    count: number,
+    speedMin: number,
+    speedMax: number,
+  ): void {
+    for (let i = 0; i < count; i += 1) {
+      const size = randInt(2, 5)
+      const node = this.add.rectangle(x, y, size, size, color).setDepth(8)
+      const angle = rand(0, Math.PI * 2)
+      const speed = rand(speedMin, speedMax)
+      this.debris.push({
+        node,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 60,
+        life: 0,
+        maxLife: rand(0.25, 0.55),
+      })
+    }
+  }
+
+  private clearDebris(): void {
+    for (const d of this.debris) {
+      d.node.destroy()
+    }
+    this.debris.length = 0
+  }
+
   private addScore(): void {
     this.score += 1
     this.scoreText.setText(String(this.score))
     this.scorePulse = 1
+    this.sfx.score()
   }
 
   private spawnNext(): void {
@@ -440,6 +668,15 @@ class DashScene extends Phaser.Scene {
       this.writeBest(this.best)
     }
     this.bestText.setText(`BEST ${this.best}`)
+
+    this.burstDebris(PLAYER_X, this.playerY, COLOR.player, 10, 100, 340)
+    this.burstDebris(PLAYER_X, this.playerY, 0xffffff, 4, 60, 200)
+    this.cameras.main.shake(140, 0.008)
+    if (reason === 'pit') {
+      this.sfx.pit()
+    } else {
+      this.sfx.hit()
+    }
 
     this.player.setAlpha(0.3)
     this.playerGlow.setAlpha(0.06)
