@@ -12,6 +12,7 @@ export default defineConfig({
       input: {
         home: 'index.html',
         'neon-dash': 'games/neon-dash/index.html',
+        snake: 'games/snake/index.html',
       },
     },
   },

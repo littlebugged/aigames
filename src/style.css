@@ -167,6 +167,43 @@ main {
   opacity: 0.5;
 }
 
+/* Neon Snake：L 形蛇身 + 粉色光点 */
+.thumb-glyph--snake {
+  position: absolute;
+  left: 20%;
+  bottom: 34%;
+  width: 54px;
+  height: 12px;
+  border-radius: 7px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  box-shadow: 0 0 22px rgba(76, 201, 240, 0.5);
+}
+
+.thumb-glyph--snake::after {
+  content: "";
+  position: absolute;
+  left: 40px;
+  top: 6px;
+  width: 12px;
+  height: 26px;
+  border-radius: 6px;
+  background: var(--accent-2);
+  opacity: 0.9;
+  box-shadow: 0 0 14px rgba(123, 97, 255, 0.45);
+}
+
+.thumb-glyph--snake::before {
+  content: "";
+  position: absolute;
+  right: -30px;
+  top: -2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ff4f9a;
+  box-shadow: 0 0 12px rgba(255, 79, 154, 0.85);
+}
+
 .game-body {
   padding: 16px 18px 18px;
 }
