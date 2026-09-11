@@ -19,6 +19,10 @@ const PLAYER_H = 56
 const OBSTACLE_HEIGHTS = [50, 72, 96] as const
 const OBSTACLE_WIDTHS = [34, 44] as const
 
+const PIT_WIDTHS = [90, 120, 150] as const
+const PIT_CHANCE = 0.3
+const PIT_SINK_DEPTH = 30
+
 const BEST_KEY = 'neon-dash:best'
 const RESTART_LOCK_MS = 420
 
@@ -26,11 +30,12 @@ const FONT = 'system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-s
 
 const COLOR = {
   bg: 0x0b0d12,
-  groundFill: 0x121828,
-  groundLine: 0x4cc9f0,
+  groundFill: 0x6e5238,
+  groundLine: 0x4ade80,
   player: 0x4cc9f0,
   obstacle: 0x7b61ff,
   star: 0x232c44,
+  pitFill: 0x05070c,
 }
 
 const rand = (min: number, max: number): number => min + Math.random() * (max - min)
@@ -51,6 +56,13 @@ type Star = {
   factor: number
 }
 
+type Pit = {
+  node: Phaser.GameObjects.Rectangle
+  x: number
+  w: number
+  scored: boolean
+}
+
 type Phase = 'idle' | 'playing' | 'over'
 
 class DashScene extends Phaser.Scene {
@@ -64,12 +76,14 @@ class DashScene extends Phaser.Scene {
   private overlayHint!: Phaser.GameObjects.Text
 
   private readonly obstacles: Obstacle[] = []
+  private readonly pits: Pit[] = []
   private readonly stars: Star[] = []
 
   private phase: Phase = 'idle'
   private playerY = GROUND_TOP - PLAYER_H / 2
   private playerVY = 0
   private onGround = true
+  private sunk = false
 
   private score = 0
   private best = 0
@@ -78,6 +92,8 @@ class DashScene extends Phaser.Scene {
   private spawnAcc = 0
   private scorePulse = 0
   private overAt = 0
+  private deathBy: 'hit' | 'pit' = 'hit'
+  private lastWasPit = false
 
   constructor() {
     super('dash')
@@ -113,12 +129,15 @@ class DashScene extends Phaser.Scene {
     this.speed = Math.min(SPEED_MAX, SPEED_START + this.elapsed * SPEED_GROWTH)
 
     this.updatePlayer(dt)
+    if (this.phase !== 'playing') return
     this.updateObstacles(dt)
+    if (this.phase !== 'playing') return
+    this.updatePits(dt)
 
     this.spawnAcc += delta
     if (this.spawnAcc >= SPAWN_INTERVAL) {
       this.spawnAcc -= SPAWN_INTERVAL
-      this.spawnObstacle()
+      this.spawnNext()
     }
   }
 
@@ -189,13 +208,13 @@ class DashScene extends Phaser.Scene {
 
   private showIdle(): void {
     this.overlayTitle.setText('NEON DASH')
-    this.overlayDetail.setText('跳过障碍，速度会越来越快')
+    this.overlayDetail.setText('跳过障碍和坑洞，速度会越来越快')
     this.overlayHint.setText('点击屏幕 / 空格 开始')
     this.overlay.setVisible(true)
   }
 
   private showOver(): void {
-    this.overlayTitle.setText('撞上了')
+    this.overlayTitle.setText(this.deathBy === 'pit' ? '掉坑里了' : '撞上了')
     this.overlayDetail.setText(`本次得分 ${this.score}　·　最高分 ${this.best}`)
     this.overlayHint.setText('点击屏幕 / 空格 再来一次')
     this.overlay.setVisible(true)
@@ -216,16 +235,20 @@ class DashScene extends Phaser.Scene {
 
   private startRun(): void {
     this.clearObstacles()
+    this.clearPits()
 
     this.score = 0
     this.elapsed = 0
     this.speed = SPEED_START
     this.spawnAcc = 0
     this.scorePulse = 0
+    this.lastWasPit = false
 
     this.playerY = GROUND_TOP - PLAYER_H / 2
     this.playerVY = 0
     this.onGround = true
+    this.sunk = false
+    this.deathBy = 'hit'
     this.player.y = this.playerY
     this.playerGlow.y = this.playerY
     this.player.setAlpha(1)
@@ -247,12 +270,22 @@ class DashScene extends Phaser.Scene {
     this.playerY += this.playerVY * dt
 
     const floor = GROUND_TOP - PLAYER_H / 2
-    if (this.playerY >= floor) {
+    const overPit = this.isOverPit(PLAYER_X)
+    // 中心已沉到站立高度以下却还在坑上：踩空了，取消地面开始下坠
+    if (overPit && this.playerY > floor) this.sunk = true
+
+    if (this.playerY >= floor && !this.sunk) {
       this.playerY = floor
       this.playerVY = 0
       this.onGround = true
     } else {
       this.onGround = false
+    }
+
+    // 下沉到一定深度视为掉坑
+    if (this.sunk && this.playerY > floor + PIT_SINK_DEPTH) {
+      this.endRun('pit')
+      return
     }
 
     this.player.y = this.playerY
@@ -297,6 +330,32 @@ class DashScene extends Phaser.Scene {
     }
   }
 
+  private updatePits(dt: number): void {
+    for (let i = this.pits.length - 1; i >= 0; i -= 1) {
+      const pit = this.pits[i] as Pit
+      pit.x -= this.speed * dt
+      pit.node.x = pit.x
+
+      if (pit.x + pit.w / 2 < -24) {
+        pit.node.destroy()
+        this.pits.splice(i, 1)
+        continue
+      }
+
+      if (!pit.scored && pit.x + pit.w / 2 < PLAYER_X - PLAYER_W / 2) {
+        pit.scored = true
+        this.addScore()
+      }
+    }
+  }
+
+  private isOverPit(x: number): boolean {
+    for (const pit of this.pits) {
+      if (x > pit.x - pit.w / 2 && x < pit.x + pit.w / 2) return true
+    }
+    return false
+  }
+
   private updateBackdrop(dt: number): void {
     const drift = this.phase === 'playing' ? this.speed : 90
     for (const star of this.stars) {
@@ -318,6 +377,27 @@ class DashScene extends Phaser.Scene {
     this.score += 1
     this.scoreText.setText(String(this.score))
     this.scorePulse = 1
+  }
+
+  private spawnNext(): void {
+    const usePit = !this.lastWasPit && Math.random() < PIT_CHANCE
+    this.lastWasPit = usePit
+    if (usePit) {
+      this.spawnPit()
+      return
+    }
+    this.spawnObstacle()
+  }
+
+  private spawnPit(): void {
+    const w = pick(PIT_WIDTHS)
+    const x = GAME_W + w / 2
+
+    const node = this.add
+      .rectangle(x, (GROUND_TOP + GAME_H) / 2, w, GAME_H - GROUND_TOP, COLOR.pitFill)
+      .setDepth(4)
+
+    this.pits.push({ node, x, w, scored: false })
   }
 
   private spawnObstacle(): void {
@@ -343,8 +423,16 @@ class DashScene extends Phaser.Scene {
     this.obstacles.length = 0
   }
 
-  private endRun(): void {
+  private clearPits(): void {
+    for (const pit of this.pits) {
+      pit.node.destroy()
+    }
+    this.pits.length = 0
+  }
+
+  private endRun(reason: 'hit' | 'pit' = 'hit'): void {
     this.phase = 'over'
+    this.deathBy = reason
     this.overAt = this.time.now
 
     if (this.score > this.best) {
