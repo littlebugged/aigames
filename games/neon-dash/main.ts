@@ -23,6 +23,13 @@ const PIT_WIDTHS = [90, 120, 150] as const
 const PIT_CHANCE = 0.3
 const PIT_SINK_DEPTH = 30
 
+// Kenney Pixel Platformer（CC0）瓦片索引：tilemap_packed.png 18×18 网格
+const TILE = 18
+const TILE_GRASS_TOP = 0
+const TILE_DIRT = 26
+const TILE_CRATE = 47
+const PLAYER_SCALE = 2
+
 const BEST_KEY = 'neon-dash:best'
 const RESTART_LOCK_MS = 420
 
@@ -30,8 +37,6 @@ const FONT = 'system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-s
 
 const COLOR = {
   bg: 0x0b0d12,
-  groundFill: 0x6e5238,
-  groundLine: 0x4ade80,
   player: 0x4cc9f0,
   obstacle: 0x7b61ff,
   star: 0x232c44,
@@ -43,7 +48,7 @@ const randInt = (min: number, max: number): number => Math.floor(rand(min, max +
 const pick = <T,>(list: readonly T[]): T => list[Math.floor(Math.random() * list.length)] as T
 
 type Obstacle = {
-  node: Phaser.GameObjects.Rectangle
+  node: Phaser.GameObjects.TileSprite
   glow: Phaser.GameObjects.Rectangle
   x: number
   w: number
@@ -140,14 +145,6 @@ class Sfx {
 class DashScene extends Phaser.Scene {
   private player!: Phaser.GameObjects.Container
   private playerGlow!: Phaser.GameObjects.Rectangle
-  private eyeL!: Phaser.GameObjects.Container
-  private eyeR!: Phaser.GameObjects.Container
-  private legL!: Phaser.GameObjects.Container
-  private legR!: Phaser.GameObjects.Container
-  private antennaLight!: Phaser.GameObjects.Arc
-  private animT = 0
-  private blinkT = 2
-  private blinkDur = 0
   private scoreText!: Phaser.GameObjects.Text
   private bestText!: Phaser.GameObjects.Text
   private overlay!: Phaser.GameObjects.Container
@@ -183,6 +180,15 @@ class DashScene extends Phaser.Scene {
     super('dash')
   }
 
+  preload(): void {
+    // Kenney Pixel Platformer（CC0），见 assets/LICENSE-KENNEY.txt
+    this.load.spritesheet('tiles', 'assets/tilemap_packed.png', {
+      frameWidth: TILE,
+      frameHeight: TILE,
+    })
+    this.load.image('player', 'assets/player.png')
+  }
+
   create(): void {
     this.best = this.readBest()
 
@@ -208,7 +214,6 @@ class DashScene extends Phaser.Scene {
     this.updateScorePulse(dt)
     this.updateSquash(dt)
     this.updateDebris(dt)
-    this.updateCharacter(dt)
 
     if (this.phase !== 'playing') return
 
@@ -245,12 +250,22 @@ class DashScene extends Phaser.Scene {
   }
 
   private buildGround(): void {
+    const groundH = GAME_H - GROUND_TOP
+    // 地表层：草皮 + 一点土，横向平铺
     this.add
-      .rectangle(GAME_W / 2, (GROUND_TOP + GAME_H) / 2, GAME_W, GAME_H - GROUND_TOP, COLOR.groundFill)
+      .tileSprite(GAME_W / 2, GROUND_TOP + TILE / 2, GAME_W, TILE, 'tiles', TILE_GRASS_TOP)
       .setDepth(2)
+    // 地下层：整片土色
     this.add
-      .rectangle(GAME_W / 2, GROUND_TOP, GAME_W, 3, COLOR.groundLine, 0.85)
-      .setDepth(3)
+      .tileSprite(
+        GAME_W / 2,
+        GROUND_TOP + TILE + (groundH - TILE) / 2,
+        GAME_W,
+        groundH - TILE,
+        'tiles',
+        TILE_DIRT,
+      )
+      .setDepth(2)
   }
 
   private buildPlayer(): void {
@@ -260,56 +275,13 @@ class DashScene extends Phaser.Scene {
 
     this.player = this.add.container(PLAYER_X, this.playerY).setDepth(10)
 
-    // 圆脑袋（大头小身比例更可爱）
-    const head = this.add.circle(0, -10, 14, COLOR.player)
-    head.setStrokeStyle(2, 0xffffff, 0.35)
-    // 身体 + 肚皮高光 + 小短手
-    const body = this.add.rectangle(0, 9.5, 18, 15, COLOR.player)
-    body.setStrokeStyle(2, 0xffffff, 0.2)
-    const belly = this.add.rectangle(0, 9.5, 10, 7, 0xffffff, 0.16)
-    const armL = this.add.rectangle(-11, 9, 4, 5, 0x2f9ecb)
-    const armR = this.add.rectangle(11, 9, 4, 5, 0x2f9ecb)
-    // 天线
-    const antenna = this.add.rectangle(0, -27, 2.5, 5, 0x2f3a55)
-    this.antennaLight = this.add.circle(0, -30, 2.8, 0x7b61ff)
-    // 眼睛（眼白 + 右偏瞳孔，眨眼时整体缩放）、腮红、嘴巴
-    this.eyeL = this.add.container(-5.5, -11, [
-      this.add.circle(0, 0, 4, 0xffffff),
-      this.add.circle(1.5, 0, 2.2, 0x0b0d12),
-    ])
-    this.eyeR = this.add.container(5.5, -11, [
-      this.add.circle(0, 0, 4, 0xffffff),
-      this.add.circle(1.5, 0, 2.2, 0x0b0d12),
-    ])
-    const cheekL = this.add.circle(-10, -4, 2, 0xff8f9e, 0.7)
-    const cheekR = this.add.circle(10, -4, 2, 0xff8f9e, 0.7)
-    const mouth = this.add.rectangle(0, 1.5, 5, 2.2, 0x0b0d12, 0.85)
-    // 长腿（细腿 + 前伸脚垫一体，跑步时整条腿摆动）
-    this.legL = this.add.container(-5, 0, [
-      this.add.rectangle(0, 21, 4, 9, 0x2f9ecb),
-      this.add.rectangle(1, 26, 9, 4.5, 0x2f9ecb),
-    ])
-    this.legR = this.add.container(5, 0, [
-      this.add.rectangle(0, 21, 4, 9, 0x2f9ecb),
-      this.add.rectangle(1, 26, 9, 4.5, 0x2f9ecb),
-    ])
+    // 蓝色兜帽小人（Kenney CC0）：脚底对齐容器底部，视觉大小 ≈ 撞击盒
+    const sprite = this.add
+      .image(0, PLAYER_H / 2, 'player')
+      .setOrigin(0.5, 1)
+      .setScale(PLAYER_SCALE)
 
-    this.player.add([
-      head,
-      body,
-      belly,
-      armL,
-      armR,
-      antenna,
-      this.antennaLight,
-      this.eyeL,
-      this.eyeR,
-      cheekL,
-      cheekR,
-      mouth,
-      this.legL,
-      this.legR,
-    ])
+    this.player.add(sprite)
   }
 
   private buildHud(): void {
@@ -531,30 +503,6 @@ class DashScene extends Phaser.Scene {
     this.player.setScale(this.squashX, this.squashY)
   }
 
-  private updateCharacter(dt: number): void {
-    this.animT += dt
-
-    // 眨眼：间隔随机，闭眼 90ms
-    this.blinkT -= dt
-    if (this.blinkT <= 0) {
-      this.blinkT = rand(2, 4.5)
-      this.blinkDur = 0.09
-    }
-    if (this.blinkDur > 0) this.blinkDur -= dt
-    const eyeScaleY = this.blinkDur > 0 ? 0.12 : 1
-    this.eyeL.setScale(1, eyeScaleY)
-    this.eyeR.setScale(1, eyeScaleY)
-
-    // 跑步摆腿：贴地时交替小步，空中收腿
-    const step = this.phase === 'playing' && this.onGround ? Math.sin(this.animT * 22) : 0
-    const tuck = this.onGround ? 0 : -5
-    this.legL.y = step * 2 + tuck
-    this.legR.y = -step * 2 + tuck
-
-    // 天线灯呼吸
-    this.antennaLight.setAlpha(0.55 + 0.45 * Math.sin(this.animT * 4))
-  }
-
   private updateDebris(dt: number): void {
     for (let i = this.debris.length - 1; i >= 0; i -= 1) {
       const d = this.debris[i] as Debris
@@ -637,8 +585,8 @@ class DashScene extends Phaser.Scene {
     const glow = this.add
       .rectangle(x, y, w + 12, h + 12, COLOR.obstacle, 0.14)
       .setDepth(7)
-    const node = this.add.rectangle(x, y, w, h, COLOR.obstacle).setDepth(8)
-    node.setStrokeStyle(2, 0xb9a9ff, 0.45)
+    // 木箱堆：瓦片平铺出整根柱子
+    const node = this.add.tileSprite(x, y, w, h, 'tiles', TILE_CRATE).setDepth(8)
 
     this.obstacles.push({ node, glow, x, w, h, scored: false })
   }
@@ -710,6 +658,7 @@ new Phaser.Game({
   width: GAME_W,
   height: GAME_H,
   backgroundColor: '#0b0d12',
+  pixelArt: true,
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
