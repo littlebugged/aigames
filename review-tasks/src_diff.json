@@ -1,0 +1,301 @@
+{
+  "chunkId": "src",
+  "module": "src",
+  "files": [
+    {
+      "path": "src/style.css",
+      "sourceLines": 272,
+      "diff": {
+        "oldFileName": "src/style.css",
+        "newFileName": "src/style.css",
+        "changes": [
+          {
+            "type": "noChange",
+            "content": "  position: absolute;",
+            "line": 160
+          },
+          {
+            "type": "noChange",
+            "content": "  left: 92px;",
+            "line": 161
+          },
+          {
+            "type": "noChange",
+            "content": "  top: 12px;",
+            "line": 162
+          },
+          {
+            "type": "noChange",
+            "content": "  width: 12px;",
+            "line": 163
+          },
+          {
+            "type": "noChange",
+            "content": "  height: 20px;",
+            "line": 164
+          },
+          {
+            "type": "noChange",
+            "content": "  border-radius: 4px;",
+            "line": 165
+          },
+          {
+            "type": "noChange",
+            "content": "  background: var(--accent-2);",
+            "line": 166
+          },
+          {
+            "type": "noChange",
+            "content": "  opacity: 0.5;",
+            "line": 167
+          },
+          {
+            "type": "noChange",
+            "content": "}",
+            "line": 168
+          },
+          {
+            "type": "noChange",
+            "content": "",
+            "line": 169
+          },
+          {
+            "type": "add",
+            "content": "/* Neon Snake：L 形蛇身 + 粉色光点 */",
+            "line": 170
+          },
+          {
+            "type": "add",
+            "content": ".thumb-glyph--snake {",
+            "line": 171
+          },
+          {
+            "type": "add",
+            "content": "  position: absolute;",
+            "line": 172
+          },
+          {
+            "type": "add",
+            "content": "  left: 20%;",
+            "line": 173
+          },
+          {
+            "type": "add",
+            "content": "  bottom: 34%;",
+            "line": 174
+          },
+          {
+            "type": "add",
+            "content": "  width: 54px;",
+            "line": 175
+          },
+          {
+            "type": "add",
+            "content": "  height: 12px;",
+            "line": 176
+          },
+          {
+            "type": "add",
+            "content": "  border-radius: 7px;",
+            "line": 177
+          },
+          {
+            "type": "add",
+            "content": "  background: linear-gradient(90deg, var(--accent), var(--accent-2));",
+            "line": 178
+          },
+          {
+            "type": "add",
+            "content": "  box-shadow: 0 0 22px rgba(76, 201, 240, 0.5);",
+            "line": 179
+          },
+          {
+            "type": "add",
+            "content": "}",
+            "line": 180
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 181
+          },
+          {
+            "type": "add",
+            "content": ".thumb-glyph--snake::after {",
+            "line": 182
+          },
+          {
+            "type": "add",
+            "content": "  content: \"\";",
+            "line": 183
+          },
+          {
+            "type": "add",
+            "content": "  position: absolute;",
+            "line": 184
+          },
+          {
+            "type": "add",
+            "content": "  left: 40px;",
+            "line": 185
+          },
+          {
+            "type": "add",
+            "content": "  top: 6px;",
+            "line": 186
+          },
+          {
+            "type": "add",
+            "content": "  width: 12px;",
+            "line": 187
+          },
+          {
+            "type": "add",
+            "content": "  height: 26px;",
+            "line": 188
+          },
+          {
+            "type": "add",
+            "content": "  border-radius: 6px;",
+            "line": 189
+          },
+          {
+            "type": "add",
+            "content": "  background: var(--accent-2);",
+            "line": 190
+          },
+          {
+            "type": "add",
+            "content": "  opacity: 0.9;",
+            "line": 191
+          },
+          {
+            "type": "add",
+            "content": "  box-shadow: 0 0 14px rgba(123, 97, 255, 0.45);",
+            "line": 192
+          },
+          {
+            "type": "add",
+            "content": "}",
+            "line": 193
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 194
+          },
+          {
+            "type": "add",
+            "content": ".thumb-glyph--snake::before {",
+            "line": 195
+          },
+          {
+            "type": "add",
+            "content": "  content: \"\";",
+            "line": 196
+          },
+          {
+            "type": "add",
+            "content": "  position: absolute;",
+            "line": 197
+          },
+          {
+            "type": "add",
+            "content": "  right: -30px;",
+            "line": 198
+          },
+          {
+            "type": "add",
+            "content": "  top: -2px;",
+            "line": 199
+          },
+          {
+            "type": "add",
+            "content": "  width: 10px;",
+            "line": 200
+          },
+          {
+            "type": "add",
+            "content": "  height: 10px;",
+            "line": 201
+          },
+          {
+            "type": "add",
+            "content": "  border-radius: 50%;",
+            "line": 202
+          },
+          {
+            "type": "add",
+            "content": "  background: #ff4f9a;",
+            "line": 203
+          },
+          {
+            "type": "add",
+            "content": "  box-shadow: 0 0 12px rgba(255, 79, 154, 0.85);",
+            "line": 204
+          },
+          {
+            "type": "add",
+            "content": "}",
+            "line": 205
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 206
+          },
+          {
+            "type": "noChange",
+            "content": ".game-body {",
+            "line": 207
+          },
+          {
+            "type": "noChange",
+            "content": "  padding: 16px 18px 18px;",
+            "line": 208
+          },
+          {
+            "type": "noChange",
+            "content": "}",
+            "line": 209
+          },
+          {
+            "type": "noChange",
+            "content": "",
+            "line": 210
+          },
+          {
+            "type": "noChange",
+            "content": ".game-body h3 {",
+            "line": 211
+          },
+          {
+            "type": "noChange",
+            "content": "  margin: 0 0 6px;",
+            "line": 212
+          },
+          {
+            "type": "noChange",
+            "content": "  font-size: 17px;",
+            "line": 213
+          },
+          {
+            "type": "noChange",
+            "content": "  font-weight: 600;",
+            "line": 214
+          },
+          {
+            "type": "noChange",
+            "content": "}",
+            "line": 215
+          },
+          {
+            "type": "noChange",
+            "content": "",
+            "line": 216
+          }
+        ]
+      }
+    }
+  ]
+}

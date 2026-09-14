@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//Users/v_zhangjianxi/.claude/skills/code-review/tools/**)",
+      "Bash(git -C /Users/v_zhangjianxi/Desktop/mywork/aigames status --short)",
+      "Bash(git -C /Users/v_zhangjianxi/Desktop/mywork/aigames log --oneline -5)"
+    ]
+  }
+}

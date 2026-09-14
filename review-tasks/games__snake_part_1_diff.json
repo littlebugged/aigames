@@ -1,0 +1,3566 @@
+{
+  "chunkId": "games__snake_part_1",
+  "module": "games/snake",
+  "files": [
+    {
+      "path": "games/snake/main.ts",
+      "sourceLines": 710,
+      "diff": {
+        "oldFileName": null,
+        "newFileName": "games/snake/main.ts",
+        "changes": [
+          {
+            "type": "add",
+            "content": "import Phaser from 'phaser'",
+            "line": 1
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 2
+          },
+          {
+            "type": "add",
+            "content": "const GAME_W = 960",
+            "line": 3
+          },
+          {
+            "type": "add",
+            "content": "const GAME_H = 540",
+            "line": 4
+          },
+          {
+            "type": "add",
+            "content": "const GRID = 30",
+            "line": 5
+          },
+          {
+            "type": "add",
+            "content": "const COLS = GAME_W / GRID",
+            "line": 6
+          },
+          {
+            "type": "add",
+            "content": "const ROWS = GAME_H / GRID",
+            "line": 7
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 8
+          },
+          {
+            "type": "add",
+            "content": "const TICK_MS_START = 130",
+            "line": 9
+          },
+          {
+            "type": "add",
+            "content": "const TICK_MS_MIN = 78",
+            "line": 10
+          },
+          {
+            "type": "add",
+            "content": "const TICK_MS_STEP = 4",
+            "line": 11
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 12
+          },
+          {
+            "type": "add",
+            "content": "const START_LEN = 3",
+            "line": 13
+          },
+          {
+            "type": "add",
+            "content": "const SWIPE_THRESHOLD = 24",
+            "line": 14
+          },
+          {
+            "type": "add",
+            "content": "const FOOD_R = 9.5",
+            "line": 15
+          },
+          {
+            "type": "add",
+            "content": "const STAR_COUNT = 26",
+            "line": 16
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 17
+          },
+          {
+            "type": "add",
+            "content": "const BEST_KEY = 'neon-snake:best'",
+            "line": 18
+          },
+          {
+            "type": "add",
+            "content": "const RESTART_LOCK_MS = 420",
+            "line": 19
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 20
+          },
+          {
+            "type": "add",
+            "content": "const FONT = 'system-ui, -apple-system, \"PingFang SC\", \"Microsoft YaHei\", sans-serif'",
+            "line": 21
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 22
+          },
+          {
+            "type": "add",
+            "content": "const COLOR = {",
+            "line": 23
+          },
+          {
+            "type": "add",
+            "content": "  checker: 0x0f1626,",
+            "line": 24
+          },
+          {
+            "type": "add",
+            "content": "  grid: 0x1b2233,",
+            "line": 25
+          },
+          {
+            "type": "add",
+            "content": "  frame: 0x252c3d,",
+            "line": 26
+          },
+          {
+            "type": "add",
+            "content": "  outline: 0x0b0d12,",
+            "line": 27
+          },
+          {
+            "type": "add",
+            "content": "  head: 0x4cc9f0,",
+            "line": 28
+          },
+          {
+            "type": "add",
+            "content": "  tail: 0x7b61ff,",
+            "line": 29
+          },
+          {
+            "type": "add",
+            "content": "  food: 0xff4f9a,",
+            "line": 30
+          },
+          {
+            "type": "add",
+            "content": "  foodGlow: 0xff4f9a,",
+            "line": 31
+          },
+          {
+            "type": "add",
+            "content": "  star: 0x4c8fd6,",
+            "line": 32
+          },
+          {
+            "type": "add",
+            "content": "}",
+            "line": 33
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 34
+          },
+          {
+            "type": "add",
+            "content": "const rand = (min: number, max: number): number => min + Math.random() * (max - min)",
+            "line": 35
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 36
+          },
+          {
+            "type": "add",
+            "content": "const DIR_VEC: Record<Dir, Cell> = {",
+            "line": 37
+          },
+          {
+            "type": "add",
+            "content": "  up: { x: 0, y: -1 },",
+            "line": 38
+          },
+          {
+            "type": "add",
+            "content": "  down: { x: 0, y: 1 },",
+            "line": 39
+          },
+          {
+            "type": "add",
+            "content": "  left: { x: -1, y: 0 },",
+            "line": 40
+          },
+          {
+            "type": "add",
+            "content": "  right: { x: 1, y: 0 },",
+            "line": 41
+          },
+          {
+            "type": "add",
+            "content": "}",
+            "line": 42
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 43
+          },
+          {
+            "type": "add",
+            "content": "const OPPOSITE: Record<Dir, Dir> = {",
+            "line": 44
+          },
+          {
+            "type": "add",
+            "content": "  up: 'down',",
+            "line": 45
+          },
+          {
+            "type": "add",
+            "content": "  down: 'up',",
+            "line": 46
+          },
+          {
+            "type": "add",
+            "content": "  left: 'right',",
+            "line": 47
+          },
+          {
+            "type": "add",
+            "content": "  right: 'left',",
+            "line": 48
+          },
+          {
+            "type": "add",
+            "content": "}",
+            "line": 49
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 50
+          },
+          {
+            "type": "add",
+            "content": "const randInt = (min: number, max: number): number =>",
+            "line": 51
+          },
+          {
+            "type": "add",
+            "content": "  Math.floor(min + Math.random() * (max - min + 1))",
+            "line": 52
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 53
+          },
+          {
+            "type": "add",
+            "content": "type Dir = 'up' | 'down' | 'left' | 'right'",
+            "line": 54
+          },
+          {
+            "type": "add",
+            "content": "type Phase = 'idle' | 'playing' | 'over'",
+            "line": 55
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 56
+          },
+          {
+            "type": "add",
+            "content": "type Cell = { x: number; y: number }",
+            "line": 57
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 58
+          },
+          {
+            "type": "add",
+            "content": "type Star = {",
+            "line": 59
+          },
+          {
+            "type": "add",
+            "content": "  node: Phaser.GameObjects.Rectangle",
+            "line": 60
+          },
+          {
+            "type": "add",
+            "content": "  speed: number",
+            "line": 61
+          },
+          {
+            "type": "add",
+            "content": "  phase: number",
+            "line": 62
+          },
+          {
+            "type": "add",
+            "content": "}",
+            "line": 63
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 64
+          },
+          {
+            "type": "add",
+            "content": "type Debris = {",
+            "line": 65
+          },
+          {
+            "type": "add",
+            "content": "  node: Phaser.GameObjects.Rectangle",
+            "line": 66
+          },
+          {
+            "type": "add",
+            "content": "  vx: number",
+            "line": 67
+          },
+          {
+            "type": "add",
+            "content": "  vy: number",
+            "line": 68
+          },
+          {
+            "type": "add",
+            "content": "  life: number",
+            "line": 69
+          },
+          {
+            "type": "add",
+            "content": "  maxLife: number",
+            "line": 70
+          },
+          {
+            "type": "add",
+            "content": "}",
+            "line": 71
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 72
+          },
+          {
+            "type": "add",
+            "content": "class Sfx {",
+            "line": 73
+          },
+          {
+            "type": "add",
+            "content": "  private ctx: AudioContext | null = null",
+            "line": 74
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 75
+          },
+          {
+            "type": "add",
+            "content": "  private ensure(): AudioContext | null {",
+            "line": 76
+          },
+          {
+            "type": "add",
+            "content": "    if (!this.ctx) {",
+            "line": 77
+          },
+          {
+            "type": "add",
+            "content": "      try {",
+            "line": 78
+          },
+          {
+            "type": "add",
+            "content": "        this.ctx = new AudioContext()",
+            "line": 79
+          },
+          {
+            "type": "add",
+            "content": "      } catch {",
+            "line": 80
+          },
+          {
+            "type": "add",
+            "content": "        return null",
+            "line": 81
+          },
+          {
+            "type": "add",
+            "content": "      }",
+            "line": 82
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 83
+          },
+          {
+            "type": "add",
+            "content": "    if (this.ctx.state === 'suspended') {",
+            "line": 84
+          },
+          {
+            "type": "add",
+            "content": "      void this.ctx.resume().catch(() => {})",
+            "line": 85
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 86
+          },
+          {
+            "type": "add",
+            "content": "    return this.ctx",
+            "line": 87
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 88
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 89
+          },
+          {
+            "type": "add",
+            "content": "  warm(): void {",
+            "line": 90
+          },
+          {
+            "type": "add",
+            "content": "    this.ensure()",
+            "line": 91
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 92
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 93
+          },
+          {
+            "type": "add",
+            "content": "  private tone(",
+            "line": 94
+          },
+          {
+            "type": "add",
+            "content": "    freqA: number,",
+            "line": 95
+          },
+          {
+            "type": "add",
+            "content": "    freqB: number,",
+            "line": 96
+          },
+          {
+            "type": "add",
+            "content": "    dur: number,",
+            "line": 97
+          },
+          {
+            "type": "add",
+            "content": "    type: OscillatorType,",
+            "line": 98
+          },
+          {
+            "type": "add",
+            "content": "    vol: number,",
+            "line": 99
+          },
+          {
+            "type": "add",
+            "content": "    delay = 0,",
+            "line": 100
+          },
+          {
+            "type": "add",
+            "content": "  ): void {",
+            "line": 101
+          },
+          {
+            "type": "add",
+            "content": "    const ctx = this.ensure()",
+            "line": 102
+          },
+          {
+            "type": "add",
+            "content": "    if (!ctx) return",
+            "line": 103
+          },
+          {
+            "type": "add",
+            "content": "    const t0 = ctx.currentTime + delay",
+            "line": 104
+          },
+          {
+            "type": "add",
+            "content": "    const osc = ctx.createOscillator()",
+            "line": 105
+          },
+          {
+            "type": "add",
+            "content": "    const gain = ctx.createGain()",
+            "line": 106
+          },
+          {
+            "type": "add",
+            "content": "    osc.type = type",
+            "line": 107
+          },
+          {
+            "type": "add",
+            "content": "    osc.frequency.setValueAtTime(freqA, t0)",
+            "line": 108
+          },
+          {
+            "type": "add",
+            "content": "    osc.frequency.exponentialRampToValueAtTime(Math.max(1, freqB), t0 + dur)",
+            "line": 109
+          },
+          {
+            "type": "add",
+            "content": "    gain.gain.setValueAtTime(0, t0)",
+            "line": 110
+          },
+          {
+            "type": "add",
+            "content": "    gain.gain.linearRampToValueAtTime(vol, t0 + 0.008)",
+            "line": 111
+          },
+          {
+            "type": "add",
+            "content": "    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur)",
+            "line": 112
+          },
+          {
+            "type": "add",
+            "content": "    osc.connect(gain)",
+            "line": 113
+          },
+          {
+            "type": "add",
+            "content": "    gain.connect(ctx.destination)",
+            "line": 114
+          },
+          {
+            "type": "add",
+            "content": "    osc.start(t0)",
+            "line": 115
+          },
+          {
+            "type": "add",
+            "content": "    osc.stop(t0 + dur + 0.02)",
+            "line": 116
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 117
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 118
+          },
+          {
+            "type": "add",
+            "content": "  eat(): void {",
+            "line": 119
+          },
+          {
+            "type": "add",
+            "content": "    this.tone(660, 880, 0.08, 'square', 0.09)",
+            "line": 120
+          },
+          {
+            "type": "add",
+            "content": "    this.tone(990, 1320, 0.1, 'square', 0.07, 0.06)",
+            "line": 121
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 122
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 123
+          },
+          {
+            "type": "add",
+            "content": "  hit(): void {",
+            "line": 124
+          },
+          {
+            "type": "add",
+            "content": "    this.tone(300, 60, 0.3, 'sawtooth', 0.14)",
+            "line": 125
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 126
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 127
+          },
+          {
+            "type": "add",
+            "content": "  win(): void {",
+            "line": 128
+          },
+          {
+            "type": "add",
+            "content": "    this.tone(440, 440, 0.12, 'square', 0.1)",
+            "line": 129
+          },
+          {
+            "type": "add",
+            "content": "    this.tone(660, 660, 0.12, 'square', 0.1, 0.1)",
+            "line": 130
+          },
+          {
+            "type": "add",
+            "content": "    this.tone(880, 880, 0.18, 'square', 0.1, 0.2)",
+            "line": 131
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 132
+          },
+          {
+            "type": "add",
+            "content": "}",
+            "line": 133
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 134
+          },
+          {
+            "type": "add",
+            "content": "class SnakeScene extends Phaser.Scene {",
+            "line": 135
+          },
+          {
+            "type": "add",
+            "content": "  private snakeGfx!: Phaser.GameObjects.Graphics",
+            "line": 136
+          },
+          {
+            "type": "add",
+            "content": "  private foodContainer!: Phaser.GameObjects.Container",
+            "line": 137
+          },
+          {
+            "type": "add",
+            "content": "  private foodStar!: Phaser.GameObjects.Graphics",
+            "line": 138
+          },
+          {
+            "type": "add",
+            "content": "  private scoreText!: Phaser.GameObjects.Text",
+            "line": 139
+          },
+          {
+            "type": "add",
+            "content": "  private bestText!: Phaser.GameObjects.Text",
+            "line": 140
+          },
+          {
+            "type": "add",
+            "content": "  private overlay!: Phaser.GameObjects.Container",
+            "line": 141
+          },
+          {
+            "type": "add",
+            "content": "  private overlayTitle!: Phaser.GameObjects.Text",
+            "line": 142
+          },
+          {
+            "type": "add",
+            "content": "  private overlayDetail!: Phaser.GameObjects.Text",
+            "line": 143
+          },
+          {
+            "type": "add",
+            "content": "  private overlayHint!: Phaser.GameObjects.Text",
+            "line": 144
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 145
+          },
+          {
+            "type": "add",
+            "content": "  private readonly stars: Star[] = []",
+            "line": 146
+          },
+          {
+            "type": "add",
+            "content": "  private readonly debris: Debris[] = []",
+            "line": 147
+          },
+          {
+            "type": "add",
+            "content": "  private readonly sfx = new Sfx()",
+            "line": 148
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 149
+          },
+          {
+            "type": "add",
+            "content": "  private phase: Phase = 'idle'",
+            "line": 150
+          },
+          {
+            "type": "add",
+            "content": "  private paused = false",
+            "line": 151
+          },
+          {
+            "type": "add",
+            "content": "  private snake: Cell[] = []",
+            "line": 152
+          },
+          {
+            "type": "add",
+            "content": "  private dir: Dir = 'right'",
+            "line": 153
+          },
+          {
+            "type": "add",
+            "content": "  private dirQueue: Dir[] = []",
+            "line": 154
+          },
+          {
+            "type": "add",
+            "content": "  private food: Cell = { x: 0, y: 0 }",
+            "line": 155
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 156
+          },
+          {
+            "type": "add",
+            "content": "  private score = 0",
+            "line": 157
+          },
+          {
+            "type": "add",
+            "content": "  private best = 0",
+            "line": 158
+          },
+          {
+            "type": "add",
+            "content": "  private tickMs = TICK_MS_START",
+            "line": 159
+          },
+          {
+            "type": "add",
+            "content": "  private accum = 0",
+            "line": 160
+          },
+          {
+            "type": "add",
+            "content": "  private scorePulse = 0",
+            "line": 161
+          },
+          {
+            "type": "add",
+            "content": "  private overAt = 0",
+            "line": 162
+          },
+          {
+            "type": "add",
+            "content": "  private swipeStart: { x: number; y: number } | null = null",
+            "line": 163
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 164
+          },
+          {
+            "type": "add",
+            "content": "  constructor() {",
+            "line": 165
+          },
+          {
+            "type": "add",
+            "content": "    super('snake')",
+            "line": 166
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 167
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 168
+          },
+          {
+            "type": "add",
+            "content": "  create(): void {",
+            "line": 169
+          },
+          {
+            "type": "add",
+            "content": "    this.best = this.readBest()",
+            "line": 170
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 171
+          },
+          {
+            "type": "add",
+            "content": "    this.buildBackground()",
+            "line": 172
+          },
+          {
+            "type": "add",
+            "content": "    this.buildStars()",
+            "line": 173
+          },
+          {
+            "type": "add",
+            "content": "    this.buildBoard()",
+            "line": 174
+          },
+          {
+            "type": "add",
+            "content": "    this.buildSnake()",
+            "line": 175
+          },
+          {
+            "type": "add",
+            "content": "    this.buildFood()",
+            "line": 176
+          },
+          {
+            "type": "add",
+            "content": "    this.buildHud()",
+            "line": 177
+          },
+          {
+            "type": "add",
+            "content": "    this.buildOverlay()",
+            "line": 178
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 179
+          },
+          {
+            "type": "add",
+            "content": "    this.input.keyboard?.addCapture('SPACE,UP,DOWN,LEFT,RIGHT,W,A,S,D,P')",
+            "line": 180
+          },
+          {
+            "type": "add",
+            "content": "    this.input.keyboard?.on('keydown-SPACE', this.onAction, this)",
+            "line": 181
+          },
+          {
+            "type": "add",
+            "content": "    this.input.keyboard?.on('keydown-P', this.togglePause, this)",
+            "line": 182
+          },
+          {
+            "type": "add",
+            "content": "    this.input.keyboard?.on('keydown-UP', () => this.queueDir('up'), this)",
+            "line": 183
+          },
+          {
+            "type": "add",
+            "content": "    this.input.keyboard?.on('keydown-DOWN', () => this.queueDir('down'), this)",
+            "line": 184
+          },
+          {
+            "type": "add",
+            "content": "    this.input.keyboard?.on('keydown-LEFT', () => this.queueDir('left'), this)",
+            "line": 185
+          },
+          {
+            "type": "add",
+            "content": "    this.input.keyboard?.on('keydown-RIGHT', () => this.queueDir('right'), this)",
+            "line": 186
+          },
+          {
+            "type": "add",
+            "content": "    this.input.keyboard?.on('keydown-W', () => this.queueDir('up'), this)",
+            "line": 187
+          },
+          {
+            "type": "add",
+            "content": "    this.input.keyboard?.on('keydown-S', () => this.queueDir('down'), this)",
+            "line": 188
+          },
+          {
+            "type": "add",
+            "content": "    this.input.keyboard?.on('keydown-A', () => this.queueDir('left'), this)",
+            "line": 189
+          },
+          {
+            "type": "add",
+            "content": "    this.input.keyboard?.on('keydown-D', () => this.queueDir('right'), this)",
+            "line": 190
+          },
+          {
+            "type": "add",
+            "content": "    this.input.on('pointerdown', this.onPointerDown, this)",
+            "line": 191
+          },
+          {
+            "type": "add",
+            "content": "    this.input.on('pointerup', this.onPointerUp, this)",
+            "line": 192
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 193
+          },
+          {
+            "type": "add",
+            "content": "    this.showIdle()",
+            "line": 194
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 195
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 196
+          },
+          {
+            "type": "add",
+            "content": "  update(time: number, delta: number): void {",
+            "line": 197
+          },
+          {
+            "type": "add",
+            "content": "    this.updateStars(time)",
+            "line": 198
+          },
+          {
+            "type": "add",
+            "content": "    this.updateFoodFx(time)",
+            "line": 199
+          },
+          {
+            "type": "add",
+            "content": "    this.updateScorePulse(delta)",
+            "line": 200
+          },
+          {
+            "type": "add",
+            "content": "    this.updateDebris(delta)",
+            "line": 201
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 202
+          },
+          {
+            "type": "add",
+            "content": "    if (this.phase !== 'playing' || this.paused) return",
+            "line": 203
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 204
+          },
+          {
+            "type": "add",
+            "content": "    this.accum += delta",
+            "line": 205
+          },
+          {
+            "type": "add",
+            "content": "    while (this.accum >= this.tickMs) {",
+            "line": 206
+          },
+          {
+            "type": "add",
+            "content": "      this.accum -= this.tickMs",
+            "line": 207
+          },
+          {
+            "type": "add",
+            "content": "      this.tick()",
+            "line": 208
+          },
+          {
+            "type": "add",
+            "content": "      if (this.phase !== 'playing') return",
+            "line": 209
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 210
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 211
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 212
+          },
+          {
+            "type": "add",
+            "content": "  private buildBackground(): void {",
+            "line": 213
+          },
+          {
+            "type": "add",
+            "content": "    // 一张 Canvas 纹理：竖向渐变 + 中心淡光 + 四周暗角",
+            "line": 214
+          },
+          {
+            "type": "add",
+            "content": "    const tex = this.textures.createCanvas('bg', GAME_W, GAME_H)",
+            "line": 215
+          },
+          {
+            "type": "add",
+            "content": "    if (tex) {",
+            "line": 216
+          },
+          {
+            "type": "add",
+            "content": "      const ctx = tex.getContext()",
+            "line": 217
+          },
+          {
+            "type": "add",
+            "content": "      const grad = ctx.createLinearGradient(0, 0, 0, GAME_H)",
+            "line": 218
+          },
+          {
+            "type": "add",
+            "content": "      grad.addColorStop(0, '#0e1526')",
+            "line": 219
+          },
+          {
+            "type": "add",
+            "content": "      grad.addColorStop(0.55, '#0a0e1a')",
+            "line": 220
+          },
+          {
+            "type": "add",
+            "content": "      grad.addColorStop(1, '#070910')",
+            "line": 221
+          },
+          {
+            "type": "add",
+            "content": "      ctx.fillStyle = grad",
+            "line": 222
+          },
+          {
+            "type": "add",
+            "content": "      ctx.fillRect(0, 0, GAME_W, GAME_H)",
+            "line": 223
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 224
+          },
+          {
+            "type": "add",
+            "content": "      const glow = ctx.createRadialGradient(",
+            "line": 225
+          },
+          {
+            "type": "add",
+            "content": "        GAME_W / 2, GAME_H / 2, 60,",
+            "line": 226
+          },
+          {
+            "type": "add",
+            "content": "        GAME_W / 2, GAME_H / 2, 520,",
+            "line": 227
+          },
+          {
+            "type": "add",
+            "content": "      )",
+            "line": 228
+          },
+          {
+            "type": "add",
+            "content": "      glow.addColorStop(0, 'rgba(76, 201, 240, 0.055)')",
+            "line": 229
+          },
+          {
+            "type": "add",
+            "content": "      glow.addColorStop(1, 'rgba(0, 0, 0, 0)')",
+            "line": 230
+          },
+          {
+            "type": "add",
+            "content": "      ctx.fillStyle = glow",
+            "line": 231
+          },
+          {
+            "type": "add",
+            "content": "      ctx.fillRect(0, 0, GAME_W, GAME_H)",
+            "line": 232
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 233
+          },
+          {
+            "type": "add",
+            "content": "      const vig = ctx.createRadialGradient(",
+            "line": 234
+          },
+          {
+            "type": "add",
+            "content": "        GAME_W / 2, GAME_H / 2, 190,",
+            "line": 235
+          },
+          {
+            "type": "add",
+            "content": "        GAME_W / 2, GAME_H / 2, 660,",
+            "line": 236
+          },
+          {
+            "type": "add",
+            "content": "      )",
+            "line": 237
+          },
+          {
+            "type": "add",
+            "content": "      vig.addColorStop(0, 'rgba(0, 0, 0, 0)')",
+            "line": 238
+          },
+          {
+            "type": "add",
+            "content": "      vig.addColorStop(1, 'rgba(0, 0, 0, 0.42)')",
+            "line": 239
+          },
+          {
+            "type": "add",
+            "content": "      ctx.fillStyle = vig",
+            "line": 240
+          },
+          {
+            "type": "add",
+            "content": "      ctx.fillRect(0, 0, GAME_W, GAME_H)",
+            "line": 241
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 242
+          },
+          {
+            "type": "add",
+            "content": "      tex.refresh()",
+            "line": 243
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 244
+          },
+          {
+            "type": "add",
+            "content": "    this.add.image(0, 0, 'bg').setOrigin(0).setDepth(0)",
+            "line": 245
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 246
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 247
+          },
+          {
+            "type": "add",
+            "content": "  private buildStars(): void {",
+            "line": 248
+          },
+          {
+            "type": "add",
+            "content": "    for (let i = 0; i < STAR_COUNT; i += 1) {",
+            "line": 249
+          },
+          {
+            "type": "add",
+            "content": "      const size = randInt(1, 2)",
+            "line": 250
+          },
+          {
+            "type": "add",
+            "content": "      const node = this.add",
+            "line": 251
+          },
+          {
+            "type": "add",
+            "content": "        .rectangle(rand(0, GAME_W), rand(0, GAME_H), size, size, COLOR.star, 0)",
+            "line": 252
+          },
+          {
+            "type": "add",
+            "content": "        .setDepth(1)",
+            "line": 253
+          },
+          {
+            "type": "add",
+            "content": "      this.stars.push({ node, speed: rand(0.6, 1.8), phase: Math.random() * Math.PI * 2 })",
+            "line": 254
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 255
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 256
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 257
+          },
+          {
+            "type": "add",
+            "content": "  private updateStars(time: number): void {",
+            "line": 258
+          },
+          {
+            "type": "add",
+            "content": "    for (const s of this.stars) {",
+            "line": 259
+          },
+          {
+            "type": "add",
+            "content": "      const t = (time / 1000) * s.speed + s.phase",
+            "line": 260
+          },
+          {
+            "type": "add",
+            "content": "      s.node.setAlpha(0.1 + 0.24 * (0.5 + 0.5 * Math.sin(t)))",
+            "line": 261
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 262
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 263
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 264
+          },
+          {
+            "type": "add",
+            "content": "  private buildBoard(): void {",
+            "line": 265
+          },
+          {
+            "type": "add",
+            "content": "    const g = this.add.graphics().setDepth(2)",
+            "line": 266
+          },
+          {
+            "type": "add",
+            "content": "    // 2×2 棋盘格，画在渐变之上产生\"板面\"感",
+            "line": 267
+          },
+          {
+            "type": "add",
+            "content": "    g.fillStyle(COLOR.checker, 0.5)",
+            "line": 268
+          },
+          {
+            "type": "add",
+            "content": "    for (let cy = 0; cy < ROWS; cy += 2) {",
+            "line": 269
+          },
+          {
+            "type": "add",
+            "content": "      for (let cx = 0; cx < COLS; cx += 2) {",
+            "line": 270
+          },
+          {
+            "type": "add",
+            "content": "        if (((cx + cy) / 2) % 2 === 0) {",
+            "line": 271
+          },
+          {
+            "type": "add",
+            "content": "          g.fillRect(cx * GRID, cy * GRID, GRID * 2, GRID * 2)",
+            "line": 272
+          },
+          {
+            "type": "add",
+            "content": "        }",
+            "line": 273
+          },
+          {
+            "type": "add",
+            "content": "      }",
+            "line": 274
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 275
+          },
+          {
+            "type": "add",
+            "content": "    // 细网格线",
+            "line": 276
+          },
+          {
+            "type": "add",
+            "content": "    g.lineStyle(1, COLOR.grid, 0.5)",
+            "line": 277
+          },
+          {
+            "type": "add",
+            "content": "    for (let c = 1; c < COLS; c += 1) {",
+            "line": 278
+          },
+          {
+            "type": "add",
+            "content": "      g.lineBetween(c * GRID, 0, c * GRID, GAME_H)",
+            "line": 279
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 280
+          },
+          {
+            "type": "add",
+            "content": "    for (let r = 1; r < ROWS; r += 1) {",
+            "line": 281
+          },
+          {
+            "type": "add",
+            "content": "      g.lineBetween(0, r * GRID, GAME_W, r * GRID)",
+            "line": 282
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 283
+          },
+          {
+            "type": "add",
+            "content": "    // 外框：内层微光 + 实线",
+            "line": 284
+          },
+          {
+            "type": "add",
+            "content": "    g.lineStyle(1, COLOR.head, 0.18)",
+            "line": 285
+          },
+          {
+            "type": "add",
+            "content": "    g.strokeRect(3, 3, GAME_W - 6, GAME_H - 6)",
+            "line": 286
+          },
+          {
+            "type": "add",
+            "content": "    g.lineStyle(2, COLOR.frame, 1)",
+            "line": 287
+          },
+          {
+            "type": "add",
+            "content": "    g.strokeRect(1, 1, GAME_W - 2, GAME_H - 2)",
+            "line": 288
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 289
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 290
+          },
+          {
+            "type": "add",
+            "content": "  private buildSnake(): void {",
+            "line": 291
+          },
+          {
+            "type": "add",
+            "content": "    this.snakeGfx = this.add.graphics().setDepth(8)",
+            "line": 292
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 293
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 294
+          },
+          {
+            "type": "add",
+            "content": "  private buildFood(): void {",
+            "line": 295
+          },
+          {
+            "type": "add",
+            "content": "    // 发光宝珠：光晕 + 半透明环 + 主体 + 高光 + 旋转星芒",
+            "line": 296
+          },
+          {
+            "type": "add",
+            "content": "    this.foodContainer = this.add.container(0, 0).setDepth(6).setVisible(false)",
+            "line": 297
+          },
+          {
+            "type": "add",
+            "content": "    const glow = this.add.circle(0, 0, GRID * 0.78, COLOR.foodGlow, 0.15)",
+            "line": 298
+          },
+          {
+            "type": "add",
+            "content": "    const halo = this.add.circle(0, 0, FOOD_R + 6, COLOR.food, 0.2)",
+            "line": 299
+          },
+          {
+            "type": "add",
+            "content": "    const orb = this.add.circle(0, 0, FOOD_R, COLOR.food, 1)",
+            "line": 300
+          },
+          {
+            "type": "add",
+            "content": "    const core = this.add.circle(-FOOD_R * 0.36, -FOOD_R * 0.4, FOOD_R * 0.34, 0xffffff, 0.9)",
+            "line": 301
+          },
+          {
+            "type": "add",
+            "content": "    this.foodStar = this.add.graphics()",
+            "line": 302
+          },
+          {
+            "type": "add",
+            "content": "    this.foodStar.lineStyle(2, 0xffffff, 0.38)",
+            "line": 303
+          },
+          {
+            "type": "add",
+            "content": "    this.foodStar.lineBetween(-18, 0, -12, 0)",
+            "line": 304
+          },
+          {
+            "type": "add",
+            "content": "    this.foodStar.lineBetween(12, 0, 18, 0)",
+            "line": 305
+          },
+          {
+            "type": "add",
+            "content": "    this.foodStar.lineBetween(0, -18, 0, -12)",
+            "line": 306
+          },
+          {
+            "type": "add",
+            "content": "    this.foodStar.lineBetween(0, 12, 0, 18)",
+            "line": 307
+          },
+          {
+            "type": "add",
+            "content": "    this.foodContainer.add([glow, halo, orb, core, this.foodStar])",
+            "line": 308
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 309
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 310
+          },
+          {
+            "type": "add",
+            "content": "  private buildHud(): void {",
+            "line": 311
+          },
+          {
+            "type": "add",
+            "content": "    this.scoreText = this.add",
+            "line": 312
+          },
+          {
+            "type": "add",
+            "content": "      .text(30, 22, '0', { fontFamily: FONT, fontSize: '42px', color: '#e9edf6' })",
+            "line": 313
+          },
+          {
+            "type": "add",
+            "content": "      .setDepth(20)",
+            "line": 314
+          },
+          {
+            "type": "add",
+            "content": "    this.bestText = this.add",
+            "line": 315
+          },
+          {
+            "type": "add",
+            "content": "      .text(GAME_W - 30, 34, `BEST ${this.best}`, {",
+            "line": 316
+          },
+          {
+            "type": "add",
+            "content": "        fontFamily: FONT,",
+            "line": 317
+          },
+          {
+            "type": "add",
+            "content": "        fontSize: '16px',",
+            "line": 318
+          },
+          {
+            "type": "add",
+            "content": "        color: '#8b95ab',",
+            "line": 319
+          },
+          {
+            "type": "add",
+            "content": "      })",
+            "line": 320
+          },
+          {
+            "type": "add",
+            "content": "      .setOrigin(1, 0)",
+            "line": 321
+          },
+          {
+            "type": "add",
+            "content": "      .setDepth(20)",
+            "line": 322
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 323
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 324
+          },
+          {
+            "type": "add",
+            "content": "  private buildOverlay(): void {",
+            "line": 325
+          },
+          {
+            "type": "add",
+            "content": "    this.overlay = this.add.container(0, 0).setDepth(50)",
+            "line": 326
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 327
+          },
+          {
+            "type": "add",
+            "content": "    this.overlayTitle = this.add",
+            "line": 328
+          },
+          {
+            "type": "add",
+            "content": "      .text(GAME_W / 2, 186, '', { fontFamily: FONT, fontSize: '54px', color: '#e9edf6' })",
+            "line": 329
+          },
+          {
+            "type": "add",
+            "content": "      .setOrigin(0.5)",
+            "line": 330
+          },
+          {
+            "type": "add",
+            "content": "    this.overlayDetail = this.add",
+            "line": 331
+          },
+          {
+            "type": "add",
+            "content": "      .text(GAME_W / 2, 256, '', { fontFamily: FONT, fontSize: '18px', color: '#8b95ab' })",
+            "line": 332
+          },
+          {
+            "type": "add",
+            "content": "      .setOrigin(0.5)",
+            "line": 333
+          },
+          {
+            "type": "add",
+            "content": "    this.overlayHint = this.add",
+            "line": 334
+          },
+          {
+            "type": "add",
+            "content": "      .text(GAME_W / 2, 312, '', { fontFamily: FONT, fontSize: '16px', color: '#4cc9f0' })",
+            "line": 335
+          },
+          {
+            "type": "add",
+            "content": "      .setOrigin(0.5)",
+            "line": 336
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 337
+          },
+          {
+            "type": "add",
+            "content": "    this.overlay.add([this.overlayTitle, this.overlayDetail, this.overlayHint])",
+            "line": 338
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 339
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 340
+          },
+          {
+            "type": "add",
+            "content": "  private showIdle(): void {",
+            "line": 341
+          },
+          {
+            "type": "add",
+            "content": "    this.overlayTitle.setText('NEON SNAKE')",
+            "line": 342
+          },
+          {
+            "type": "add",
+            "content": "    this.overlayDetail.setText('无墙模式：穿墙从对面出来，吃光点变长')",
+            "line": 343
+          },
+          {
+            "type": "add",
+            "content": "    this.overlayHint.setText('方向键 / WASD 控制，点击屏幕开始')",
+            "line": 344
+          },
+          {
+            "type": "add",
+            "content": "    this.overlay.setVisible(true)",
+            "line": 345
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 346
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 347
+          },
+          {
+            "type": "add",
+            "content": "  private showOver(reason: 'self' | 'win'): void {",
+            "line": 348
+          },
+          {
+            "type": "add",
+            "content": "    const title = reason === 'win' ? '通关了！' : '咬到自己了'",
+            "line": 349
+          },
+          {
+            "type": "add",
+            "content": "    this.overlayTitle.setText(title)",
+            "line": 350
+          },
+          {
+            "type": "add",
+            "content": "    this.overlayDetail.setText(`本次得分 ${this.score}　·　最高分 ${this.best}`)",
+            "line": 351
+          },
+          {
+            "type": "add",
+            "content": "    this.overlayHint.setText('点击屏幕 / 空格 再来一次')",
+            "line": 352
+          },
+          {
+            "type": "add",
+            "content": "    this.overlay.setVisible(true)",
+            "line": 353
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 354
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 355
+          },
+          {
+            "type": "add",
+            "content": "  private onAction(): void {",
+            "line": 356
+          },
+          {
+            "type": "add",
+            "content": "    if (this.phase === 'idle') {",
+            "line": 357
+          },
+          {
+            "type": "add",
+            "content": "      this.startRun()",
+            "line": 358
+          },
+          {
+            "type": "add",
+            "content": "      return",
+            "line": 359
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 360
+          },
+          {
+            "type": "add",
+            "content": "    if (this.phase === 'over') {",
+            "line": 361
+          },
+          {
+            "type": "add",
+            "content": "      if (this.time.now - this.overAt < RESTART_LOCK_MS) return",
+            "line": 362
+          },
+          {
+            "type": "add",
+            "content": "      this.startRun()",
+            "line": 363
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 364
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 365
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 366
+          },
+          {
+            "type": "add",
+            "content": "  private onPointerDown(pointer: Phaser.Input.Pointer): void {",
+            "line": 367
+          },
+          {
+            "type": "add",
+            "content": "    if (this.phase === 'idle' || this.phase === 'over') {",
+            "line": 368
+          },
+          {
+            "type": "add",
+            "content": "      this.onAction()",
+            "line": 369
+          },
+          {
+            "type": "add",
+            "content": "      return",
+            "line": 370
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 371
+          },
+          {
+            "type": "add",
+            "content": "    if (this.paused) {",
+            "line": 372
+          },
+          {
+            "type": "add",
+            "content": "      this.togglePause()",
+            "line": 373
+          },
+          {
+            "type": "add",
+            "content": "      return",
+            "line": 374
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 375
+          },
+          {
+            "type": "add",
+            "content": "    this.swipeStart = { x: pointer.x, y: pointer.y }",
+            "line": 376
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 377
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 378
+          },
+          {
+            "type": "add",
+            "content": "  private onPointerUp(pointer: Phaser.Input.Pointer): void {",
+            "line": 379
+          },
+          {
+            "type": "add",
+            "content": "    if (this.phase !== 'playing' || !this.swipeStart) return",
+            "line": 380
+          },
+          {
+            "type": "add",
+            "content": "    const dx = pointer.x - this.swipeStart.x",
+            "line": 381
+          },
+          {
+            "type": "add",
+            "content": "    const dy = pointer.y - this.swipeStart.y",
+            "line": 382
+          },
+          {
+            "type": "add",
+            "content": "    this.swipeStart = null",
+            "line": 383
+          },
+          {
+            "type": "add",
+            "content": "    if (Math.abs(dx) < SWIPE_THRESHOLD && Math.abs(dy) < SWIPE_THRESHOLD) return",
+            "line": 384
+          },
+          {
+            "type": "add",
+            "content": "    if (Math.abs(dx) > Math.abs(dy)) {",
+            "line": 385
+          },
+          {
+            "type": "add",
+            "content": "      this.queueDir(dx > 0 ? 'right' : 'left')",
+            "line": 386
+          },
+          {
+            "type": "add",
+            "content": "    } else {",
+            "line": 387
+          },
+          {
+            "type": "add",
+            "content": "      this.queueDir(dy > 0 ? 'down' : 'up')",
+            "line": 388
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 389
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 390
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 391
+          },
+          {
+            "type": "add",
+            "content": "  private togglePause(): void {",
+            "line": 392
+          },
+          {
+            "type": "add",
+            "content": "    if (this.phase !== 'playing') return",
+            "line": 393
+          },
+          {
+            "type": "add",
+            "content": "    this.paused = !this.paused",
+            "line": 394
+          },
+          {
+            "type": "add",
+            "content": "    this.overlayTitle.setText(this.paused ? '已暂停' : '')",
+            "line": 395
+          },
+          {
+            "type": "add",
+            "content": "    this.overlayDetail.setText(this.paused ? '按 P 或点击屏幕继续' : '')",
+            "line": 396
+          },
+          {
+            "type": "add",
+            "content": "    this.overlayHint.setText('')",
+            "line": 397
+          },
+          {
+            "type": "add",
+            "content": "    this.overlay.setVisible(this.paused)",
+            "line": 398
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 399
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 400
+          },
+          {
+            "type": "add",
+            "content": "  private queueDir(dir: Dir): void {",
+            "line": 401
+          },
+          {
+            "type": "add",
+            "content": "    if (this.phase !== 'playing' || this.paused) return",
+            "line": 402
+          },
+          {
+            "type": "add",
+            "content": "    const last = this.dirQueue.length > 0 ? (this.dirQueue[this.dirQueue.length - 1] as Dir) : this.dir",
+            "line": 403
+          },
+          {
+            "type": "add",
+            "content": "    if (dir === last || dir === OPPOSITE[last]) return",
+            "line": 404
+          },
+          {
+            "type": "add",
+            "content": "    if (this.dirQueue.length >= 3) return",
+            "line": 405
+          },
+          {
+            "type": "add",
+            "content": "    this.dirQueue.push(dir)",
+            "line": 406
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 407
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 408
+          },
+          {
+            "type": "add",
+            "content": "  private startRun(): void {",
+            "line": 409
+          },
+          {
+            "type": "add",
+            "content": "    this.clearDebris()",
+            "line": 410
+          },
+          {
+            "type": "add",
+            "content": "    this.sfx.warm()",
+            "line": 411
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 412
+          },
+          {
+            "type": "add",
+            "content": "    this.snake = []",
+            "line": 413
+          },
+          {
+            "type": "add",
+            "content": "    const startX = Math.floor(COLS / 2) - 2",
+            "line": 414
+          },
+          {
+            "type": "add",
+            "content": "    const startY = Math.floor(ROWS / 2)",
+            "line": 415
+          },
+          {
+            "type": "add",
+            "content": "    // 头在最前（初始朝右），身体依次排在身后",
+            "line": 416
+          },
+          {
+            "type": "add",
+            "content": "    for (let i = 0; i < START_LEN; i += 1) {",
+            "line": 417
+          },
+          {
+            "type": "add",
+            "content": "      this.snake.push({ x: startX - i, y: startY })",
+            "line": 418
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 419
+          },
+          {
+            "type": "add",
+            "content": "    this.dir = 'right'",
+            "line": 420
+          },
+          {
+            "type": "add",
+            "content": "    this.dirQueue = []",
+            "line": 421
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 422
+          },
+          {
+            "type": "add",
+            "content": "    this.score = 0",
+            "line": 423
+          },
+          {
+            "type": "add",
+            "content": "    this.tickMs = TICK_MS_START",
+            "line": 424
+          },
+          {
+            "type": "add",
+            "content": "    this.accum = 0",
+            "line": 425
+          },
+          {
+            "type": "add",
+            "content": "    this.scorePulse = 0",
+            "line": 426
+          },
+          {
+            "type": "add",
+            "content": "    this.paused = false",
+            "line": 427
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 428
+          },
+          {
+            "type": "add",
+            "content": "    this.renderSnake()",
+            "line": 429
+          },
+          {
+            "type": "add",
+            "content": "    this.spawnFood()",
+            "line": 430
+          },
+          {
+            "type": "add",
+            "content": "    this.scoreText.setText('0').setScale(1)",
+            "line": 431
+          },
+          {
+            "type": "add",
+            "content": "    this.snakeGfx.setAlpha(1)",
+            "line": 432
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 433
+          },
+          {
+            "type": "add",
+            "content": "    this.overlay.setVisible(false)",
+            "line": 434
+          },
+          {
+            "type": "add",
+            "content": "    this.phase = 'playing'",
+            "line": 435
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 436
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 437
+          },
+          {
+            "type": "add",
+            "content": "  private playerAlpha(alpha: number): void {",
+            "line": 438
+          },
+          {
+            "type": "add",
+            "content": "    this.snakeGfx.setAlpha(alpha)",
+            "line": 439
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 440
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 441
+          },
+          {
+            "type": "add",
+            "content": "  private tick(): void {",
+            "line": 442
+          },
+          {
+            "type": "add",
+            "content": "    const next = this.dirQueue.shift()",
+            "line": 443
+          },
+          {
+            "type": "add",
+            "content": "    if (next) this.dir = next",
+            "line": 444
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 445
+          },
+          {
+            "type": "add",
+            "content": "    const head = this.snake[0] as Cell",
+            "line": 446
+          },
+          {
+            "type": "add",
+            "content": "    // 无墙模式：出界从另一侧穿回",
+            "line": 447
+          },
+          {
+            "type": "add",
+            "content": "    const nx = (head.x + DIR_VEC[this.dir].x + COLS) % COLS",
+            "line": 448
+          },
+          {
+            "type": "add",
+            "content": "    const ny = (head.y + DIR_VEC[this.dir].y + ROWS) % ROWS",
+            "line": 449
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 450
+          },
+          {
+            "type": "add",
+            "content": "    // 撞自己：尾部本 tick 会让位，故只查 [0, len-2]；吃到食物时尾部不动，查全",
+            "line": 451
+          },
+          {
+            "type": "add",
+            "content": "    const eating = nx === this.food.x && ny === this.food.y",
+            "line": 452
+          },
+          {
+            "type": "add",
+            "content": "    const bodyLen = eating ? this.snake.length : this.snake.length - 1",
+            "line": 453
+          },
+          {
+            "type": "add",
+            "content": "    for (let i = 0; i < bodyLen; i += 1) {",
+            "line": 454
+          },
+          {
+            "type": "add",
+            "content": "      const part = this.snake[i] as Cell",
+            "line": 455
+          },
+          {
+            "type": "add",
+            "content": "      if (part.x === nx && part.y === ny) {",
+            "line": 456
+          },
+          {
+            "type": "add",
+            "content": "        this.endRun('self')",
+            "line": 457
+          },
+          {
+            "type": "add",
+            "content": "        return",
+            "line": 458
+          },
+          {
+            "type": "add",
+            "content": "      }",
+            "line": 459
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 460
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 461
+          },
+          {
+            "type": "add",
+            "content": "    this.snake.unshift({ x: nx, y: ny })",
+            "line": 462
+          },
+          {
+            "type": "add",
+            "content": "    if (eating) {",
+            "line": 463
+          },
+          {
+            "type": "add",
+            "content": "      this.onEat()",
+            "line": 464
+          },
+          {
+            "type": "add",
+            "content": "    } else {",
+            "line": 465
+          },
+          {
+            "type": "add",
+            "content": "      this.snake.pop()",
+            "line": 466
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 467
+          },
+          {
+            "type": "add",
+            "content": "    this.renderSnake()",
+            "line": 468
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 469
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 470
+          },
+          {
+            "type": "add",
+            "content": "  private onEat(): void {",
+            "line": 471
+          },
+          {
+            "type": "add",
+            "content": "    this.score += 1",
+            "line": 472
+          },
+          {
+            "type": "add",
+            "content": "    this.scoreText.setText(String(this.score))",
+            "line": 473
+          },
+          {
+            "type": "add",
+            "content": "    this.scorePulse = 1",
+            "line": 474
+          },
+          {
+            "type": "add",
+            "content": "    this.tickMs = Math.max(TICK_MS_MIN, this.tickMs - TICK_MS_STEP)",
+            "line": 475
+          },
+          {
+            "type": "add",
+            "content": "    this.sfx.eat()",
+            "line": 476
+          },
+          {
+            "type": "add",
+            "content": "    this.spawnFood()",
+            "line": 477
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 478
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 479
+          },
+          {
+            "type": "add",
+            "content": "  private spawnFood(): void {",
+            "line": 480
+          },
+          {
+            "type": "add",
+            "content": "    // 拒绝采样，命中太差时全盘扫描兜底",
+            "line": 481
+          },
+          {
+            "type": "add",
+            "content": "    let x = 0",
+            "line": 482
+          },
+          {
+            "type": "add",
+            "content": "    let y = 0",
+            "line": 483
+          },
+          {
+            "type": "add",
+            "content": "    let found = false",
+            "line": 484
+          },
+          {
+            "type": "add",
+            "content": "    for (let i = 0; i < 512 && !found; i += 1) {",
+            "line": 485
+          },
+          {
+            "type": "add",
+            "content": "      x = randInt(0, COLS - 1)",
+            "line": 486
+          },
+          {
+            "type": "add",
+            "content": "      y = randInt(0, ROWS - 1)",
+            "line": 487
+          },
+          {
+            "type": "add",
+            "content": "      found = !this.isOnSnake(x, y)",
+            "line": 488
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 489
+          },
+          {
+            "type": "add",
+            "content": "    if (!found) {",
+            "line": 490
+          },
+          {
+            "type": "add",
+            "content": "      const free: Cell[] = []",
+            "line": 491
+          },
+          {
+            "type": "add",
+            "content": "      for (let cy = 0; cy < ROWS; cy += 1) {",
+            "line": 492
+          },
+          {
+            "type": "add",
+            "content": "        for (let cx = 0; cx < COLS; cx += 1) {",
+            "line": 493
+          },
+          {
+            "type": "add",
+            "content": "          if (!this.isOnSnake(cx, cy)) free.push({ x: cx, y: cy })",
+            "line": 494
+          },
+          {
+            "type": "add",
+            "content": "        }",
+            "line": 495
+          },
+          {
+            "type": "add",
+            "content": "      }",
+            "line": 496
+          },
+          {
+            "type": "add",
+            "content": "      if (free.length === 0) {",
+            "line": 497
+          },
+          {
+            "type": "add",
+            "content": "        this.endRun('win')",
+            "line": 498
+          },
+          {
+            "type": "add",
+            "content": "        return",
+            "line": 499
+          },
+          {
+            "type": "add",
+            "content": "      }",
+            "line": 500
+          },
+          {
+            "type": "add",
+            "content": "      const cell = free[Math.floor(Math.random() * free.length)]",
+            "line": 501
+          },
+          {
+            "type": "add",
+            "content": "      x = cell!.x",
+            "line": 502
+          },
+          {
+            "type": "add",
+            "content": "      y = cell!.y",
+            "line": 503
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 504
+          },
+          {
+            "type": "add",
+            "content": "    this.food = { x, y }",
+            "line": 505
+          },
+          {
+            "type": "add",
+            "content": "    this.setFoodPosition()",
+            "line": 506
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 507
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 508
+          },
+          {
+            "type": "add",
+            "content": "  private setFoodPosition(): void {",
+            "line": 509
+          },
+          {
+            "type": "add",
+            "content": "    const px = (this.food.x + 0.5) * GRID",
+            "line": 510
+          },
+          {
+            "type": "add",
+            "content": "    const py = (this.food.y + 0.5) * GRID",
+            "line": 511
+          },
+          {
+            "type": "add",
+            "content": "    this.foodContainer.setPosition(px, py).setScale(1).setAlpha(1).setVisible(true)",
+            "line": 512
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 513
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 514
+          },
+          {
+            "type": "add",
+            "content": "  // 呼吸 + 星芒旋转，由 update 驱动（与暂停状态无关，纯视觉）",
+            "line": 515
+          },
+          {
+            "type": "add",
+            "content": "  private updateFoodFx(time: number): void {",
+            "line": 516
+          },
+          {
+            "type": "add",
+            "content": "    if (!this.foodContainer.visible) return",
+            "line": 517
+          },
+          {
+            "type": "add",
+            "content": "    this.foodContainer.setScale(1 + Math.sin(time / 200) * 0.08)",
+            "line": 518
+          },
+          {
+            "type": "add",
+            "content": "    this.foodStar.rotation = (time / 2600) * Math.PI * 2",
+            "line": 519
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 520
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 521
+          },
+          {
+            "type": "add",
+            "content": "  private isOnSnake(x: number, y: number): boolean {",
+            "line": 522
+          },
+          {
+            "type": "add",
+            "content": "    return this.snake.some((s) => s.x === x && s.y === y)",
+            "line": 523
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 524
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 525
+          },
+          {
+            "type": "add",
+            "content": "  private segmentColor(index: number, len: number): number {",
+            "line": 526
+          },
+          {
+            "type": "add",
+            "content": "    if (index === 0) return COLOR.head",
+            "line": 527
+          },
+          {
+            "type": "add",
+            "content": "    const c = Phaser.Display.Color.Interpolate.ColorWithColor(",
+            "line": 528
+          },
+          {
+            "type": "add",
+            "content": "      Phaser.Display.Color.ValueToColor(COLOR.head),",
+            "line": 529
+          },
+          {
+            "type": "add",
+            "content": "      Phaser.Display.Color.ValueToColor(COLOR.tail),",
+            "line": 530
+          },
+          {
+            "type": "add",
+            "content": "      Math.max(1, len - 1),",
+            "line": 531
+          },
+          {
+            "type": "add",
+            "content": "      index,",
+            "line": 532
+          },
+          {
+            "type": "add",
+            "content": "    )",
+            "line": 533
+          },
+          {
+            "type": "add",
+            "content": "    return Phaser.Display.Color.GetColor(c.r, c.g, c.b)",
+            "line": 534
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 535
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 536
+          },
+          {
+            "type": "add",
+            "content": "  private renderSnake(): void {",
+            "line": 537
+          },
+          {
+            "type": "add",
+            "content": "    const g = this.snakeGfx",
+            "line": 538
+          },
+          {
+            "type": "add",
+            "content": "    g.clear()",
+            "line": 539
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 540
+          },
+          {
+            "type": "add",
+            "content": "    // 环绕展开：从头出发按相邻单元格差计算屏幕坐标，穿墙时蛇身保持连续不撕裂",
+            "line": 541
+          },
+          {
+            "type": "add",
+            "content": "    const len = this.snake.length",
+            "line": 542
+          },
+          {
+            "type": "add",
+            "content": "    const pts: { x: number; y: number }[] = []",
+            "line": 543
+          },
+          {
+            "type": "add",
+            "content": "    let sx = 0",
+            "line": 544
+          },
+          {
+            "type": "add",
+            "content": "    let sy = 0",
+            "line": 545
+          },
+          {
+            "type": "add",
+            "content": "    this.snake.forEach((cell, i) => {",
+            "line": 546
+          },
+          {
+            "type": "add",
+            "content": "      if (i === 0) {",
+            "line": 547
+          },
+          {
+            "type": "add",
+            "content": "        sx = (cell.x + 0.5) * GRID",
+            "line": 548
+          },
+          {
+            "type": "add",
+            "content": "        sy = (cell.y + 0.5) * GRID",
+            "line": 549
+          },
+          {
+            "type": "add",
+            "content": "      } else {",
+            "line": 550
+          },
+          {
+            "type": "add",
+            "content": "        const prev = this.snake[i - 1] as Cell",
+            "line": 551
+          },
+          {
+            "type": "add",
+            "content": "        let offX = cell.x - prev.x",
+            "line": 552
+          },
+          {
+            "type": "add",
+            "content": "        let offY = cell.y - prev.y",
+            "line": 553
+          },
+          {
+            "type": "add",
+            "content": "        if (offX > 1) offX -= COLS",
+            "line": 554
+          },
+          {
+            "type": "add",
+            "content": "        if (offX < -1) offX += COLS",
+            "line": 555
+          },
+          {
+            "type": "add",
+            "content": "        if (offY > 1) offY -= ROWS",
+            "line": 556
+          },
+          {
+            "type": "add",
+            "content": "        if (offY < -1) offY += ROWS",
+            "line": 557
+          },
+          {
+            "type": "add",
+            "content": "        sx += offX * GRID",
+            "line": 558
+          },
+          {
+            "type": "add",
+            "content": "        sy += offY * GRID",
+            "line": 559
+          },
+          {
+            "type": "add",
+            "content": "      }",
+            "line": 560
+          },
+          {
+            "type": "add",
+            "content": "      pts.push({ x: sx, y: sy })",
+            "line": 561
+          },
+          {
+            "type": "add",
+            "content": "    })",
+            "line": 562
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 563
+          },
+          {
+            "type": "add",
+            "content": "    // 身体：从尾画到第二节，圆角矩形 + 深色描边，尾部渐细",
+            "line": 564
+          },
+          {
+            "type": "add",
+            "content": "    for (let i = len - 1; i >= 1; i -= 1) {",
+            "line": 565
+          },
+          {
+            "type": "add",
+            "content": "      const p = pts[i] as { x: number; y: number }",
+            "line": 566
+          },
+          {
+            "type": "add",
+            "content": "      const taper = Math.max(0, i - (len - 4)) * 2.5",
+            "line": 567
+          },
+          {
+            "type": "add",
+            "content": "      const size = GRID - 5 - taper",
+            "line": 568
+          },
+          {
+            "type": "add",
+            "content": "      const color = this.segmentColor(i, len)",
+            "line": 569
+          },
+          {
+            "type": "add",
+            "content": "      g.fillStyle(color, 1)",
+            "line": 570
+          },
+          {
+            "type": "add",
+            "content": "      g.fillRoundedRect(p.x - size / 2, p.y - size / 2, size, size, 8)",
+            "line": 571
+          },
+          {
+            "type": "add",
+            "content": "      g.lineStyle(1.5, COLOR.outline, 0.3)",
+            "line": 572
+          },
+          {
+            "type": "add",
+            "content": "      g.strokeRoundedRect(p.x - size / 2, p.y - size / 2, size, size, 8)",
+            "line": 573
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 574
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 575
+          },
+          {
+            "type": "add",
+            "content": "    // 头部：光晕 + 圆头 + 高光 + 朝移动方向的眼睛",
+            "line": 576
+          },
+          {
+            "type": "add",
+            "content": "    const head = pts[0] as { x: number; y: number }",
+            "line": 577
+          },
+          {
+            "type": "add",
+            "content": "    g.fillStyle(COLOR.head, 0.1)",
+            "line": 578
+          },
+          {
+            "type": "add",
+            "content": "    g.fillCircle(head.x, head.y, GRID * 0.95)",
+            "line": 579
+          },
+          {
+            "type": "add",
+            "content": "    g.fillStyle(COLOR.head, 1)",
+            "line": 580
+          },
+          {
+            "type": "add",
+            "content": "    g.fillCircle(head.x, head.y, GRID / 2 - 3)",
+            "line": 581
+          },
+          {
+            "type": "add",
+            "content": "    g.fillStyle(0xffffff, 0.26)",
+            "line": 582
+          },
+          {
+            "type": "add",
+            "content": "    g.fillCircle(head.x - 4, head.y - 4.5, 4.5)",
+            "line": 583
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 584
+          },
+          {
+            "type": "add",
+            "content": "    const dv = DIR_VEC[this.dir]",
+            "line": 585
+          },
+          {
+            "type": "add",
+            "content": "    const px = -dv.y",
+            "line": 586
+          },
+          {
+            "type": "add",
+            "content": "    const py = dv.x",
+            "line": 587
+          },
+          {
+            "type": "add",
+            "content": "    for (const side of [-1, 1] as const) {",
+            "line": 588
+          },
+          {
+            "type": "add",
+            "content": "      const ex = head.x + dv.x * 6 + px * 7.5 * side",
+            "line": 589
+          },
+          {
+            "type": "add",
+            "content": "      const ey = head.y + dv.y * 6 + py * 7.5 * side",
+            "line": 590
+          },
+          {
+            "type": "add",
+            "content": "      g.fillStyle(0xffffff, 1)",
+            "line": 591
+          },
+          {
+            "type": "add",
+            "content": "      g.fillCircle(ex, ey, 4.6)",
+            "line": 592
+          },
+          {
+            "type": "add",
+            "content": "      g.fillStyle(COLOR.outline, 1)",
+            "line": 593
+          },
+          {
+            "type": "add",
+            "content": "      g.fillCircle(ex + dv.x * 1.8, ey + dv.y * 1.8, 2.3)",
+            "line": 594
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 595
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 596
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 597
+          },
+          {
+            "type": "add",
+            "content": "  private updateScorePulse(delta: number): void {",
+            "line": 598
+          },
+          {
+            "type": "add",
+            "content": "    const dt = Math.min(delta, 50) / 1000",
+            "line": 599
+          },
+          {
+            "type": "add",
+            "content": "    if (this.scorePulse <= 0) return",
+            "line": 600
+          },
+          {
+            "type": "add",
+            "content": "    this.scorePulse = Math.max(0, this.scorePulse - dt * 6)",
+            "line": 601
+          },
+          {
+            "type": "add",
+            "content": "    this.scoreText.setScale(1 + this.scorePulse * 0.18)",
+            "line": 602
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 603
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 604
+          },
+          {
+            "type": "add",
+            "content": "  private updateDebris(delta: number): void {",
+            "line": 605
+          },
+          {
+            "type": "add",
+            "content": "    const dt = Math.min(delta, 50) / 1000",
+            "line": 606
+          },
+          {
+            "type": "add",
+            "content": "    for (let i = this.debris.length - 1; i >= 0; i -= 1) {",
+            "line": 607
+          },
+          {
+            "type": "add",
+            "content": "      const d = this.debris[i] as Debris",
+            "line": 608
+          },
+          {
+            "type": "add",
+            "content": "      d.life += dt",
+            "line": 609
+          },
+          {
+            "type": "add",
+            "content": "      d.vy += 900 * dt",
+            "line": 610
+          },
+          {
+            "type": "add",
+            "content": "      d.node.x += d.vx * dt",
+            "line": 611
+          },
+          {
+            "type": "add",
+            "content": "      d.node.y += d.vy * dt",
+            "line": 612
+          },
+          {
+            "type": "add",
+            "content": "      d.node.setAlpha(Math.max(0, 1 - d.life / d.maxLife))",
+            "line": 613
+          },
+          {
+            "type": "add",
+            "content": "      if (d.life >= d.maxLife) {",
+            "line": 614
+          },
+          {
+            "type": "add",
+            "content": "        d.node.destroy()",
+            "line": 615
+          },
+          {
+            "type": "add",
+            "content": "        this.debris.splice(i, 1)",
+            "line": 616
+          },
+          {
+            "type": "add",
+            "content": "      }",
+            "line": 617
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 618
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 619
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 620
+          },
+          {
+            "type": "add",
+            "content": "  private burstDebris(",
+            "line": 621
+          },
+          {
+            "type": "add",
+            "content": "    x: number,",
+            "line": 622
+          },
+          {
+            "type": "add",
+            "content": "    y: number,",
+            "line": 623
+          },
+          {
+            "type": "add",
+            "content": "    color: number,",
+            "line": 624
+          },
+          {
+            "type": "add",
+            "content": "    count: number,",
+            "line": 625
+          },
+          {
+            "type": "add",
+            "content": "    speedMin: number,",
+            "line": 626
+          },
+          {
+            "type": "add",
+            "content": "    speedMax: number,",
+            "line": 627
+          },
+          {
+            "type": "add",
+            "content": "  ): void {",
+            "line": 628
+          },
+          {
+            "type": "add",
+            "content": "    for (let i = 0; i < count; i += 1) {",
+            "line": 629
+          },
+          {
+            "type": "add",
+            "content": "      const size = randInt(2, 5)",
+            "line": 630
+          },
+          {
+            "type": "add",
+            "content": "      const node = this.add.rectangle(x, y, size, size, color).setDepth(8)",
+            "line": 631
+          },
+          {
+            "type": "add",
+            "content": "      const angle = Math.random() * Math.PI * 2",
+            "line": 632
+          },
+          {
+            "type": "add",
+            "content": "      const speed = speedMin + Math.random() * (speedMax - speedMin)",
+            "line": 633
+          },
+          {
+            "type": "add",
+            "content": "      this.debris.push({",
+            "line": 634
+          },
+          {
+            "type": "add",
+            "content": "        node,",
+            "line": 635
+          },
+          {
+            "type": "add",
+            "content": "        vx: Math.cos(angle) * speed,",
+            "line": 636
+          },
+          {
+            "type": "add",
+            "content": "        vy: Math.sin(angle) * speed - 60,",
+            "line": 637
+          },
+          {
+            "type": "add",
+            "content": "        life: 0,",
+            "line": 638
+          },
+          {
+            "type": "add",
+            "content": "        maxLife: 0.25 + Math.random() * 0.3,",
+            "line": 639
+          },
+          {
+            "type": "add",
+            "content": "      })",
+            "line": 640
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 641
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 642
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 643
+          },
+          {
+            "type": "add",
+            "content": "  private clearDebris(): void {",
+            "line": 644
+          },
+          {
+            "type": "add",
+            "content": "    for (const d of this.debris) {",
+            "line": 645
+          },
+          {
+            "type": "add",
+            "content": "      d.node.destroy()",
+            "line": 646
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 647
+          },
+          {
+            "type": "add",
+            "content": "    this.debris.length = 0",
+            "line": 648
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 649
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 650
+          },
+          {
+            "type": "add",
+            "content": "  private endRun(reason: 'self' | 'win'): void {",
+            "line": 651
+          },
+          {
+            "type": "add",
+            "content": "    this.phase = 'over'",
+            "line": 652
+          },
+          {
+            "type": "add",
+            "content": "    this.overAt = this.time.now",
+            "line": 653
+          },
+          {
+            "type": "add",
+            "content": "    this.paused = false",
+            "line": 654
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 655
+          },
+          {
+            "type": "add",
+            "content": "    if (this.score > this.best) {",
+            "line": 656
+          },
+          {
+            "type": "add",
+            "content": "      this.best = this.score",
+            "line": 657
+          },
+          {
+            "type": "add",
+            "content": "      this.writeBest(this.best)",
+            "line": 658
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 659
+          },
+          {
+            "type": "add",
+            "content": "    this.bestText.setText(`BEST ${this.best}`)",
+            "line": 660
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 661
+          },
+          {
+            "type": "add",
+            "content": "    const head = this.snake[0] as Cell",
+            "line": 662
+          },
+          {
+            "type": "add",
+            "content": "    const px = (head.x + 0.5) * GRID",
+            "line": 663
+          },
+          {
+            "type": "add",
+            "content": "    const py = (head.y + 0.5) * GRID",
+            "line": 664
+          },
+          {
+            "type": "add",
+            "content": "    this.burstDebris(px, py, COLOR.head, 10, 100, 340)",
+            "line": 665
+          },
+          {
+            "type": "add",
+            "content": "    this.burstDebris(px, py, 0xffffff, 4, 60, 200)",
+            "line": 666
+          },
+          {
+            "type": "add",
+            "content": "    this.cameras.main.shake(140, 0.008)",
+            "line": 667
+          },
+          {
+            "type": "add",
+            "content": "    if (reason === 'win') {",
+            "line": 668
+          },
+          {
+            "type": "add",
+            "content": "      this.sfx.win()",
+            "line": 669
+          },
+          {
+            "type": "add",
+            "content": "    } else {",
+            "line": 670
+          },
+          {
+            "type": "add",
+            "content": "      this.sfx.hit()",
+            "line": 671
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 672
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 673
+          },
+          {
+            "type": "add",
+            "content": "    this.playerAlpha(0.3)",
+            "line": 674
+          },
+          {
+            "type": "add",
+            "content": "    this.showOver(reason)",
+            "line": 675
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 676
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 677
+          },
+          {
+            "type": "add",
+            "content": "  private readBest(): number {",
+            "line": 678
+          },
+          {
+            "type": "add",
+            "content": "    try {",
+            "line": 679
+          },
+          {
+            "type": "add",
+            "content": "      const raw = localStorage.getItem(BEST_KEY)",
+            "line": 680
+          },
+          {
+            "type": "add",
+            "content": "      if (!raw) return 0",
+            "line": 681
+          },
+          {
+            "type": "add",
+            "content": "      const value = Number.parseInt(raw, 10)",
+            "line": 682
+          },
+          {
+            "type": "add",
+            "content": "      return Number.isFinite(value) && value > 0 ? value : 0",
+            "line": 683
+          },
+          {
+            "type": "add",
+            "content": "    } catch {",
+            "line": 684
+          },
+          {
+            "type": "add",
+            "content": "      return 0",
+            "line": 685
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 686
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 687
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 688
+          },
+          {
+            "type": "add",
+            "content": "  private writeBest(value: number): void {",
+            "line": 689
+          },
+          {
+            "type": "add",
+            "content": "    try {",
+            "line": 690
+          },
+          {
+            "type": "add",
+            "content": "      localStorage.setItem(BEST_KEY, String(value))",
+            "line": 691
+          },
+          {
+            "type": "add",
+            "content": "    } catch {",
+            "line": 692
+          },
+          {
+            "type": "add",
+            "content": "      return",
+            "line": 693
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 694
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 695
+          },
+          {
+            "type": "add",
+            "content": "}",
+            "line": 696
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 697
+          },
+          {
+            "type": "add",
+            "content": "new Phaser.Game({",
+            "line": 698
+          },
+          {
+            "type": "add",
+            "content": "  type: Phaser.AUTO,",
+            "line": 699
+          },
+          {
+            "type": "add",
+            "content": "  parent: 'stage',",
+            "line": 700
+          },
+          {
+            "type": "add",
+            "content": "  width: GAME_W,",
+            "line": 701
+          },
+          {
+            "type": "add",
+            "content": "  height: GAME_H,",
+            "line": 702
+          },
+          {
+            "type": "add",
+            "content": "  backgroundColor: '#0b0d12',",
+            "line": 703
+          },
+          {
+            "type": "add",
+            "content": "  pixelArt: true,",
+            "line": 704
+          },
+          {
+            "type": "add",
+            "content": "  scale: {",
+            "line": 705
+          },
+          {
+            "type": "add",
+            "content": "    mode: Phaser.Scale.FIT,",
+            "line": 706
+          },
+          {
+            "type": "add",
+            "content": "    autoCenter: Phaser.Scale.CENTER_BOTH,",
+            "line": 707
+          },
+          {
+            "type": "add",
+            "content": "  },",
+            "line": 708
+          },
+          {
+            "type": "add",
+            "content": "  scene: [SnakeScene],",
+            "line": 709
+          },
+          {
+            "type": "add",
+            "content": "})",
+            "line": 710
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,356 @@
+{
+  "chunkId": "games__snake_part_0",
+  "module": "games/snake",
+  "files": [
+    {
+      "path": "games/snake/index.html",
+      "sourceLines": 68,
+      "diff": {
+        "oldFileName": null,
+        "newFileName": "games/snake/index.html",
+        "changes": [
+          {
+            "type": "add",
+            "content": "<!doctype html>",
+            "line": 1
+          },
+          {
+            "type": "add",
+            "content": "<html lang=\"zh-CN\">",
+            "line": 2
+          },
+          {
+            "type": "add",
+            "content": "  <head>",
+            "line": 3
+          },
+          {
+            "type": "add",
+            "content": "    <meta charset=\"UTF-8\" />",
+            "line": 4
+          },
+          {
+            "type": "add",
+            "content": "    <meta",
+            "line": 5
+          },
+          {
+            "type": "add",
+            "content": "      name=\"viewport\"",
+            "line": 6
+          },
+          {
+            "type": "add",
+            "content": "      content=\"width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover\"",
+            "line": 7
+          },
+          {
+            "type": "add",
+            "content": "    />",
+            "line": 8
+          },
+          {
+            "type": "add",
+            "content": "    <title>Neon Snake — 在线玩，无需下载 | Neon Arcade</title>",
+            "line": 9
+          },
+          {
+            "type": "add",
+            "content": "    <meta",
+            "line": 10
+          },
+          {
+            "type": "add",
+            "content": "      name=\"description\"",
+            "line": 11
+          },
+          {
+            "type": "add",
+            "content": "      content=\"Neon Snake 是一款在浏览器里直接玩的贪吃蛇小游戏：控制小蛇吃光点不断变长，别撞墙也别咬到自己。无需下载、无需注册，手机和电脑打开即玩。\"",
+            "line": 12
+          },
+          {
+            "type": "add",
+            "content": "    />",
+            "line": 13
+          },
+          {
+            "type": "add",
+            "content": "    <link rel=\"icon\" href=\"/favicon.svg\" type=\"image/svg+xml\" />",
+            "line": 14
+          },
+          {
+            "type": "add",
+            "content": "    <link rel=\"canonical\" href=\"https://example.com/games/snake/\" />",
+            "line": 15
+          },
+          {
+            "type": "add",
+            "content": "    <meta property=\"og:type\" content=\"article\" />",
+            "line": 16
+          },
+          {
+            "type": "add",
+            "content": "    <meta property=\"og:title\" content=\"Neon Snake — 在线玩，无需下载\" />",
+            "line": 17
+          },
+          {
+            "type": "add",
+            "content": "    <meta",
+            "line": 18
+          },
+          {
+            "type": "add",
+            "content": "      property=\"og:description\"",
+            "line": 19
+          },
+          {
+            "type": "add",
+            "content": "      content=\"控制小蛇吃光点不断变长，别撞墙也别咬到自己。打开即玩。\"",
+            "line": 20
+          },
+          {
+            "type": "add",
+            "content": "    />",
+            "line": 21
+          },
+          {
+            "type": "add",
+            "content": "    <style>",
+            "line": 22
+          },
+          {
+            "type": "add",
+            "content": "      html,",
+            "line": 23
+          },
+          {
+            "type": "add",
+            "content": "      body {",
+            "line": 24
+          },
+          {
+            "type": "add",
+            "content": "        margin: 0;",
+            "line": 25
+          },
+          {
+            "type": "add",
+            "content": "        padding: 0;",
+            "line": 26
+          },
+          {
+            "type": "add",
+            "content": "        height: 100%;",
+            "line": 27
+          },
+          {
+            "type": "add",
+            "content": "        background: #0b0d12;",
+            "line": 28
+          },
+          {
+            "type": "add",
+            "content": "        overflow: hidden;",
+            "line": 29
+          },
+          {
+            "type": "add",
+            "content": "        font-family: system-ui, -apple-system, \"PingFang SC\", \"Microsoft YaHei\", sans-serif;",
+            "line": 30
+          },
+          {
+            "type": "add",
+            "content": "      }",
+            "line": 31
+          },
+          {
+            "type": "add",
+            "content": "      #stage {",
+            "line": 32
+          },
+          {
+            "type": "add",
+            "content": "        width: 100vw;",
+            "line": 33
+          },
+          {
+            "type": "add",
+            "content": "        height: 100vh;",
+            "line": 34
+          },
+          {
+            "type": "add",
+            "content": "        display: flex;",
+            "line": 35
+          },
+          {
+            "type": "add",
+            "content": "        align-items: center;",
+            "line": 36
+          },
+          {
+            "type": "add",
+            "content": "        justify-content: center;",
+            "line": 37
+          },
+          {
+            "type": "add",
+            "content": "      }",
+            "line": 38
+          },
+          {
+            "type": "add",
+            "content": "      #stage canvas {",
+            "line": 39
+          },
+          {
+            "type": "add",
+            "content": "        display: block;",
+            "line": 40
+          },
+          {
+            "type": "add",
+            "content": "        touch-action: none;",
+            "line": 41
+          },
+          {
+            "type": "add",
+            "content": "      }",
+            "line": 42
+          },
+          {
+            "type": "add",
+            "content": "      .back-link {",
+            "line": 43
+          },
+          {
+            "type": "add",
+            "content": "        position: fixed;",
+            "line": 44
+          },
+          {
+            "type": "add",
+            "content": "        right: 18px;",
+            "line": 45
+          },
+          {
+            "type": "add",
+            "content": "        bottom: 16px;",
+            "line": 46
+          },
+          {
+            "type": "add",
+            "content": "        z-index: 20;",
+            "line": 47
+          },
+          {
+            "type": "add",
+            "content": "        font-size: 13px;",
+            "line": 48
+          },
+          {
+            "type": "add",
+            "content": "        color: #8b95ab;",
+            "line": 49
+          },
+          {
+            "type": "add",
+            "content": "        text-decoration: none;",
+            "line": 50
+          },
+          {
+            "type": "add",
+            "content": "        padding: 7px 13px;",
+            "line": 51
+          },
+          {
+            "type": "add",
+            "content": "        border-radius: 999px;",
+            "line": 52
+          },
+          {
+            "type": "add",
+            "content": "        background: rgba(20, 24, 33, 0.82);",
+            "line": 53
+          },
+          {
+            "type": "add",
+            "content": "        border: 1px solid #252c3d;",
+            "line": 54
+          },
+          {
+            "type": "add",
+            "content": "        transition: color 0.15s, border-color 0.15s;",
+            "line": 55
+          },
+          {
+            "type": "add",
+            "content": "      }",
+            "line": 56
+          },
+          {
+            "type": "add",
+            "content": "      .back-link:hover {",
+            "line": 57
+          },
+          {
+            "type": "add",
+            "content": "        color: #e9edf6;",
+            "line": 58
+          },
+          {
+            "type": "add",
+            "content": "        border-color: #3a4359;",
+            "line": 59
+          },
+          {
+            "type": "add",
+            "content": "      }",
+            "line": 60
+          },
+          {
+            "type": "add",
+            "content": "    </style>",
+            "line": 61
+          },
+          {
+            "type": "add",
+            "content": "  </head>",
+            "line": 62
+          },
+          {
+            "type": "add",
+            "content": "  <body>",
+            "line": 63
+          },
+          {
+            "type": "add",
+            "content": "    <div id=\"stage\"></div>",
+            "line": 64
+          },
+          {
+            "type": "add",
+            "content": "    <a class=\"back-link\" href=\"/\">← 全部游戏</a>",
+            "line": 65
+          },
+          {
+            "type": "add",
+            "content": "    <script type=\"module\" src=\"/games/snake/main.ts\"></script>",
+            "line": 66
+          },
+          {
+            "type": "add",
+            "content": "  </body>",
+            "line": 67
+          },
+          {
+            "type": "add",
+            "content": "</html>",
+            "line": 68
+          }
+        ]
+      }
+    }
+  ]
+}

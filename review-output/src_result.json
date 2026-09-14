@@ -1,0 +1,10 @@
+[
+  {
+    "file": "src/style.css",
+    "context": "203",
+    "scope_code": ".thumb-glyph--snake::before {\n  content: \"\";\n  position: absolute;\n  right: -30px;\n  top: -2px;\n  width: 10px;\n  height: 10px;\n  border-radius: 50%;\n  background: #ff4f9a;\n  box-shadow: 0 0 12px rgba(255, 79, 154, 0.85);\n}",
+    "comment": "粉色光点使用了硬编码颜色值 `#ff4f9a`，而整个样式文件其他所有颜色均通过 CSS 自定义属性（CSS variables）管理。硬编码颜色值会导致主题/色彩统一维护困难，后续若需全局调整色板时该处容易被遗漏。",
+    "severity": "style",
+    "advice_code": ":root {\n  --accent-pink: #ff4f9a;\n}\n\n.thumb-glyph--snake::before {\n  content: \"\";\n  position: absolute;\n  right: -30px;\n  top: -2px;\n  width: 10px;\n  height: 10px;\n  border-radius: 50%;\n  background: var(--accent-pink);\n  box-shadow: 0 0 12px rgba(255, 79, 154, 0.85);\n}"
+  }
+]

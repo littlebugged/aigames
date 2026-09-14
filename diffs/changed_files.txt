@@ -1,0 +1,5 @@
+games/snake/index.html
+games/snake/main.ts
+index.html
+src/style.css
+vite.config.ts

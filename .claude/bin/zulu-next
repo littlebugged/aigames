@@ -1,0 +1,18 @@
+#!/bin/bash
+# zulu-next → zulu CLI 适配器（供 code-review skill 的 dispatch.js 使用）
+ZULU=/Users/v_zhangjianxi/.comate/zulu-cli/bin/zulu
+if [ "$1" != "run" ]; then
+  exec "$ZULU" "$@"
+fi
+shift
+QUERY=""; PTOKEN=""; MODEL=""; CWD=""; DISPLAY="task"
+for arg in "$@"; do
+  case "$arg" in
+    --query=*)   QUERY="${arg#--query=}" ;;
+    --ptoken=*)  PTOKEN="${arg#--ptoken=}" ;;
+    --max=*)     MODEL="${arg#--max=}" ;;
+    --cwd=*)     CWD="${arg#--cwd=}" ;;
+    --summary)   : ;;
+  esac
+done
+exec "$ZULU" run -q "$QUERY" -t "$PTOKEN" -m "$MODEL" --cwd "$CWD"

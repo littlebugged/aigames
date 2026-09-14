@@ -478,32 +478,34 @@ class SnakeScene extends Phaser.Scene {
   }
 
   private spawnFood(): void {
-    // 拒绝采样，命中太差时全盘扫描兜底
-    let x = 0
-    let y = 0
-    let found = false
-    for (let i = 0; i < 512 && !found; i += 1) {
-      x = randInt(0, COLS - 1)
-      y = randInt(0, ROWS - 1)
-      found = !this.isOnSnake(x, y)
-    }
-    if (!found) {
-      const free: Cell[] = []
-      for (let cy = 0; cy < ROWS; cy += 1) {
-        for (let cx = 0; cx < COLS; cx += 1) {
-          if (!this.isOnSnake(cx, cy)) free.push({ x: cx, y: cy })
-        }
+    // 蛇身占棋盘过半时，随机采样大概率命中蛇身，直接全盘扫描
+    let cell: Cell | undefined
+    if (this.snake.length * 2 <= COLS * ROWS) {
+      for (let i = 0; i < 512 && !cell; i += 1) {
+        const x = randInt(0, COLS - 1)
+        const y = randInt(0, ROWS - 1)
+        if (!this.isOnSnake(x, y)) cell = { x, y }
       }
-      if (free.length === 0) {
-        this.endRun('win')
-        return
-      }
-      const cell = free[Math.floor(Math.random() * free.length)]
-      x = cell!.x
-      y = cell!.y
     }
-    this.food = { x, y }
+    cell ??= this.pickFreeCell()
+    if (!cell) {
+      this.endRun('win')
+      return
+    }
+    this.food = cell
     this.setFoodPosition()
+  }
+
+  // 全盘扫描随机返回一个空位，棋盘已满返回 undefined
+  private pickFreeCell(): Cell | undefined {
+    const free: Cell[] = []
+    for (let cy = 0; cy < ROWS; cy += 1) {
+      for (let cx = 0; cx < COLS; cx += 1) {
+        if (!this.isOnSnake(cx, cy)) free.push({ x: cx, y: cy })
+      }
+    }
+    if (free.length === 0) return undefined
+    return free[Math.floor(Math.random() * free.length)]!
   }
 
   private setFoodPosition(): void {

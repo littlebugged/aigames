@@ -1,0 +1,26 @@
+[
+  {
+    "file": "games/snake/index.html",
+    "context": "15",
+    "scope_code": "    <link rel=\"icon\" href=\"/favicon.svg\" type=\"image/svg+xml\" />\n    <link rel=\"canonical\" href=\"https://example.com/games/snake/\" />\n    <meta property=\"og:type\" content=\"article\" />\n    <meta property=\"og:title\" content=\"Neon Snake — 在线玩，无需下载\" />",
+    "comment": "canonical URL 仍为占位域名 `example.com`，上线后搜索引擎会将该页面的权威地址指向错误域名，导致 SEO 权重丢失或规范化错误。",
+    "severity": "warn",
+    "advice_code": "    <link rel=\"canonical\" href=\"https://yourdomain.com/games/snake/\" />"
+  },
+  {
+    "file": "games/snake/index.html",
+    "context": "16",
+    "scope_code": "    <link rel=\"canonical\" href=\"https://example.com/games/snake/\" />\n    <meta property=\"og:type\" content=\"article\" />\n    <meta property=\"og:title\" content=\"Neon Snake — 在线玩，无需下载\" />",
+    "comment": "`og:type` 设置为 `article` 不符合语义，游戏页面应使用 `website`。`article` 类型会触发社交平台（如 Facebook）渲染文章专属 UI（发布时间、作者等），与游戏页面预期展示不一致。",
+    "severity": "style",
+    "advice_code": "    <meta property=\"og:type\" content=\"website\" />"
+  },
+  {
+    "file": "games/snake/index.html",
+    "context": "66",
+    "scope_code": "    <div id=\"stage\"></div>\n    <a class=\"back-link\" href=\"/\">← 全部游戏</a>\n    <script type=\"module\" src=\"/games/snake/main.ts\"></script>\n  </body>\n</html>",
+    "comment": "脚本直接引用 `.ts` 源文件。浏览器原生不支持 TypeScript，该路径只能在配置了开发服务器（如 Vite）的环境下工作，若直接部署静态文件会导致脚本加载失败，游戏完全无法运行。生产构建应引用编译后的 JS 产物，或确保构建工具处理此重写。",
+    "severity": "warn",
+    "advice_code": "    <script type=\"module\" src=\"/games/snake/main.js\"></script>"
+  }
+]
