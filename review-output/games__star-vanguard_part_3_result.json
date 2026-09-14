@@ -1,0 +1,18 @@
+[
+  {
+    "file": "games/star-vanguard/main.ts",
+    "context": "24-25",
+    "scope_code": "// 调试句柄：控制台可访问游戏实例（`window.__svGame.scene.getScene('game')`）\n;(window as unknown as { __svGame?: Phaser.Game }).__svGame = game",
+    "comment": "调试句柄无条件挂载到 window，生产构建中任何页面内脚本都可通过 window.__svGame 直接访问 Phaser 实例，随意切换场景、修改注册表数据或暂停游戏，存在被滥用风险。应限定仅在开发环境下设置。",
+    "severity": "warn",
+    "advice_code": "if (import.meta.env.DEV) {\n  ;(window as unknown as { __svGame?: Phaser.Game }).__svGame = game\n}"
+  },
+  {
+    "file": "games/star-vanguard/textures.ts",
+    "context": "137-144",
+    "scope_code": "  if (!t.exists('dart')) {\n    const g = scene.add.graphics()\n    // 橙色俯冲三角（尖朝下）\n    g.fillStyle(COLOR.dart, 1)\n    g.fillTriangle(22, 2, 41, 40, 3, 38)\n    g.fillStyle(0xffe3c2, 1)\n    g.fillTriangle(22, 14, 30, 30, 14, 29)\n    g.generateTexture('dart', 44, 44)",
+    "comment": "注释「尖朝下」与实际几何体矛盾。fillTriangle(22, 2, 41, 40, 3, 38) 的尖端顶点在 (22, 2)，即纹理顶部（y 越小越靠上），底边在 y≈40 处，三角形实际朝上。注释描述与渲染结果相反，会误导阅读者对精灵朝向的判断。",
+    "severity": "style",
+    "advice_code": "  if (!t.exists('dart')) {\n    const g = scene.add.graphics()\n    // 橙色俯冲三角（尖朝上，纹理 y=2 为尖端）\n    g.fillStyle(COLOR.dart, 1)\n    g.fillTriangle(22, 2, 41, 40, 3, 38)\n    g.fillStyle(0xffe3c2, 1)\n    g.fillTriangle(22, 14, 30, 30, 14, 29)\n    g.generateTexture('dart', 44, 44)\n    g.destroy()\n  }"
+  }
+]

@@ -1,0 +1,50 @@
+[
+  {
+    "file": "games/star-vanguard/GameScene.ts",
+    "context": "274",
+    "scope_code": "  private bindInput(): void {\n    this.input.keyboard?.addCapture('SPACE,LEFT,RIGHT,UP,DOWN,A,D,P,M,ENTER,ESC')\n    this.input.keyboard?.on('keydown-P', () => this.togglePause())\n    this.input.keyboard?.on('keydown-M', () => sfx.setMuted(!sfx.isMuted()))\n    const kc = Phaser.Input.Keyboard.KeyCodes\n    this.keys = this.input.keyboard!.addKeys('left,right,a,d') as GameScene['keys']\n  }",
+    "comment": "第274行声明了 `const kc = Phaser.Input.Keyboard.KeyCodes` 但从未被使用，属于死代码，会造成编译器或 lint 警告，降低代码可读性。",
+    "severity": "style",
+    "advice_code": "  private bindInput(): void {\n    this.input.keyboard?.addCapture('SPACE,LEFT,RIGHT,UP,DOWN,A,D,P,M,ENTER,ESC')\n    this.input.keyboard?.on('keydown-P', () => this.togglePause())\n    this.input.keyboard?.on('keydown-M', () => sfx.setMuted(!sfx.isMuted()))\n    this.keys = this.input.keyboard!.addKeys('left,right,a,d') as GameScene['keys']\n  }"
+  },
+  {
+    "file": "games/star-vanguard/GameScene.ts",
+    "context": "408-409",
+    "scope_code": "  private spawnEnemy(kind: EnemyKind): void {\n    const def = ENEMY_DEFS[kind as Exclude<EnemyKind, 'boss'>]\n    const x = rand(50, GAME_W - 50)\n    const node = this.add.image(x, -40, kind).setDepth(12)",
+    "comment": "当 kind 为 'boss' 时，`ENEMY_DEFS[kind as Exclude<EnemyKind, 'boss'>]` 的类型转换在运行时会访问不存在的键，导致 def 为 undefined，后续 def.hp、def.score 会在到达末尾的兜底 return 之前就抛出运行时错误。",
+    "severity": "error",
+    "advice_code": "  private spawnEnemy(kind: EnemyKind): void {\n    if (kind === 'boss') {\n      return\n    }\n    const def = ENEMY_DEFS[kind]\n    const x = rand(50, GAME_W - 50)\n    const node = this.add.image(x, -40, kind).setDepth(12)"
+  },
+  {
+    "file": "games/star-vanguard/GameScene.ts",
+    "context": "582-600",
+    "scope_code": "      if (e.fanRemain > 0) {\n        // 连发进行中\n        e.fanGapAcc += dt * 1000\n        if (e.fanGapAcc >= ENEMY.bossFanGapMs) {\n          e.fanGapAcc = 0\n          e.fanRemain -= 1\n          const shotIndex = ENEMY.bossFanShots - e.fanRemain // 1..5\n          const center = Math.atan2(PLAYER_BOTTOM - n.y, this.px - n.x)\n          this.spawnEnemyBullet(\n            n.x,\n            n.y + 10,\n            Math.cos(a) * ENEMY.bossFanSpeed,\n            Math.sin(a) * ENEMY.bossFanSpeed,\n          )\n        }\n      }",
+    "comment": "Boss 扇形连发每颗子弹发射后缺少 sfx.enemyShoot() 调用，而环形弹幕在第578行有对应调用。扇形弹幕无射击音效，玩家缺少重要的音频反馈。",
+    "severity": "warn",
+    "advice_code": "          this.spawnEnemyBullet(\n            n.x,\n            n.y + 10,\n            Math.cos(a) * ENEMY.bossFanSpeed,\n            Math.sin(a) * ENEMY.bossFanSpeed,\n          )\n          sfx.enemyShoot()"
+  },
+  {
+    "file": "games/star-vanguard/GameScene.ts",
+    "context": "840-853",
+    "scope_code": "  private collide(): void {\n    // 玩家子弹 vs 敌人\n    for (let bi = this.playerBullets.length - 1; bi >= 0; bi -= 1) {\n      const b = this.playerBullets[bi] as Bullet\n      for (let ei = this.enemies.length - 1; ei >= 0; ei -= 1) {\n        const e = this.enemies[ei] as Enemy\n        if (this.hit(b.node, e.node)) {\n          b.node.destroy()\n          this.playerBullets.splice(bi, 1)\n          this.damageEnemy(e, 1)\n          break\n        }\n      }\n    }",
+    "comment": "collide 中以 ei 遍历 enemies 数组，但 damageEnemy 内部调用 killEnemy，killEnemy 又通过 indexOf 重新查找并 splice 同一敌人，造成 O(n) 重复查找。建议将 ei 传入以直接定位删除，避免重复线性搜索。",
+    "severity": "warn",
+    "advice_code": "  private damageEnemy(e: Enemy, idx: number, dmg: number): void {\n    e.hp -= dmg\n    if (e.hp > 0) return\n    this.killEnemy(e, idx)\n  }"
+  },
+  {
+    "file": "games/star-vanguard/GameScene.ts",
+    "context": "1012-1019",
+    "scope_code": "  private updateHud(): void {\n    this.scoreText.setText(String(this.score))\n    if (this.scorePulse > 0) {\n      this.scorePulse = Math.max(0, this.scorePulse - 0.06)\n      this.scoreText.setScale(1 + this.scorePulse * 0.2)\n    }\n    this.refreshHud()\n  }",
+    "comment": "updateHud 每帧都调用 refreshHud()，而 refreshHud 会重新构建 buff 文字字符串并调用 setText，即使 buff 状态没有变化也会每帧触发 Phaser 内部的文本重绘（canvas fillText），在粒子密集或低配设备上会加重主线程压力。",
+    "severity": "warn",
+    "advice_code": "  private updateHud(): void {\n    this.scoreText.setText(String(this.score))\n    if (this.scorePulse > 0) {\n      this.scorePulse = Math.max(0, this.scorePulse - 0.06)\n      this.scoreText.setScale(1 + this.scorePulse * 0.2)\n    } else {\n      this.scoreText.setScale(1)\n    }\n  }"
+  },
+  {
+    "file": "games/star-vanguard/GameScene.ts",
+    "context": "956-957",
+    "scope_code": "    const size = rand(2, 4)\n    const node = this.add.rectangle(x, y, size, size, color, 0.9).setDepth(8)\n    this.particles.push({ node, vx, vy, life: 0, maxLife: life })",
+    "comment": "粒子对象的字段 life 表示已经过的时间（从0开始累加），而参数名也叫 life 但含义是总持续时长，两者语义相反，容易在维护时造成混淆。",
+    "severity": "style",
+    "advice_code": "  private spawnParticle(\n    x: number,\n    y: number,\n    vx: number,\n    vy: number,\n    duration: number,\n    color: number,\n  ): void {\n    const size = rand(2, 4)\n    const node = this.add.rectangle(x, y, size, size, color, 0.9).setDepth(8)\n    this.particles.push({ node, vx, vy, life: 0, maxLife: duration })\n  }"
+  }
+]

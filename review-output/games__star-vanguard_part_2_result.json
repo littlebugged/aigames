@@ -1,0 +1,42 @@
+[
+  {
+    "file": "games/star-vanguard/MenuScene.ts",
+    "context": "4",
+    "scope_code": "import { FONT, GAME_W, GAME_H, COLOR, FX, BEST_KEY } from './config'\nimport { sfx } from './Sfx'",
+    "comment": "GAME_H 被导入但在整个文件中从未使用，属于无效导入，会增加维护时的阅读噪音。",
+    "severity": "style",
+    "advice_code": "import { FONT, GAME_W, COLOR, FX, BEST_KEY } from './config'"
+  },
+  {
+    "file": "games/star-vanguard/MenuScene.ts",
+    "context": "19",
+    "scope_code": "  create(): void {\n    this.drawBackdrop()\n\n    const cx = GAME_W / 2\n    sfx.warm()\n",
+    "comment": "sfx.warm() 在 create() 中调用，但 create() 由 Phaser 在场景启动时自动执行，并非用户手势触发。浏览器自动播放策略要求 AudioContext.resume() 必须在用户交互事件（click/keydown 等）的调用栈内执行，否则 resume() 会被忽略，预热无效。应在首次用户交互回调（pointerdown/keydown-ENTER）中调用。",
+    "severity": "warn",
+    "advice_code": "    btn.on('pointerdown', () => {\n      sfx.warm()\n      this.startGame()\n    })\n    this.input.keyboard?.on('keydown-ENTER', () => {\n      sfx.warm()\n      this.startGame()\n    })"
+  },
+  {
+    "file": "games/star-vanguard/MenuScene.ts",
+    "context": "98-99",
+    "scope_code": "    this.input.keyboard?.on('keydown-ENTER', () => this.startGame())\n    this.input.keyboard?.on('keydown-M', () => this.toggleMute())\n  }\n",
+    "comment": "键盘事件监听器在 create() 中注册，但 shutdown/destroy 时未移除。Phaser 场景 restart（如从 GameOver 返回菜单）会再次调用 create()，导致同一键盘事件被重复绑定，每次按键将触发多次 startGame() 或 toggleMute()，与防抖逻辑和静音状态形成不一致。应在 shutdown 或 destroy 生命周期中移除监听，或改用 Phaser 的 once/事件清理机制。",
+    "severity": "error",
+    "advice_code": "    this.input.keyboard?.on('keydown-ENTER', () => this.startGame())\n    this.input.keyboard?.on('keydown-M', () => this.toggleMute())\n    this.events.on('shutdown', () => {\n      this.input.keyboard?.off('keydown-ENTER')\n      this.input.keyboard?.off('keydown-M')\n    })"
+  },
+  {
+    "file": "games/star-vanguard/config.ts",
+    "context": "118",
+    "scope_code": "export const pick = <T,>(list: readonly T[]): T => list[Math.floor(Math.random() * list.length)] as T",
+    "comment": "当传入空数组时，list[0] 为 undefined，但返回类型声明为 T（非 undefined），类型断言掩盖了运行时错误。调用方无法从类型层面感知到这个风险，后续对返回值的属性访问或方法调用将抛出运行时异常。",
+    "severity": "warn",
+    "advice_code": "export const pick = <T,>(list: readonly T[]): T => {\n  if (list.length === 0) throw new RangeError('pick: list must not be empty')\n  return list[Math.floor(Math.random() * list.length)] as T\n}"
+  },
+  {
+    "file": "games/star-vanguard/index.html",
+    "context": "15",
+    "scope_code": "    <link rel=\"canonical\" href=\"https://example.com/games/star-vanguard/\" />\n    <meta property=\"og:type\" content=\"website\" />\n    <meta property=\"og:title\" content=\"星穹守卫 — 在线玩，无需下载\" />",
+    "comment": "canonical URL 使用了占位域名 example.com，上线后搜索引擎会将该页面的权重归属到 example.com 而非实际部署域名，导致 SEO 失效甚至被视为重复内容。需替换为真实的生产域名。",
+    "severity": "warn",
+    "advice_code": "    <link rel=\"canonical\" href=\"https://your-actual-domain.com/games/star-vanguard/\" />"
+  }
+]

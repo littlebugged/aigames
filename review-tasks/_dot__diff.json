@@ -4,201 +4,196 @@
   "files": [
     {
       "path": "index.html",
-      "sourceLines": 85,
+      "sourceLines": 100,
       "diff": {
         "oldFileName": "index.html",
         "newFileName": "index.html",
         "changes": [
           {
             "type": "noChange",
-            "content": "              <h3>Neon Dash</h3>",
-            "line": 48
-          },
-          {
-            "type": "noChange",
-            "content": "              <p>一根手指就能玩。跳过一个个障碍和坑洞，速度只会越来越快。</p>",
-            "line": 49
-          },
-          {
-            "type": "noChange",
-            "content": "              <p class=\"game-best\" data-best-key=\"neon-dash:best\"></p>",
-            "line": 50
-          },
-          {
-            "type": "noChange",
-            "content": "              <div class=\"game-tags\">",
-            "line": 51
-          },
-          {
-            "type": "noChange",
-            "content": "                <span class=\"tag\">反应</span>",
-            "line": 52
-          },
-          {
-            "type": "noChange",
-            "content": "                <span class=\"tag\">休闲</span>",
-            "line": 53
-          },
-          {
-            "type": "noChange",
-            "content": "                <span class=\"tag\">无限</span>",
-            "line": 54
-          },
-          {
-            "type": "noChange",
-            "content": "              </div>",
-            "line": 55
-          },
-          {
-            "type": "noChange",
-            "content": "            </div>",
-            "line": 56
-          },
-          {
-            "type": "noChange",
-            "content": "          </a>",
-            "line": 57
-          },
-          {
-            "type": "add",
-            "content": "          <a class=\"game-card\" href=\"/games/snake/\">",
-            "line": 58
-          },
-          {
-            "type": "add",
-            "content": "            <div class=\"game-thumb\" data-thumb=\"snake\" aria-hidden=\"true\">",
-            "line": 59
-          },
-          {
-            "type": "add",
-            "content": "              <span class=\"thumb-glyph thumb-glyph--snake\"></span>",
-            "line": 60
-          },
-          {
-            "type": "add",
-            "content": "            </div>",
-            "line": 61
-          },
-          {
-            "type": "add",
-            "content": "            <div class=\"game-body\">",
-            "line": 62
-          },
-          {
-            "type": "add",
             "content": "              <h3>Neon Snake</h3>",
             "line": 63
           },
           {
-            "type": "add",
+            "type": "noChange",
             "content": "              <p>经典贪吃蛇。吃光点不断变长，别撞墙也别咬到自己。</p>",
             "line": 64
           },
           {
-            "type": "add",
+            "type": "noChange",
             "content": "              <p class=\"game-best\" data-best-key=\"neon-snake:best\"></p>",
             "line": 65
           },
           {
-            "type": "add",
+            "type": "noChange",
             "content": "              <div class=\"game-tags\">",
             "line": 66
           },
           {
-            "type": "add",
+            "type": "noChange",
             "content": "                <span class=\"tag\">经典</span>",
             "line": 67
           },
           {
-            "type": "add",
+            "type": "noChange",
             "content": "                <span class=\"tag\">休闲</span>",
             "line": 68
           },
           {
-            "type": "add",
+            "type": "noChange",
             "content": "                <span class=\"tag\">竞技</span>",
             "line": 69
           },
           {
-            "type": "add",
+            "type": "noChange",
             "content": "              </div>",
             "line": 70
           },
           {
-            "type": "add",
+            "type": "noChange",
             "content": "            </div>",
             "line": 71
           },
           {
-            "type": "add",
+            "type": "noChange",
             "content": "          </a>",
             "line": 72
           },
           {
+            "type": "add",
+            "content": "          <a class=\"game-card\" href=\"/games/star-vanguard/\">",
+            "line": 73
+          },
+          {
+            "type": "add",
+            "content": "            <div class=\"game-thumb\" data-thumb=\"star-vanguard\" aria-hidden=\"true\">",
+            "line": 74
+          },
+          {
+            "type": "add",
+            "content": "              <span class=\"thumb-glyph thumb-glyph--star\"></span>",
+            "line": 75
+          },
+          {
+            "type": "add",
+            "content": "            </div>",
+            "line": 76
+          },
+          {
+            "type": "add",
+            "content": "            <div class=\"game-body\">",
+            "line": 77
+          },
+          {
+            "type": "add",
+            "content": "              <h3>星穹守卫 Star Vanguard</h3>",
+            "line": 78
+          },
+          {
+            "type": "add",
+            "content": "              <p>太空射击。抵御小行星与敌机波次，击败 Boss 刷新最高分。</p>",
+            "line": 79
+          },
+          {
+            "type": "add",
+            "content": "              <p class=\"game-best\" data-best-key=\"star-vanguard:best\"></p>",
+            "line": 80
+          },
+          {
+            "type": "add",
+            "content": "              <div class=\"game-tags\">",
+            "line": 81
+          },
+          {
+            "type": "add",
+            "content": "                <span class=\"tag\">射击</span>",
+            "line": 82
+          },
+          {
+            "type": "add",
+            "content": "                <span class=\"tag\">波次</span>",
+            "line": 83
+          },
+          {
+            "type": "add",
+            "content": "                <span class=\"tag\">Boss</span>",
+            "line": 84
+          },
+          {
+            "type": "add",
+            "content": "              </div>",
+            "line": 85
+          },
+          {
+            "type": "add",
+            "content": "            </div>",
+            "line": 86
+          },
+          {
+            "type": "add",
+            "content": "          </a>",
+            "line": 87
+          },
+          {
             "type": "noChange",
             "content": "        </div>",
-            "line": 73
+            "line": 88
           },
           {
             "type": "noChange",
             "content": "        <p class=\"more-note\">新游戏正在做，会陆续加到这里。</p>",
-            "line": 74
+            "line": 89
           },
           {
             "type": "noChange",
             "content": "      </section>",
-            "line": 75
+            "line": 90
           },
           {
             "type": "noChange",
             "content": "    </main>",
-            "line": 76
+            "line": 91
           },
           {
             "type": "noChange",
             "content": "",
-            "line": 77
+            "line": 92
           },
           {
             "type": "noChange",
             "content": "    <footer class=\"site-footer\">",
-            "line": 78
+            "line": 93
           },
           {
             "type": "noChange",
             "content": "      <p>Neon Arcade · 所有游戏均在浏览器本地运行</p>",
-            "line": 79
+            "line": 94
           },
           {
             "type": "noChange",
             "content": "    </footer>",
-            "line": 80
+            "line": 95
           },
           {
             "type": "noChange",
             "content": "",
-            "line": 81
+            "line": 96
           },
           {
             "type": "noChange",
             "content": "    <script type=\"module\" src=\"/src/home.ts\"></script>",
-            "line": 82
+            "line": 97
           }
         ]
       }
     },
     {
       "path": "vite.config.ts",
-      "sourceLines": 20,
+      "sourceLines": 21,
       "diff": {
         "oldFileName": "vite.config.ts",
         "newFileName": "vite.config.ts",
         "changes": [
-          {
-            "type": "noChange",
-            "content": "    port: 5173,",
-            "line": 5
-          },
           {
             "type": "noChange",
             "content": "    open: false,",
@@ -245,29 +240,34 @@
             "line": 14
           },
           {
-            "type": "add",
+            "type": "noChange",
             "content": "        snake: 'games/snake/index.html',",
             "line": 15
           },
           {
-            "type": "noChange",
-            "content": "      },",
+            "type": "add",
+            "content": "        'star-vanguard': 'games/star-vanguard/index.html',",
             "line": 16
           },
           {
             "type": "noChange",
-            "content": "    },",
+            "content": "      },",
             "line": 17
           },
           {
             "type": "noChange",
-            "content": "  },",
+            "content": "    },",
             "line": 18
           },
           {
             "type": "noChange",
-            "content": "})",
+            "content": "  },",
             "line": 19
+          },
+          {
+            "type": "noChange",
+            "content": "})",
+            "line": 20
           }
         ]
       }

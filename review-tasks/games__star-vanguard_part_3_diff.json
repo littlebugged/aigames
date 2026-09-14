@@ -1,0 +1,1306 @@
+{
+  "chunkId": "games__star-vanguard_part_3",
+  "module": "games/star-vanguard",
+  "files": [
+    {
+      "path": "games/star-vanguard/main.ts",
+      "sourceLines": 37,
+      "diff": {
+        "oldFileName": "games/star-vanguard/main.ts",
+        "newFileName": "games/star-vanguard/main.ts",
+        "changes": [
+          {
+            "type": "add",
+            "content": "// 星穹守卫 Star Vanguard —— 入口：创建 Phaser.Game 并注册全部场景",
+            "line": 1
+          },
+          {
+            "type": "add",
+            "content": "// 场景：boot（生成纹理）→ menu（主菜单）→ game（游戏）→ gameover（结算）",
+            "line": 2
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 3
+          },
+          {
+            "type": "add",
+            "content": "import Phaser from 'phaser'",
+            "line": 4
+          },
+          {
+            "type": "add",
+            "content": "import { GAME_W, GAME_H } from './config'",
+            "line": 5
+          },
+          {
+            "type": "add",
+            "content": "import { BootScene } from './BootScene'",
+            "line": 6
+          },
+          {
+            "type": "add",
+            "content": "import { MenuScene } from './MenuScene'",
+            "line": 7
+          },
+          {
+            "type": "add",
+            "content": "import { GameScene } from './GameScene'",
+            "line": 8
+          },
+          {
+            "type": "add",
+            "content": "import { GameOverScene } from './GameOverScene'",
+            "line": 9
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 10
+          },
+          {
+            "type": "add",
+            "content": "const game = new Phaser.Game({",
+            "line": 11
+          },
+          {
+            "type": "add",
+            "content": "  type: Phaser.AUTO, // E10：WebGL 不可用时自动回退 Canvas",
+            "line": 12
+          },
+          {
+            "type": "add",
+            "content": "  parent: 'stage',",
+            "line": 13
+          },
+          {
+            "type": "add",
+            "content": "  width: GAME_W,",
+            "line": 14
+          },
+          {
+            "type": "add",
+            "content": "  height: GAME_H,",
+            "line": 15
+          },
+          {
+            "type": "add",
+            "content": "  backgroundColor: '#0b0d12',",
+            "line": 16
+          },
+          {
+            "type": "add",
+            "content": "  scale: {",
+            "line": 17
+          },
+          {
+            "type": "add",
+            "content": "    mode: Phaser.Scale.FIT,",
+            "line": 18
+          },
+          {
+            "type": "add",
+            "content": "    autoCenter: Phaser.Scale.CENTER_BOTH,",
+            "line": 19
+          },
+          {
+            "type": "add",
+            "content": "  },",
+            "line": 20
+          },
+          {
+            "type": "add",
+            "content": "  scene: [BootScene, MenuScene, GameScene, GameOverScene],",
+            "line": 21
+          },
+          {
+            "type": "add",
+            "content": "})",
+            "line": 22
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 23
+          },
+          {
+            "type": "add",
+            "content": "// 调试句柄：控制台可访问游戏实例（`window.__svGame.scene.getScene('game')`）",
+            "line": 24
+          },
+          {
+            "type": "add",
+            "content": ";(window as unknown as { __svGame?: Phaser.Game }).__svGame = game",
+            "line": 25
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 26
+          },
+          {
+            "type": "add",
+            "content": "// E10：引擎初始化失败（连 Canvas 都不可用）时显示友好提示",
+            "line": 27
+          },
+          {
+            "type": "add",
+            "content": "game.events.once(Phaser.Core.Events.READY, () => {",
+            "line": 28
+          },
+          {
+            "type": "add",
+            "content": "  const canvas = document.querySelector('#stage canvas')",
+            "line": 29
+          },
+          {
+            "type": "add",
+            "content": "  if (!canvas) {",
+            "line": 30
+          },
+          {
+            "type": "add",
+            "content": "    const el = document.createElement('div')",
+            "line": 31
+          },
+          {
+            "type": "add",
+            "content": "    el.style.cssText =",
+            "line": 32
+          },
+          {
+            "type": "add",
+            "content": "      'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;color:#e9edf6;font-size:18px;font-family:system-ui;'",
+            "line": 33
+          },
+          {
+            "type": "add",
+            "content": "    el.textContent = '当前浏览器无法初始化游戏渲染器，请升级浏览器后重试。'",
+            "line": 34
+          },
+          {
+            "type": "add",
+            "content": "    document.body.appendChild(el)",
+            "line": 35
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 36
+          },
+          {
+            "type": "add",
+            "content": "})",
+            "line": 37
+          }
+        ]
+      }
+    },
+    {
+      "path": "games/star-vanguard/textures.ts",
+      "sourceLines": 219,
+      "diff": {
+        "oldFileName": "games/star-vanguard/textures.ts",
+        "newFileName": "games/star-vanguard/textures.ts",
+        "changes": [
+          {
+            "type": "add",
+            "content": "// 星穹守卫 —— 程序化纹理生成（零外部素材，PRD 1.3 / A16）",
+            "line": 1
+          },
+          {
+            "type": "add",
+            "content": "// 全部纹理在 BootScene.create 中调用 createTextures 生成一次",
+            "line": 2
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 3
+          },
+          {
+            "type": "add",
+            "content": "import Phaser from 'phaser'",
+            "line": 4
+          },
+          {
+            "type": "add",
+            "content": "import { COLOR } from './config'",
+            "line": 5
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 6
+          },
+          {
+            "type": "add",
+            "content": "// 确定性扰动（无随机，保证每次生成形状一致）",
+            "line": 7
+          },
+          {
+            "type": "add",
+            "content": "const wob = (i: number, seed: number): number => Math.sin(i * 2.7 + seed) * 0.5 + 0.5",
+            "line": 8
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 9
+          },
+          {
+            "type": "add",
+            "content": "const vec = (x: number, y: number): Phaser.Math.Vector2 => new Phaser.Math.Vector2(x, y)",
+            "line": 10
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 11
+          },
+          {
+            "type": "add",
+            "content": "/** 绘制一颗小行星：n 个顶点的粗糙多边形 + 暗色描边 */",
+            "line": 12
+          },
+          {
+            "type": "add",
+            "content": "function drawAsteroid(g: Phaser.GameObjects.Graphics, size: number, seed: number): void {",
+            "line": 13
+          },
+          {
+            "type": "add",
+            "content": "  const r = size / 2",
+            "line": 14
+          },
+          {
+            "type": "add",
+            "content": "  const points: Phaser.Math.Vector2[] = []",
+            "line": 15
+          },
+          {
+            "type": "add",
+            "content": "  const n = 12",
+            "line": 16
+          },
+          {
+            "type": "add",
+            "content": "  for (let i = 0; i < n; i += 1) {",
+            "line": 17
+          },
+          {
+            "type": "add",
+            "content": "    const a = (i / n) * Math.PI * 2",
+            "line": 18
+          },
+          {
+            "type": "add",
+            "content": "    const rad = r * (0.72 + 0.28 * wob(i, seed))",
+            "line": 19
+          },
+          {
+            "type": "add",
+            "content": "    points.push(vec(r + Math.cos(a) * rad, r + Math.sin(a) * rad))",
+            "line": 20
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 21
+          },
+          {
+            "type": "add",
+            "content": "  g.fillStyle(COLOR.asteroid, 1)",
+            "line": 22
+          },
+          {
+            "type": "add",
+            "content": "  g.fillPoints(points, true)",
+            "line": 23
+          },
+          {
+            "type": "add",
+            "content": "  g.lineStyle(3, COLOR.asteroidDark, 1)",
+            "line": 24
+          },
+          {
+            "type": "add",
+            "content": "  g.strokePoints(points, true, true)",
+            "line": 25
+          },
+          {
+            "type": "add",
+            "content": "  // 陨石坑",
+            "line": 26
+          },
+          {
+            "type": "add",
+            "content": "  g.fillStyle(COLOR.asteroidDark, 0.55)",
+            "line": 27
+          },
+          {
+            "type": "add",
+            "content": "  g.fillCircle(r * 0.7, size * 0.42, size * 0.1)",
+            "line": 28
+          },
+          {
+            "type": "add",
+            "content": "  g.fillCircle(r * 1.2, size * 0.68, size * 0.07)",
+            "line": 29
+          },
+          {
+            "type": "add",
+            "content": "}",
+            "line": 30
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 31
+          },
+          {
+            "type": "add",
+            "content": "/** 绘制道具图标：圆底 + 符号 */",
+            "line": 32
+          },
+          {
+            "type": "add",
+            "content": "function drawPower(",
+            "line": 33
+          },
+          {
+            "type": "add",
+            "content": "  g: Phaser.GameObjects.Graphics,",
+            "line": 34
+          },
+          {
+            "type": "add",
+            "content": "  kind: 'life' | 'double' | 'shield' | 'rapid',",
+            "line": 35
+          },
+          {
+            "type": "add",
+            "content": "): void {",
+            "line": 36
+          },
+          {
+            "type": "add",
+            "content": "  const c = 22",
+            "line": 37
+          },
+          {
+            "type": "add",
+            "content": "  const colors = { life: 0x7dff8f, double: 0x4cc9f0, shield: 0x6fa8ff, rapid: 0xff9f43 } as const",
+            "line": 38
+          },
+          {
+            "type": "add",
+            "content": "  const main = colors[kind]",
+            "line": 39
+          },
+          {
+            "type": "add",
+            "content": "  g.fillStyle(0x0b0d12, 0.92)",
+            "line": 40
+          },
+          {
+            "type": "add",
+            "content": "  g.fillCircle(c, c, 19)",
+            "line": 41
+          },
+          {
+            "type": "add",
+            "content": "  g.lineStyle(3, main, 1)",
+            "line": 42
+          },
+          {
+            "type": "add",
+            "content": "  g.strokeCircle(c, c, 19)",
+            "line": 43
+          },
+          {
+            "type": "add",
+            "content": "  g.fillStyle(main, 1)",
+            "line": 44
+          },
+          {
+            "type": "add",
+            "content": "  if (kind === 'life') {",
+            "line": 45
+          },
+          {
+            "type": "add",
+            "content": "    g.fillRect(c - 3, c - 11, 6, 22)",
+            "line": 46
+          },
+          {
+            "type": "add",
+            "content": "    g.fillRect(c - 11, c - 3, 22, 6)",
+            "line": 47
+          },
+          {
+            "type": "add",
+            "content": "  } else if (kind === 'double') {",
+            "line": 48
+          },
+          {
+            "type": "add",
+            "content": "    g.fillRoundedRect(11, 8, 6, 28, 3)",
+            "line": 49
+          },
+          {
+            "type": "add",
+            "content": "    g.fillRoundedRect(27, 8, 6, 28, 3)",
+            "line": 50
+          },
+          {
+            "type": "add",
+            "content": "  } else if (kind === 'shield') {",
+            "line": 51
+          },
+          {
+            "type": "add",
+            "content": "    g.fillPoints([",
+            "line": 52
+          },
+          {
+            "type": "add",
+            "content": "      vec(c, 7),",
+            "line": 53
+          },
+          {
+            "type": "add",
+            "content": "      vec(35, c),",
+            "line": 54
+          },
+          {
+            "type": "add",
+            "content": "      vec(c, 37),",
+            "line": 55
+          },
+          {
+            "type": "add",
+            "content": "      vec(9, c),",
+            "line": 56
+          },
+          {
+            "type": "add",
+            "content": "    ])",
+            "line": 57
+          },
+          {
+            "type": "add",
+            "content": "  } else {",
+            "line": 58
+          },
+          {
+            "type": "add",
+            "content": "    g.fillTriangle(12, 8, 12, 36, 24, 22)",
+            "line": 59
+          },
+          {
+            "type": "add",
+            "content": "    g.fillTriangle(24, 8, 24, 36, 36, 22)",
+            "line": 60
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 61
+          },
+          {
+            "type": "add",
+            "content": "}",
+            "line": 62
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 63
+          },
+          {
+            "type": "add",
+            "content": "/**",
+            "line": 64
+          },
+          {
+            "type": "add",
+            "content": " * 生成游戏全部纹理（幂等：已存在则跳过）",
+            "line": 65
+          },
+          {
+            "type": "add",
+            "content": " * 纹理 key 汇总：player / asteroidL / asteroidS / ufo / dart / boss /",
+            "line": 66
+          },
+          {
+            "type": "add",
+            "content": " *               bullet / ebullet / power-life / power-double / power-shield /",
+            "line": 67
+          },
+          {
+            "type": "add",
+            "content": " *               power-rapid / glow",
+            "line": 68
+          },
+          {
+            "type": "add",
+            "content": " */",
+            "line": 69
+          },
+          {
+            "type": "add",
+            "content": "export function createTextures(scene: Phaser.Scene): void {",
+            "line": 70
+          },
+          {
+            "type": "add",
+            "content": "  const t = scene.textures",
+            "line": 71
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 72
+          },
+          {
+            "type": "add",
+            "content": "  if (!t.exists('player')) {",
+            "line": 73
+          },
+          {
+            "type": "add",
+            "content": "    const g = scene.add.graphics()",
+            "line": 74
+          },
+          {
+            "type": "add",
+            "content": "    // 蓝色战机：机身 + 双翼 + 座舱 + 引擎口",
+            "line": 75
+          },
+          {
+            "type": "add",
+            "content": "    g.fillStyle(COLOR.playerDark, 1)",
+            "line": 76
+          },
+          {
+            "type": "add",
+            "content": "    g.fillPoints([",
+            "line": 77
+          },
+          {
+            "type": "add",
+            "content": "      vec(2, 46),",
+            "line": 78
+          },
+          {
+            "type": "add",
+            "content": "      vec(14, 52),",
+            "line": 79
+          },
+          {
+            "type": "add",
+            "content": "      vec(15, 30),",
+            "line": 80
+          },
+          {
+            "type": "add",
+            "content": "    ])",
+            "line": 81
+          },
+          {
+            "type": "add",
+            "content": "    g.fillPoints([",
+            "line": 82
+          },
+          {
+            "type": "add",
+            "content": "      vec(50, 46),",
+            "line": 83
+          },
+          {
+            "type": "add",
+            "content": "      vec(38, 52),",
+            "line": 84
+          },
+          {
+            "type": "add",
+            "content": "      vec(37, 30),",
+            "line": 85
+          },
+          {
+            "type": "add",
+            "content": "    ])",
+            "line": 86
+          },
+          {
+            "type": "add",
+            "content": "    g.fillStyle(COLOR.player, 1)",
+            "line": 87
+          },
+          {
+            "type": "add",
+            "content": "    g.fillPoints([",
+            "line": 88
+          },
+          {
+            "type": "add",
+            "content": "      vec(26, 2),",
+            "line": 89
+          },
+          {
+            "type": "add",
+            "content": "      vec(39, 30),",
+            "line": 90
+          },
+          {
+            "type": "add",
+            "content": "      vec(35, 48),",
+            "line": 91
+          },
+          {
+            "type": "add",
+            "content": "      vec(17, 48),",
+            "line": 92
+          },
+          {
+            "type": "add",
+            "content": "      vec(13, 30),",
+            "line": 93
+          },
+          {
+            "type": "add",
+            "content": "    ])",
+            "line": 94
+          },
+          {
+            "type": "add",
+            "content": "    g.fillStyle(0x1a2d3a, 1)",
+            "line": 95
+          },
+          {
+            "type": "add",
+            "content": "    g.fillRect(20, 44, 12, 7)",
+            "line": 96
+          },
+          {
+            "type": "add",
+            "content": "    g.fillStyle(0x9ff3ff, 1)",
+            "line": 97
+          },
+          {
+            "type": "add",
+            "content": "    g.fillCircle(26, 20, 5)",
+            "line": 98
+          },
+          {
+            "type": "add",
+            "content": "    g.generateTexture('player', 52, 56)",
+            "line": 99
+          },
+          {
+            "type": "add",
+            "content": "    g.destroy()",
+            "line": 100
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 101
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 102
+          },
+          {
+            "type": "add",
+            "content": "  if (!t.exists('asteroidL')) {",
+            "line": 103
+          },
+          {
+            "type": "add",
+            "content": "    const g = scene.add.graphics()",
+            "line": 104
+          },
+          {
+            "type": "add",
+            "content": "    drawAsteroid(g, 64, 1.7)",
+            "line": 105
+          },
+          {
+            "type": "add",
+            "content": "    g.generateTexture('asteroidL', 64, 64)",
+            "line": 106
+          },
+          {
+            "type": "add",
+            "content": "    g.destroy()",
+            "line": 107
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 108
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 109
+          },
+          {
+            "type": "add",
+            "content": "  if (!t.exists('asteroidS')) {",
+            "line": 110
+          },
+          {
+            "type": "add",
+            "content": "    const g = scene.add.graphics()",
+            "line": 111
+          },
+          {
+            "type": "add",
+            "content": "    drawAsteroid(g, 36, 4.2)",
+            "line": 112
+          },
+          {
+            "type": "add",
+            "content": "    g.generateTexture('asteroidS', 36, 36)",
+            "line": 113
+          },
+          {
+            "type": "add",
+            "content": "    g.destroy()",
+            "line": 114
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 115
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 116
+          },
+          {
+            "type": "add",
+            "content": "  if (!t.exists('ufo')) {",
+            "line": 117
+          },
+          {
+            "type": "add",
+            "content": "    const g = scene.add.graphics()",
+            "line": 118
+          },
+          {
+            "type": "add",
+            "content": "    // 圆顶",
+            "line": 119
+          },
+          {
+            "type": "add",
+            "content": "    g.fillStyle(COLOR.ufoDome, 1)",
+            "line": 120
+          },
+          {
+            "type": "add",
+            "content": "    g.fillEllipse(32, 15, 26, 20)",
+            "line": 121
+          },
+          {
+            "type": "add",
+            "content": "    g.fillStyle(0xffffff, 0.4)",
+            "line": 122
+          },
+          {
+            "type": "add",
+            "content": "    g.fillEllipse(28, 12, 7, 6)",
+            "line": 123
+          },
+          {
+            "type": "add",
+            "content": "    // 机身",
+            "line": 124
+          },
+          {
+            "type": "add",
+            "content": "    g.fillStyle(COLOR.ufo, 1)",
+            "line": 125
+          },
+          {
+            "type": "add",
+            "content": "    g.fillEllipse(32, 24, 54, 22)",
+            "line": 126
+          },
+          {
+            "type": "add",
+            "content": "    // 底部灯光",
+            "line": 127
+          },
+          {
+            "type": "add",
+            "content": "    g.fillStyle(0xffffff, 0.9)",
+            "line": 128
+          },
+          {
+            "type": "add",
+            "content": "    g.fillCircle(16, 34, 3)",
+            "line": 129
+          },
+          {
+            "type": "add",
+            "content": "    g.fillCircle(32, 35, 3)",
+            "line": 130
+          },
+          {
+            "type": "add",
+            "content": "    g.fillCircle(48, 34, 3)",
+            "line": 131
+          },
+          {
+            "type": "add",
+            "content": "    g.generateTexture('ufo', 64, 40)",
+            "line": 132
+          },
+          {
+            "type": "add",
+            "content": "    g.destroy()",
+            "line": 133
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 134
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 135
+          },
+          {
+            "type": "add",
+            "content": "  if (!t.exists('dart')) {",
+            "line": 136
+          },
+          {
+            "type": "add",
+            "content": "    const g = scene.add.graphics()",
+            "line": 137
+          },
+          {
+            "type": "add",
+            "content": "    // 橙色俯冲三角（尖朝下）",
+            "line": 138
+          },
+          {
+            "type": "add",
+            "content": "    g.fillStyle(COLOR.dart, 1)",
+            "line": 139
+          },
+          {
+            "type": "add",
+            "content": "    g.fillTriangle(22, 2, 41, 40, 3, 38)",
+            "line": 140
+          },
+          {
+            "type": "add",
+            "content": "    g.fillStyle(0xffe3c2, 1)",
+            "line": 141
+          },
+          {
+            "type": "add",
+            "content": "    g.fillTriangle(22, 14, 30, 30, 14, 29)",
+            "line": 142
+          },
+          {
+            "type": "add",
+            "content": "    g.generateTexture('dart', 44, 44)",
+            "line": 143
+          },
+          {
+            "type": "add",
+            "content": "    g.destroy()",
+            "line": 144
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 145
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 146
+          },
+          {
+            "type": "add",
+            "content": "  if (!t.exists('boss')) {",
+            "line": 147
+          },
+          {
+            "type": "add",
+            "content": "    const g = scene.add.graphics()",
+            "line": 148
+          },
+          {
+            "type": "add",
+            "content": "    // 双翼",
+            "line": 149
+          },
+          {
+            "type": "add",
+            "content": "    g.fillStyle(COLOR.bossDark, 1)",
+            "line": 150
+          },
+          {
+            "type": "add",
+            "content": "    g.fillPoints([",
+            "line": 151
+          },
+          {
+            "type": "add",
+            "content": "      vec(4, 42),",
+            "line": 152
+          },
+          {
+            "type": "add",
+            "content": "      vec(52, 54),",
+            "line": 153
+          },
+          {
+            "type": "add",
+            "content": "      vec(40, 66),",
+            "line": 154
+          },
+          {
+            "type": "add",
+            "content": "    ])",
+            "line": 155
+          },
+          {
+            "type": "add",
+            "content": "    g.fillPoints([",
+            "line": 156
+          },
+          {
+            "type": "add",
+            "content": "      vec(164, 42),",
+            "line": 157
+          },
+          {
+            "type": "add",
+            "content": "      vec(116, 54),",
+            "line": 158
+          },
+          {
+            "type": "add",
+            "content": "      vec(128, 66),",
+            "line": 159
+          },
+          {
+            "type": "add",
+            "content": "    ])",
+            "line": 160
+          },
+          {
+            "type": "add",
+            "content": "    // 机身",
+            "line": 161
+          },
+          {
+            "type": "add",
+            "content": "    g.fillStyle(COLOR.boss, 1)",
+            "line": 162
+          },
+          {
+            "type": "add",
+            "content": "    g.fillEllipse(84, 46, 122, 62)",
+            "line": 163
+          },
+          {
+            "type": "add",
+            "content": "    // 座舱",
+            "line": 164
+          },
+          {
+            "type": "add",
+            "content": "    g.fillStyle(0xffd9e2, 1)",
+            "line": 165
+          },
+          {
+            "type": "add",
+            "content": "    g.fillEllipse(84, 30, 42, 24)",
+            "line": 166
+          },
+          {
+            "type": "add",
+            "content": "    // 底部炮口灯",
+            "line": 167
+          },
+          {
+            "type": "add",
+            "content": "    g.fillStyle(0xffffff, 0.9)",
+            "line": 168
+          },
+          {
+            "type": "add",
+            "content": "    g.fillCircle(56, 72, 4)",
+            "line": 169
+          },
+          {
+            "type": "add",
+            "content": "    g.fillCircle(84, 74, 4)",
+            "line": 170
+          },
+          {
+            "type": "add",
+            "content": "    g.fillCircle(112, 72, 4)",
+            "line": 171
+          },
+          {
+            "type": "add",
+            "content": "    g.generateTexture('boss', 168, 80)",
+            "line": 172
+          },
+          {
+            "type": "add",
+            "content": "    g.destroy()",
+            "line": 173
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 174
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 175
+          },
+          {
+            "type": "add",
+            "content": "  if (!t.exists('bullet')) {",
+            "line": 176
+          },
+          {
+            "type": "add",
+            "content": "    const g = scene.add.graphics()",
+            "line": 177
+          },
+          {
+            "type": "add",
+            "content": "    g.fillStyle(COLOR.bullet, 1)",
+            "line": 178
+          },
+          {
+            "type": "add",
+            "content": "    g.fillRoundedRect(0, 0, 6, 16, 3)",
+            "line": 179
+          },
+          {
+            "type": "add",
+            "content": "    g.fillStyle(0xffffff, 1)",
+            "line": 180
+          },
+          {
+            "type": "add",
+            "content": "    g.fillRoundedRect(1.5, 1.5, 3, 8, 1.5)",
+            "line": 181
+          },
+          {
+            "type": "add",
+            "content": "    g.generateTexture('bullet', 6, 16)",
+            "line": 182
+          },
+          {
+            "type": "add",
+            "content": "    g.destroy()",
+            "line": 183
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 184
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 185
+          },
+          {
+            "type": "add",
+            "content": "  if (!t.exists('ebullet')) {",
+            "line": 186
+          },
+          {
+            "type": "add",
+            "content": "    const g = scene.add.graphics()",
+            "line": 187
+          },
+          {
+            "type": "add",
+            "content": "    g.fillStyle(COLOR.enemyBullet, 1)",
+            "line": 188
+          },
+          {
+            "type": "add",
+            "content": "    g.fillCircle(6, 6, 5)",
+            "line": 189
+          },
+          {
+            "type": "add",
+            "content": "    g.fillStyle(0xffffff, 0.9)",
+            "line": 190
+          },
+          {
+            "type": "add",
+            "content": "    g.fillCircle(6, 6, 2.2)",
+            "line": 191
+          },
+          {
+            "type": "add",
+            "content": "    g.generateTexture('ebullet', 12, 12)",
+            "line": 192
+          },
+          {
+            "type": "add",
+            "content": "    g.destroy()",
+            "line": 193
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 194
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 195
+          },
+          {
+            "type": "add",
+            "content": "  for (const kind of ['life', 'double', 'shield', 'rapid'] as const) {",
+            "line": 196
+          },
+          {
+            "type": "add",
+            "content": "    if (!t.exists(`power-${kind}`)) {",
+            "line": 197
+          },
+          {
+            "type": "add",
+            "content": "      const g = scene.add.graphics()",
+            "line": 198
+          },
+          {
+            "type": "add",
+            "content": "      drawPower(g, kind)",
+            "line": 199
+          },
+          {
+            "type": "add",
+            "content": "      g.generateTexture(`power-${kind}`, 44, 44)",
+            "line": 200
+          },
+          {
+            "type": "add",
+            "content": "      g.destroy()",
+            "line": 201
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 202
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 203
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 204
+          },
+          {
+            "type": "add",
+            "content": "  // 径向光晕（canvas 渐变），用于粒子/发光效果",
+            "line": 205
+          },
+          {
+            "type": "add",
+            "content": "  if (!t.exists('glow')) {",
+            "line": 206
+          },
+          {
+            "type": "add",
+            "content": "    const canvas = t.createCanvas('glow', 64, 64)",
+            "line": 207
+          },
+          {
+            "type": "add",
+            "content": "    if (canvas) {",
+            "line": 208
+          },
+          {
+            "type": "add",
+            "content": "      const ctx = canvas.context",
+            "line": 209
+          },
+          {
+            "type": "add",
+            "content": "      const grad = ctx.createRadialGradient(32, 32, 2, 32, 32, 32)",
+            "line": 210
+          },
+          {
+            "type": "add",
+            "content": "      grad.addColorStop(0, 'rgba(255,255,255,1)')",
+            "line": 211
+          },
+          {
+            "type": "add",
+            "content": "      grad.addColorStop(0.35, 'rgba(255,255,255,0.5)')",
+            "line": 212
+          },
+          {
+            "type": "add",
+            "content": "      grad.addColorStop(1, 'rgba(255,255,255,0)')",
+            "line": 213
+          },
+          {
+            "type": "add",
+            "content": "      ctx.fillStyle = grad",
+            "line": 214
+          },
+          {
+            "type": "add",
+            "content": "      ctx.fillRect(0, 0, 64, 64)",
+            "line": 215
+          },
+          {
+            "type": "add",
+            "content": "      canvas.refresh()",
+            "line": 216
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 217
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 218
+          },
+          {
+            "type": "add",
+            "content": "}",
+            "line": 219
+          }
+        ]
+      }
+    }
+  ]
+}

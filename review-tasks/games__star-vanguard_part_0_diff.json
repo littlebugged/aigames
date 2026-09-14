@@ -1,0 +1,726 @@
+{
+  "chunkId": "games__star-vanguard_part_0",
+  "module": "games/star-vanguard",
+  "files": [
+    {
+      "path": "games/star-vanguard/BootScene.ts",
+      "sourceLines": 15,
+      "diff": {
+        "oldFileName": "games/star-vanguard/BootScene.ts",
+        "newFileName": "games/star-vanguard/BootScene.ts",
+        "changes": [
+          {
+            "type": "add",
+            "content": "// 星穹守卫 —— Boot 场景：程序化生成全部纹理后进入主菜单",
+            "line": 1
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 2
+          },
+          {
+            "type": "add",
+            "content": "import Phaser from 'phaser'",
+            "line": 3
+          },
+          {
+            "type": "add",
+            "content": "import { createTextures } from './textures'",
+            "line": 4
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 5
+          },
+          {
+            "type": "add",
+            "content": "export class BootScene extends Phaser.Scene {",
+            "line": 6
+          },
+          {
+            "type": "add",
+            "content": "  constructor() {",
+            "line": 7
+          },
+          {
+            "type": "add",
+            "content": "    super('boot')",
+            "line": 8
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 9
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 10
+          },
+          {
+            "type": "add",
+            "content": "  create(): void {",
+            "line": 11
+          },
+          {
+            "type": "add",
+            "content": "    createTextures(this)",
+            "line": 12
+          },
+          {
+            "type": "add",
+            "content": "    this.scene.start('menu')",
+            "line": 13
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 14
+          },
+          {
+            "type": "add",
+            "content": "}",
+            "line": 15
+          }
+        ]
+      }
+    },
+    {
+      "path": "games/star-vanguard/GameOverScene.ts",
+      "sourceLines": 125,
+      "diff": {
+        "oldFileName": "games/star-vanguard/GameOverScene.ts",
+        "newFileName": "games/star-vanguard/GameOverScene.ts",
+        "changes": [
+          {
+            "type": "add",
+            "content": "// 星穹守卫 —— 结算场景（分数 / 最高分 / 新纪录 / 重开 / 回菜单）",
+            "line": 1
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 2
+          },
+          {
+            "type": "add",
+            "content": "import Phaser from 'phaser'",
+            "line": 3
+          },
+          {
+            "type": "add",
+            "content": "import { FONT, GAME_W, GAME_H, COLOR, FX } from './config'",
+            "line": 4
+          },
+          {
+            "type": "add",
+            "content": "import { sfx } from './Sfx'",
+            "line": 5
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 6
+          },
+          {
+            "type": "add",
+            "content": "export type GameOverData = {",
+            "line": 7
+          },
+          {
+            "type": "add",
+            "content": "  score: number",
+            "line": 8
+          },
+          {
+            "type": "add",
+            "content": "  best: number",
+            "line": 9
+          },
+          {
+            "type": "add",
+            "content": "  isNew: boolean",
+            "line": 10
+          },
+          {
+            "type": "add",
+            "content": "}",
+            "line": 11
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 12
+          },
+          {
+            "type": "add",
+            "content": "export class GameOverScene extends Phaser.Scene {",
+            "line": 13
+          },
+          {
+            "type": "add",
+            "content": "  private lastActionAt = -10000",
+            "line": 14
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 15
+          },
+          {
+            "type": "add",
+            "content": "  constructor() {",
+            "line": 16
+          },
+          {
+            "type": "add",
+            "content": "    super('gameover')",
+            "line": 17
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 18
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 19
+          },
+          {
+            "type": "add",
+            "content": "  create(data: GameOverData): void {",
+            "line": 20
+          },
+          {
+            "type": "add",
+            "content": "    this.cameras.main.setBackgroundColor(COLOR.bg)",
+            "line": 21
+          },
+          {
+            "type": "add",
+            "content": "    const cx = GAME_W / 2",
+            "line": 22
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 23
+          },
+          {
+            "type": "add",
+            "content": "    // 背景星空",
+            "line": 24
+          },
+          {
+            "type": "add",
+            "content": "    const rnd = new Phaser.Math.RandomDataGenerator(['over'])",
+            "line": 25
+          },
+          {
+            "type": "add",
+            "content": "    for (let i = 0; i < 60; i += 1) {",
+            "line": 26
+          },
+          {
+            "type": "add",
+            "content": "      const size = rnd.between(1, 3)",
+            "line": 27
+          },
+          {
+            "type": "add",
+            "content": "      this.add",
+            "line": 28
+          },
+          {
+            "type": "add",
+            "content": "        .rectangle(rnd.between(0, GAME_W), rnd.between(0, GAME_H), size, size, 0xffffff, 0.16)",
+            "line": 29
+          },
+          {
+            "type": "add",
+            "content": "        .setDepth(0)",
+            "line": 30
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 31
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 32
+          },
+          {
+            "type": "add",
+            "content": "    this.add",
+            "line": 33
+          },
+          {
+            "type": "add",
+            "content": "      .text(cx, 128, '游 戏 结 束', {",
+            "line": 34
+          },
+          {
+            "type": "add",
+            "content": "        fontFamily: FONT,",
+            "line": 35
+          },
+          {
+            "type": "add",
+            "content": "        fontSize: '52px',",
+            "line": 36
+          },
+          {
+            "type": "add",
+            "content": "        color: '#e9edf6',",
+            "line": 37
+          },
+          {
+            "type": "add",
+            "content": "        fontStyle: 'bold',",
+            "line": 38
+          },
+          {
+            "type": "add",
+            "content": "      })",
+            "line": 39
+          },
+          {
+            "type": "add",
+            "content": "      .setOrigin(0.5)",
+            "line": 40
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 41
+          },
+          {
+            "type": "add",
+            "content": "    if (data.isNew) {",
+            "line": 42
+          },
+          {
+            "type": "add",
+            "content": "      this.add",
+            "line": 43
+          },
+          {
+            "type": "add",
+            "content": "        .text(cx, 192, '★ 新纪录！ ★', {",
+            "line": 44
+          },
+          {
+            "type": "add",
+            "content": "          fontFamily: FONT,",
+            "line": 45
+          },
+          {
+            "type": "add",
+            "content": "          fontSize: '22px',",
+            "line": 46
+          },
+          {
+            "type": "add",
+            "content": "          color: '#ffd166',",
+            "line": 47
+          },
+          {
+            "type": "add",
+            "content": "        })",
+            "line": 48
+          },
+          {
+            "type": "add",
+            "content": "        .setOrigin(0.5)",
+            "line": 49
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 50
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 51
+          },
+          {
+            "type": "add",
+            "content": "    this.add",
+            "line": 52
+          },
+          {
+            "type": "add",
+            "content": "      .text(cx, 268, '本 局 分 数', { fontFamily: FONT, fontSize: '16px', color: '#8b95ab' })",
+            "line": 53
+          },
+          {
+            "type": "add",
+            "content": "      .setOrigin(0.5)",
+            "line": 54
+          },
+          {
+            "type": "add",
+            "content": "    this.add",
+            "line": 55
+          },
+          {
+            "type": "add",
+            "content": "      .text(cx, 318, String(data.score), {",
+            "line": 56
+          },
+          {
+            "type": "add",
+            "content": "        fontFamily: FONT,",
+            "line": 57
+          },
+          {
+            "type": "add",
+            "content": "        fontSize: '64px',",
+            "line": 58
+          },
+          {
+            "type": "add",
+            "content": "        color: '#4cc9f0',",
+            "line": 59
+          },
+          {
+            "type": "add",
+            "content": "        fontStyle: 'bold',",
+            "line": 60
+          },
+          {
+            "type": "add",
+            "content": "      })",
+            "line": 61
+          },
+          {
+            "type": "add",
+            "content": "      .setOrigin(0.5)",
+            "line": 62
+          },
+          {
+            "type": "add",
+            "content": "    this.add",
+            "line": 63
+          },
+          {
+            "type": "add",
+            "content": "      .text(cx, 392, `历史最高分　${data.best}`, {",
+            "line": 64
+          },
+          {
+            "type": "add",
+            "content": "        fontFamily: FONT,",
+            "line": 65
+          },
+          {
+            "type": "add",
+            "content": "        fontSize: '17px',",
+            "line": 66
+          },
+          {
+            "type": "add",
+            "content": "        color: '#8b95ab',",
+            "line": 67
+          },
+          {
+            "type": "add",
+            "content": "      })",
+            "line": 68
+          },
+          {
+            "type": "add",
+            "content": "      .setOrigin(0.5)",
+            "line": 69
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 70
+          },
+          {
+            "type": "add",
+            "content": "    // 再来一局",
+            "line": 71
+          },
+          {
+            "type": "add",
+            "content": "    const again = this.add",
+            "line": 72
+          },
+          {
+            "type": "add",
+            "content": "      .text(cx, 470, '再 来 一 局', {",
+            "line": 73
+          },
+          {
+            "type": "add",
+            "content": "        fontFamily: FONT,",
+            "line": 74
+          },
+          {
+            "type": "add",
+            "content": "        fontSize: '26px',",
+            "line": 75
+          },
+          {
+            "type": "add",
+            "content": "        color: '#0b0d12',",
+            "line": 76
+          },
+          {
+            "type": "add",
+            "content": "        backgroundColor: '#4cc9f0',",
+            "line": 77
+          },
+          {
+            "type": "add",
+            "content": "        padding: { x: 26, y: 10 },",
+            "line": 78
+          },
+          {
+            "type": "add",
+            "content": "      })",
+            "line": 79
+          },
+          {
+            "type": "add",
+            "content": "      .setOrigin(0.5)",
+            "line": 80
+          },
+          {
+            "type": "add",
+            "content": "      .setInteractive({ useHandCursor: true })",
+            "line": 81
+          },
+          {
+            "type": "add",
+            "content": "    again.on('pointerover', () => again.setBackgroundColor('#6ad8ff'))",
+            "line": 82
+          },
+          {
+            "type": "add",
+            "content": "    again.on('pointerout', () => again.setBackgroundColor('#4cc9f0'))",
+            "line": 83
+          },
+          {
+            "type": "add",
+            "content": "    again.on('pointerdown', () => this.again())",
+            "line": 84
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 85
+          },
+          {
+            "type": "add",
+            "content": "    // 返回主菜单",
+            "line": 86
+          },
+          {
+            "type": "add",
+            "content": "    const menu = this.add",
+            "line": 87
+          },
+          {
+            "type": "add",
+            "content": "      .text(cx, 536, '返回主菜单', {",
+            "line": 88
+          },
+          {
+            "type": "add",
+            "content": "        fontFamily: FONT,",
+            "line": 89
+          },
+          {
+            "type": "add",
+            "content": "        fontSize: '18px',",
+            "line": 90
+          },
+          {
+            "type": "add",
+            "content": "        color: '#8b95ab',",
+            "line": 91
+          },
+          {
+            "type": "add",
+            "content": "      })",
+            "line": 92
+          },
+          {
+            "type": "add",
+            "content": "      .setOrigin(0.5)",
+            "line": 93
+          },
+          {
+            "type": "add",
+            "content": "      .setInteractive({ useHandCursor: true })",
+            "line": 94
+          },
+          {
+            "type": "add",
+            "content": "    menu.on('pointerover', () => menu.setColor('#e9edf6'))",
+            "line": 95
+          },
+          {
+            "type": "add",
+            "content": "    menu.on('pointerout', () => menu.setColor('#8b95ab'))",
+            "line": 96
+          },
+          {
+            "type": "add",
+            "content": "    menu.on('pointerdown', () => this.toMenu())",
+            "line": 97
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 98
+          },
+          {
+            "type": "add",
+            "content": "    this.add",
+            "line": 99
+          },
+          {
+            "type": "add",
+            "content": "      .text(cx, 590, 'Enter 再来一局　·　Esc 返回主菜单', {",
+            "line": 100
+          },
+          {
+            "type": "add",
+            "content": "        fontFamily: FONT,",
+            "line": 101
+          },
+          {
+            "type": "add",
+            "content": "        fontSize: '13px',",
+            "line": 102
+          },
+          {
+            "type": "add",
+            "content": "        color: '#5b6478',",
+            "line": 103
+          },
+          {
+            "type": "add",
+            "content": "      })",
+            "line": 104
+          },
+          {
+            "type": "add",
+            "content": "      .setOrigin(0.5)",
+            "line": 105
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 106
+          },
+          {
+            "type": "add",
+            "content": "    this.input.keyboard?.on('keydown-ENTER', () => this.again())",
+            "line": 107
+          },
+          {
+            "type": "add",
+            "content": "    this.input.keyboard?.on('keydown-ESC', () => this.toMenu())",
+            "line": 108
+          },
+          {
+            "type": "add",
+            "content": "    this.input.keyboard?.on('keydown-SPACE', () => this.again())",
+            "line": 109
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 110
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 111
+          },
+          {
+            "type": "add",
+            "content": "  private again(): void {",
+            "line": 112
+          },
+          {
+            "type": "add",
+            "content": "    // E9：快速连点防抖",
+            "line": 113
+          },
+          {
+            "type": "add",
+            "content": "    if (this.time.now - this.lastActionAt < FX.menuDebounceMs) return",
+            "line": 114
+          },
+          {
+            "type": "add",
+            "content": "    this.lastActionAt = this.time.now",
+            "line": 115
+          },
+          {
+            "type": "add",
+            "content": "    sfx.warm()",
+            "line": 116
+          },
+          {
+            "type": "add",
+            "content": "    this.scene.start('game')",
+            "line": 117
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 118
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 119
+          },
+          {
+            "type": "add",
+            "content": "  private toMenu(): void {",
+            "line": 120
+          },
+          {
+            "type": "add",
+            "content": "    if (this.time.now - this.lastActionAt < FX.menuDebounceMs) return",
+            "line": 121
+          },
+          {
+            "type": "add",
+            "content": "    this.lastActionAt = this.time.now",
+            "line": 122
+          },
+          {
+            "type": "add",
+            "content": "    this.scene.start('menu')",
+            "line": 123
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 124
+          },
+          {
+            "type": "add",
+            "content": "}",
+            "line": 125
+          }
+        ]
+      }
+    }
+  ]
+}

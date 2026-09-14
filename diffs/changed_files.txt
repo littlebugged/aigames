@@ -1,5 +1,12 @@
-games/snake/index.html
-games/snake/main.ts
+games/star-vanguard/BootScene.ts
+games/star-vanguard/GameOverScene.ts
+games/star-vanguard/GameScene.ts
+games/star-vanguard/MenuScene.ts
+games/star-vanguard/Sfx.ts
+games/star-vanguard/config.ts
+games/star-vanguard/index.html
+games/star-vanguard/main.ts
+games/star-vanguard/textures.ts
 index.html
 src/style.css
 vite.config.ts

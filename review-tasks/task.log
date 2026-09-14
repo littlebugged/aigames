@@ -1,4 +1,6 @@
-completed|games__snake_part_0|+68/-0|68 lines|games/snake/index.html
-completed|games__snake_part_1|+710/-0|710 lines|games/snake/main.ts
-completed|_dot_|+16/-0|105 lines|index.html, vite.config.ts
-completed|src|+37/-0|272 lines|src/style.css
+completed|games__star-vanguard_part_0|+140/-0|140 lines|games/star-vanguard/BootScene.ts, games/star-vanguard/GameOverScene.ts
+completed|games__star-vanguard_part_1|+1073/-0|1073 lines|games/star-vanguard/GameScene.ts
+completed|games__star-vanguard_part_2|+467/-0|467 lines|games/star-vanguard/MenuScene.ts, games/star-vanguard/Sfx.ts, games/star-vanguard/config.ts, games/star-vanguard/index.html
+completed|games__star-vanguard_part_3|+256/-0|256 lines|games/star-vanguard/main.ts, games/star-vanguard/textures.ts
+completed|_dot_|+16/-0|121 lines|index.html, vite.config.ts
+completed|src|+36/-0|308 lines|src/style.css

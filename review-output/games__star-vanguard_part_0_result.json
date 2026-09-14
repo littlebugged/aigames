@@ -1,0 +1,26 @@
+[
+  {
+    "file": "games/star-vanguard/GameOverScene.ts",
+    "context": "107-109",
+    "scope_code": "    this.input.keyboard?.on('keydown-ENTER', () => this.again())\n    this.input.keyboard?.on('keydown-ESC', () => this.toMenu())\n    this.input.keyboard?.on('keydown-SPACE', () => this.again())\n  }",
+    "comment": "Phaser 场景实例在 scene.start() 后会被复用（不重建对象），每次进入 GameOver 场景都会在同一个 keyboard emitter 上叠加新的监听器，导致 again()/toMenu() 被重复调用多次。应在 shutdown 事件中移除监听，或改用 once 模式，或在 create() 开头先执行 this.input.keyboard?.removeAllListeners() 清理。",
+    "severity": "error",
+    "advice_code": "    const kb = this.input.keyboard\n    if (kb) {\n      kb.removeAllListeners('keydown-ENTER')\n      kb.removeAllListeners('keydown-ESC')\n      kb.removeAllListeners('keydown-SPACE')\n      kb.on('keydown-ENTER', () => this.again())\n      kb.on('keydown-ESC', () => this.toMenu())\n      kb.on('keydown-SPACE', () => this.again())\n    }\n    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {\n      kb?.removeAllListeners('keydown-ENTER')\n      kb?.removeAllListeners('keydown-ESC')\n      kb?.removeAllListeners('keydown-SPACE')\n    })"
+  },
+  {
+    "file": "games/star-vanguard/GameOverScene.ts",
+    "context": "14",
+    "scope_code": "export class GameOverScene extends Phaser.Scene {\n  private lastActionAt = -10000\n\n  constructor() {\n    super('gameover')\n  }\n\n  create(data: GameOverData): void {",
+    "comment": "lastActionAt 是类级字段初始化为 -10000，仅在首次实例化时有效。Phaser 复用场景实例时不会重建字段，再次进入 GameOver 场景时 lastActionAt 保留上次结束时的值（接近当前时间），导致防抖在进入后的 300ms 内错误屏蔽正常操作。应在 create() 开头重置为 -10000。",
+    "severity": "warn",
+    "advice_code": "  create(data: GameOverData): void {\n    this.lastActionAt = -10000\n    this.cameras.main.setBackgroundColor(COLOR.bg)"
+  },
+  {
+    "file": "games/star-vanguard/GameOverScene.ts",
+    "context": "120-124",
+    "scope_code": "  private toMenu(): void {\n    if (this.time.now - this.lastActionAt < FX.menuDebounceMs) return\n    this.lastActionAt = this.time.now\n    this.scene.start('menu')\n  }",
+    "comment": "toMenu() 没有调用 sfx.warm()，而 again() 调用了。若用户首次交互是点击「返回主菜单」，AudioContext 将保持 suspended 状态，菜单场景中后续的音效调用将静默失败。与 again() 保持一致，在此也调用 sfx.warm()。",
+    "severity": "warn",
+    "advice_code": "  private toMenu(): void {\n    if (this.time.now - this.lastActionAt < FX.menuDebounceMs) return\n    this.lastActionAt = this.time.now\n    sfx.warm()\n    this.scene.start('menu')\n  }"
+  }
+]

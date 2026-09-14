@@ -1,0 +1,2381 @@
+{
+  "chunkId": "games__star-vanguard_part_2",
+  "module": "games/star-vanguard",
+  "files": [
+    {
+      "path": "games/star-vanguard/MenuScene.ts",
+      "sourceLines": 141,
+      "diff": {
+        "oldFileName": "games/star-vanguard/MenuScene.ts",
+        "newFileName": "games/star-vanguard/MenuScene.ts",
+        "changes": [
+          {
+            "type": "add",
+            "content": "// 星穹守卫 —— 主菜单场景（标题 / 操作说明 / 开始 / 静音）",
+            "line": 1
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 2
+          },
+          {
+            "type": "add",
+            "content": "import Phaser from 'phaser'",
+            "line": 3
+          },
+          {
+            "type": "add",
+            "content": "import { FONT, GAME_W, GAME_H, COLOR, FX, BEST_KEY } from './config'",
+            "line": 4
+          },
+          {
+            "type": "add",
+            "content": "import { sfx } from './Sfx'",
+            "line": 5
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 6
+          },
+          {
+            "type": "add",
+            "content": "export class MenuScene extends Phaser.Scene {",
+            "line": 7
+          },
+          {
+            "type": "add",
+            "content": "  private mutedText!: Phaser.GameObjects.Text",
+            "line": 8
+          },
+          {
+            "type": "add",
+            "content": "  private lastStartAt = -10000",
+            "line": 9
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 10
+          },
+          {
+            "type": "add",
+            "content": "  constructor() {",
+            "line": 11
+          },
+          {
+            "type": "add",
+            "content": "    super('menu')",
+            "line": 12
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 13
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 14
+          },
+          {
+            "type": "add",
+            "content": "  create(): void {",
+            "line": 15
+          },
+          {
+            "type": "add",
+            "content": "    this.drawBackdrop()",
+            "line": 16
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 17
+          },
+          {
+            "type": "add",
+            "content": "    const cx = GAME_W / 2",
+            "line": 18
+          },
+          {
+            "type": "add",
+            "content": "    sfx.warm()",
+            "line": 19
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 20
+          },
+          {
+            "type": "add",
+            "content": "    this.add",
+            "line": 21
+          },
+          {
+            "type": "add",
+            "content": "      .text(cx, 150, '星穹守卫', {",
+            "line": 22
+          },
+          {
+            "type": "add",
+            "content": "        fontFamily: FONT,",
+            "line": 23
+          },
+          {
+            "type": "add",
+            "content": "        fontSize: '72px',",
+            "line": 24
+          },
+          {
+            "type": "add",
+            "content": "        color: '#e9edf6',",
+            "line": 25
+          },
+          {
+            "type": "add",
+            "content": "        fontStyle: 'bold',",
+            "line": 26
+          },
+          {
+            "type": "add",
+            "content": "      })",
+            "line": 27
+          },
+          {
+            "type": "add",
+            "content": "      .setOrigin(0.5)",
+            "line": 28
+          },
+          {
+            "type": "add",
+            "content": "    this.add",
+            "line": 29
+          },
+          {
+            "type": "add",
+            "content": "      .text(cx, 216, 'S T A R   V A N G U A R D', {",
+            "line": 30
+          },
+          {
+            "type": "add",
+            "content": "        fontFamily: FONT,",
+            "line": 31
+          },
+          {
+            "type": "add",
+            "content": "        fontSize: '20px',",
+            "line": 32
+          },
+          {
+            "type": "add",
+            "content": "        color: '#4cc9f0',",
+            "line": 33
+          },
+          {
+            "type": "add",
+            "content": "      })",
+            "line": 34
+          },
+          {
+            "type": "add",
+            "content": "      .setOrigin(0.5)",
+            "line": 35
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 36
+          },
+          {
+            "type": "add",
+            "content": "    // 操作说明",
+            "line": 37
+          },
+          {
+            "type": "add",
+            "content": "    this.add",
+            "line": 38
+          },
+          {
+            "type": "add",
+            "content": "      .text(",
+            "line": 39
+          },
+          {
+            "type": "add",
+            "content": "        cx,",
+            "line": 40
+          },
+          {
+            "type": "add",
+            "content": "        306,",
+            "line": 41
+          },
+          {
+            "type": "add",
+            "content": "        [",
+            "line": 42
+          },
+          {
+            "type": "add",
+            "content": "          '← → / A D　移动　·　子弹自动发射',",
+            "line": 43
+          },
+          {
+            "type": "add",
+            "content": "          'P 暂停　·　M 静音',",
+            "line": 44
+          },
+          {
+            "type": "add",
+            "content": "        ],",
+            "line": 45
+          },
+          {
+            "type": "add",
+            "content": "        {",
+            "line": 46
+          },
+          {
+            "type": "add",
+            "content": "          fontFamily: FONT,",
+            "line": 47
+          },
+          {
+            "type": "add",
+            "content": "          fontSize: '15px',",
+            "line": 48
+          },
+          {
+            "type": "add",
+            "content": "          color: '#8b95ab',",
+            "line": 49
+          },
+          {
+            "type": "add",
+            "content": "          align: 'center',",
+            "line": 50
+          },
+          {
+            "type": "add",
+            "content": "          lineSpacing: 10,",
+            "line": 51
+          },
+          {
+            "type": "add",
+            "content": "        },",
+            "line": 52
+          },
+          {
+            "type": "add",
+            "content": "      )",
+            "line": 53
+          },
+          {
+            "type": "add",
+            "content": "      .setOrigin(0.5)",
+            "line": 54
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 55
+          },
+          {
+            "type": "add",
+            "content": "    const best = this.readBest()",
+            "line": 56
+          },
+          {
+            "type": "add",
+            "content": "    this.add",
+            "line": 57
+          },
+          {
+            "type": "add",
+            "content": "      .text(cx, 372, best > 0 ? `历史最高分　${best}` : '尚无记录，快来创造第一个纪录', {",
+            "line": 58
+          },
+          {
+            "type": "add",
+            "content": "        fontFamily: FONT,",
+            "line": 59
+          },
+          {
+            "type": "add",
+            "content": "        fontSize: '15px',",
+            "line": 60
+          },
+          {
+            "type": "add",
+            "content": "        color: '#ffd166',",
+            "line": 61
+          },
+          {
+            "type": "add",
+            "content": "      })",
+            "line": 62
+          },
+          {
+            "type": "add",
+            "content": "      .setOrigin(0.5)",
+            "line": 63
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 64
+          },
+          {
+            "type": "add",
+            "content": "    // 开始按钮",
+            "line": 65
+          },
+          {
+            "type": "add",
+            "content": "    const btn = this.add",
+            "line": 66
+          },
+          {
+            "type": "add",
+            "content": "      .text(cx, 452, '开 始 游 戏', {",
+            "line": 67
+          },
+          {
+            "type": "add",
+            "content": "        fontFamily: FONT,",
+            "line": 68
+          },
+          {
+            "type": "add",
+            "content": "        fontSize: '30px',",
+            "line": 69
+          },
+          {
+            "type": "add",
+            "content": "        color: '#0b0d12',",
+            "line": 70
+          },
+          {
+            "type": "add",
+            "content": "        backgroundColor: '#4cc9f0',",
+            "line": 71
+          },
+          {
+            "type": "add",
+            "content": "        padding: { x: 34, y: 13 },",
+            "line": 72
+          },
+          {
+            "type": "add",
+            "content": "      })",
+            "line": 73
+          },
+          {
+            "type": "add",
+            "content": "      .setOrigin(0.5)",
+            "line": 74
+          },
+          {
+            "type": "add",
+            "content": "      .setInteractive({ useHandCursor: true })",
+            "line": 75
+          },
+          {
+            "type": "add",
+            "content": "    btn.on('pointerover', () => btn.setBackgroundColor('#6ad8ff'))",
+            "line": 76
+          },
+          {
+            "type": "add",
+            "content": "    btn.on('pointerout', () => btn.setBackgroundColor('#4cc9f0'))",
+            "line": 77
+          },
+          {
+            "type": "add",
+            "content": "    // E9：先触发防抖更新，再开始",
+            "line": 78
+          },
+          {
+            "type": "add",
+            "content": "    btn.on('pointerdown', () => this.startGame())",
+            "line": 79
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 80
+          },
+          {
+            "type": "add",
+            "content": "    this.add",
+            "line": 81
+          },
+          {
+            "type": "add",
+            "content": "      .text(cx, 540, '按 Enter 或点击按钮开始', {",
+            "line": 82
+          },
+          {
+            "type": "add",
+            "content": "        fontFamily: FONT,",
+            "line": 83
+          },
+          {
+            "type": "add",
+            "content": "        fontSize: '13px',",
+            "line": 84
+          },
+          {
+            "type": "add",
+            "content": "        color: '#5b6478',",
+            "line": 85
+          },
+          {
+            "type": "add",
+            "content": "      })",
+            "line": 86
+          },
+          {
+            "type": "add",
+            "content": "      .setOrigin(0.5)",
+            "line": 87
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 88
+          },
+          {
+            "type": "add",
+            "content": "    this.mutedText = this.add",
+            "line": 89
+          },
+          {
+            "type": "add",
+            "content": "      .text(GAME_W - 26, 26, '', {",
+            "line": 90
+          },
+          {
+            "type": "add",
+            "content": "        fontFamily: FONT,",
+            "line": 91
+          },
+          {
+            "type": "add",
+            "content": "        fontSize: '14px',",
+            "line": 92
+          },
+          {
+            "type": "add",
+            "content": "        color: '#8b95ab',",
+            "line": 93
+          },
+          {
+            "type": "add",
+            "content": "      })",
+            "line": 94
+          },
+          {
+            "type": "add",
+            "content": "      .setOrigin(1, 0)",
+            "line": 95
+          },
+          {
+            "type": "add",
+            "content": "    this.refreshMuted()",
+            "line": 96
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 97
+          },
+          {
+            "type": "add",
+            "content": "    this.input.keyboard?.on('keydown-ENTER', () => this.startGame())",
+            "line": 98
+          },
+          {
+            "type": "add",
+            "content": "    this.input.keyboard?.on('keydown-M', () => this.toggleMute())",
+            "line": 99
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 100
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 101
+          },
+          {
+            "type": "add",
+            "content": "  private startGame(): void {",
+            "line": 102
+          },
+          {
+            "type": "add",
+            "content": "    // E9：快速连点防抖，避免同帧重复 start",
+            "line": 103
+          },
+          {
+            "type": "add",
+            "content": "    if (this.time.now - this.lastStartAt < FX.menuDebounceMs) return",
+            "line": 104
+          },
+          {
+            "type": "add",
+            "content": "    this.lastStartAt = this.time.now",
+            "line": 105
+          },
+          {
+            "type": "add",
+            "content": "    this.scene.start('game')",
+            "line": 106
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 107
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 108
+          },
+          {
+            "type": "add",
+            "content": "  private toggleMute(): void {",
+            "line": 109
+          },
+          {
+            "type": "add",
+            "content": "    sfx.setMuted(!sfx.isMuted())",
+            "line": 110
+          },
+          {
+            "type": "add",
+            "content": "    this.refreshMuted()",
+            "line": 111
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 112
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 113
+          },
+          {
+            "type": "add",
+            "content": "  private refreshMuted(): void {",
+            "line": 114
+          },
+          {
+            "type": "add",
+            "content": "    this.mutedText.setText(sfx.isMuted() ? '🔇 已静音 (M)' : '🔊 音效开启 (M)')",
+            "line": 115
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 116
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 117
+          },
+          {
+            "type": "add",
+            "content": "  private readBest(): number {",
+            "line": 118
+          },
+          {
+            "type": "add",
+            "content": "    try {",
+            "line": 119
+          },
+          {
+            "type": "add",
+            "content": "      const raw = localStorage.getItem(BEST_KEY)",
+            "line": 120
+          },
+          {
+            "type": "add",
+            "content": "      if (!raw) return 0",
+            "line": 121
+          },
+          {
+            "type": "add",
+            "content": "      const value = Number.parseInt(raw, 10)",
+            "line": 122
+          },
+          {
+            "type": "add",
+            "content": "      return Number.isFinite(value) && value > 0 ? value : 0",
+            "line": 123
+          },
+          {
+            "type": "add",
+            "content": "    } catch {",
+            "line": 124
+          },
+          {
+            "type": "add",
+            "content": "      return 0",
+            "line": 125
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 126
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 127
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 128
+          },
+          {
+            "type": "add",
+            "content": "  private drawBackdrop(): void {",
+            "line": 129
+          },
+          {
+            "type": "add",
+            "content": "    this.cameras.main.setBackgroundColor(COLOR.bg)",
+            "line": 130
+          },
+          {
+            "type": "add",
+            "content": "    const rnd = new Phaser.Math.RandomDataGenerator(['menu'])",
+            "line": 131
+          },
+          {
+            "type": "add",
+            "content": "    for (let i = 0; i < 70; i += 1) {",
+            "line": 132
+          },
+          {
+            "type": "add",
+            "content": "      const size = rnd.between(1, 3)",
+            "line": 133
+          },
+          {
+            "type": "add",
+            "content": "      this.add",
+            "line": 134
+          },
+          {
+            "type": "add",
+            "content": "        .rectangle(rnd.between(0, GAME_W), rnd.between(0, GAME_H), size, size, 0xffffff, 0.18)",
+            "line": 135
+          },
+          {
+            "type": "add",
+            "content": "        .setDepth(0)",
+            "line": 136
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 137
+          },
+          {
+            "type": "add",
+            "content": "    // 一艘展示用战机",
+            "line": 138
+          },
+          {
+            "type": "add",
+            "content": "    this.add.image(GAME_W / 2, 250, 'player').setScale(1.6).setAlpha(0.12)",
+            "line": 139
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 140
+          },
+          {
+            "type": "add",
+            "content": "}",
+            "line": 141
+          }
+        ]
+      }
+    },
+    {
+      "path": "games/star-vanguard/Sfx.ts",
+      "sourceLines": 138,
+      "diff": {
+        "oldFileName": "games/star-vanguard/Sfx.ts",
+        "newFileName": "games/star-vanguard/Sfx.ts",
+        "changes": [
+          {
+            "type": "add",
+            "content": "// 星穹守卫 —— Web Audio 实时合成音效（零音频文件）",
+            "line": 1
+          },
+          {
+            "type": "add",
+            "content": "// 参考 games/neon-dash/main.ts 的 Sfx 模式扩展；E1：AudioContext 不可用则静默，E2：首次交互自动 resume",
+            "line": 2
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 3
+          },
+          {
+            "type": "add",
+            "content": "export class Sfx {",
+            "line": 4
+          },
+          {
+            "type": "add",
+            "content": "  private ctx: AudioContext | null = null",
+            "line": 5
+          },
+          {
+            "type": "add",
+            "content": "  private muted = false",
+            "line": 6
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 7
+          },
+          {
+            "type": "add",
+            "content": "  setMuted(v: boolean): void {",
+            "line": 8
+          },
+          {
+            "type": "add",
+            "content": "    this.muted = v",
+            "line": 9
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 10
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 11
+          },
+          {
+            "type": "add",
+            "content": "  isMuted(): boolean {",
+            "line": 12
+          },
+          {
+            "type": "add",
+            "content": "    return this.muted",
+            "line": 13
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 14
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 15
+          },
+          {
+            "type": "add",
+            "content": "  private ensure(): AudioContext | null {",
+            "line": 16
+          },
+          {
+            "type": "add",
+            "content": "    if (this.muted) return null",
+            "line": 17
+          },
+          {
+            "type": "add",
+            "content": "    if (!this.ctx) {",
+            "line": 18
+          },
+          {
+            "type": "add",
+            "content": "      try {",
+            "line": 19
+          },
+          {
+            "type": "add",
+            "content": "        this.ctx = new AudioContext()",
+            "line": 20
+          },
+          {
+            "type": "add",
+            "content": "      } catch {",
+            "line": 21
+          },
+          {
+            "type": "add",
+            "content": "        return null",
+            "line": 22
+          },
+          {
+            "type": "add",
+            "content": "      }",
+            "line": 23
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 24
+          },
+          {
+            "type": "add",
+            "content": "    if (this.ctx.state === 'suspended') {",
+            "line": 25
+          },
+          {
+            "type": "add",
+            "content": "      void this.ctx.resume().catch(() => {})",
+            "line": 26
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 27
+          },
+          {
+            "type": "add",
+            "content": "    return this.ctx",
+            "line": 28
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 29
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 30
+          },
+          {
+            "type": "add",
+            "content": "  /** 首次用户交互时预热（E2：自动播放策略） */",
+            "line": 31
+          },
+          {
+            "type": "add",
+            "content": "  warm(): void {",
+            "line": 32
+          },
+          {
+            "type": "add",
+            "content": "    this.ensure()",
+            "line": 33
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 34
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 35
+          },
+          {
+            "type": "add",
+            "content": "  private tone(",
+            "line": 36
+          },
+          {
+            "type": "add",
+            "content": "    freqA: number,",
+            "line": 37
+          },
+          {
+            "type": "add",
+            "content": "    freqB: number,",
+            "line": 38
+          },
+          {
+            "type": "add",
+            "content": "    dur: number,",
+            "line": 39
+          },
+          {
+            "type": "add",
+            "content": "    type: OscillatorType,",
+            "line": 40
+          },
+          {
+            "type": "add",
+            "content": "    vol: number,",
+            "line": 41
+          },
+          {
+            "type": "add",
+            "content": "    delay = 0,",
+            "line": 42
+          },
+          {
+            "type": "add",
+            "content": "  ): void {",
+            "line": 43
+          },
+          {
+            "type": "add",
+            "content": "    const ctx = this.ensure()",
+            "line": 44
+          },
+          {
+            "type": "add",
+            "content": "    if (!ctx) return",
+            "line": 45
+          },
+          {
+            "type": "add",
+            "content": "    const t0 = ctx.currentTime + delay",
+            "line": 46
+          },
+          {
+            "type": "add",
+            "content": "    const osc = ctx.createOscillator()",
+            "line": 47
+          },
+          {
+            "type": "add",
+            "content": "    const gain = ctx.createGain()",
+            "line": 48
+          },
+          {
+            "type": "add",
+            "content": "    osc.type = type",
+            "line": 49
+          },
+          {
+            "type": "add",
+            "content": "    osc.frequency.setValueAtTime(freqA, t0)",
+            "line": 50
+          },
+          {
+            "type": "add",
+            "content": "    osc.frequency.exponentialRampToValueAtTime(Math.max(1, freqB), t0 + dur)",
+            "line": 51
+          },
+          {
+            "type": "add",
+            "content": "    gain.gain.setValueAtTime(0, t0)",
+            "line": 52
+          },
+          {
+            "type": "add",
+            "content": "    gain.gain.linearRampToValueAtTime(vol, t0 + 0.008)",
+            "line": 53
+          },
+          {
+            "type": "add",
+            "content": "    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur)",
+            "line": 54
+          },
+          {
+            "type": "add",
+            "content": "    osc.connect(gain)",
+            "line": 55
+          },
+          {
+            "type": "add",
+            "content": "    gain.connect(ctx.destination)",
+            "line": 56
+          },
+          {
+            "type": "add",
+            "content": "    osc.start(t0)",
+            "line": 57
+          },
+          {
+            "type": "add",
+            "content": "    osc.stop(t0 + dur + 0.02)",
+            "line": 58
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 59
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 60
+          },
+          {
+            "type": "add",
+            "content": "  /** 白噪声爆（低通滤波），用于爆炸类音效 */",
+            "line": 61
+          },
+          {
+            "type": "add",
+            "content": "  private noise(dur: number, vol: number, cutoff: number, delay = 0): void {",
+            "line": 62
+          },
+          {
+            "type": "add",
+            "content": "    const ctx = this.ensure()",
+            "line": 63
+          },
+          {
+            "type": "add",
+            "content": "    if (!ctx) return",
+            "line": 64
+          },
+          {
+            "type": "add",
+            "content": "    const t0 = ctx.currentTime + delay",
+            "line": 65
+          },
+          {
+            "type": "add",
+            "content": "    const buffer = ctx.createBuffer(1, Math.max(1, Math.floor(ctx.sampleRate * dur)), ctx.sampleRate)",
+            "line": 66
+          },
+          {
+            "type": "add",
+            "content": "    const data = buffer.getChannelData(0)",
+            "line": 67
+          },
+          {
+            "type": "add",
+            "content": "    for (let i = 0; i < data.length; i += 1) {",
+            "line": 68
+          },
+          {
+            "type": "add",
+            "content": "      data[i] = (Math.random() * 2 - 1) * (1 - i / data.length)",
+            "line": 69
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 70
+          },
+          {
+            "type": "add",
+            "content": "    const src = ctx.createBufferSource()",
+            "line": 71
+          },
+          {
+            "type": "add",
+            "content": "    src.buffer = buffer",
+            "line": 72
+          },
+          {
+            "type": "add",
+            "content": "    const filter = ctx.createBiquadFilter()",
+            "line": 73
+          },
+          {
+            "type": "add",
+            "content": "    filter.type = 'lowpass'",
+            "line": 74
+          },
+          {
+            "type": "add",
+            "content": "    filter.frequency.value = cutoff",
+            "line": 75
+          },
+          {
+            "type": "add",
+            "content": "    const gain = ctx.createGain()",
+            "line": 76
+          },
+          {
+            "type": "add",
+            "content": "    gain.gain.value = vol",
+            "line": 77
+          },
+          {
+            "type": "add",
+            "content": "    src.connect(filter)",
+            "line": 78
+          },
+          {
+            "type": "add",
+            "content": "    filter.connect(gain)",
+            "line": 79
+          },
+          {
+            "type": "add",
+            "content": "    gain.connect(ctx.destination)",
+            "line": 80
+          },
+          {
+            "type": "add",
+            "content": "    src.start(t0)",
+            "line": 81
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 82
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 83
+          },
+          {
+            "type": "add",
+            "content": "  shoot(): void {",
+            "line": 84
+          },
+          {
+            "type": "add",
+            "content": "    this.tone(920, 440, 0.06, 'square', 0.05)",
+            "line": 85
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 86
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 87
+          },
+          {
+            "type": "add",
+            "content": "  enemyShoot(): void {",
+            "line": 88
+          },
+          {
+            "type": "add",
+            "content": "    this.tone(320, 190, 0.09, 'sawtooth', 0.045)",
+            "line": 89
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 90
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 91
+          },
+          {
+            "type": "add",
+            "content": "  hit(): void {",
+            "line": 92
+          },
+          {
+            "type": "add",
+            "content": "    this.tone(220, 70, 0.08, 'square', 0.09)",
+            "line": 93
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 94
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 95
+          },
+          {
+            "type": "add",
+            "content": "  boomSmall(): void {",
+            "line": 96
+          },
+          {
+            "type": "add",
+            "content": "    this.noise(0.22, 0.16, 900)",
+            "line": 97
+          },
+          {
+            "type": "add",
+            "content": "    this.tone(150, 40, 0.2, 'triangle', 0.12)",
+            "line": 98
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 99
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 100
+          },
+          {
+            "type": "add",
+            "content": "  boomBig(): void {",
+            "line": 101
+          },
+          {
+            "type": "add",
+            "content": "    this.noise(0.55, 0.24, 650)",
+            "line": 102
+          },
+          {
+            "type": "add",
+            "content": "    this.tone(120, 28, 0.5, 'triangle', 0.18)",
+            "line": 103
+          },
+          {
+            "type": "add",
+            "content": "    this.tone(60, 20, 0.6, 'sine', 0.14, 0.05)",
+            "line": 104
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 105
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 106
+          },
+          {
+            "type": "add",
+            "content": "  pickup(): void {",
+            "line": 107
+          },
+          {
+            "type": "add",
+            "content": "    this.tone(523, 523, 0.06, 'square', 0.07)",
+            "line": 108
+          },
+          {
+            "type": "add",
+            "content": "    this.tone(659, 659, 0.06, 'square', 0.07, 0.06)",
+            "line": 109
+          },
+          {
+            "type": "add",
+            "content": "    this.tone(784, 784, 0.1, 'square', 0.07, 0.12)",
+            "line": 110
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 111
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 112
+          },
+          {
+            "type": "add",
+            "content": "  shieldBreak(): void {",
+            "line": 113
+          },
+          {
+            "type": "add",
+            "content": "    this.tone(1100, 180, 0.16, 'triangle', 0.1)",
+            "line": 114
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 115
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 116
+          },
+          {
+            "type": "add",
+            "content": "  bossWarn(): void {",
+            "line": 117
+          },
+          {
+            "type": "add",
+            "content": "    for (let i = 0; i < 3; i += 1) {",
+            "line": 118
+          },
+          {
+            "type": "add",
+            "content": "      this.tone(440, 440, 0.12, 'square', 0.09, i * 0.3)",
+            "line": 119
+          },
+          {
+            "type": "add",
+            "content": "      this.tone(622, 622, 0.12, 'square', 0.09, i * 0.3 + 0.15)",
+            "line": 120
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 121
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 122
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 123
+          },
+          {
+            "type": "add",
+            "content": "  wave(): void {",
+            "line": 124
+          },
+          {
+            "type": "add",
+            "content": "    this.tone(880, 880, 0.09, 'square', 0.07)",
+            "line": 125
+          },
+          {
+            "type": "add",
+            "content": "    this.tone(1320, 1320, 0.13, 'square', 0.07, 0.09)",
+            "line": 126
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 127
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 128
+          },
+          {
+            "type": "add",
+            "content": "  gameOver(): void {",
+            "line": 129
+          },
+          {
+            "type": "add",
+            "content": "    this.tone(392, 392, 0.16, 'triangle', 0.12)",
+            "line": 130
+          },
+          {
+            "type": "add",
+            "content": "    this.tone(262, 262, 0.16, 'triangle', 0.12, 0.18)",
+            "line": 131
+          },
+          {
+            "type": "add",
+            "content": "    this.tone(131, 131, 0.4, 'triangle', 0.12, 0.36)",
+            "line": 132
+          },
+          {
+            "type": "add",
+            "content": "    this.noise(0.4, 0.1, 500, 0.36)",
+            "line": 133
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 134
+          },
+          {
+            "type": "add",
+            "content": "}",
+            "line": 135
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 136
+          },
+          {
+            "type": "add",
+            "content": "/** 全局共享音效单例（各场景共用，静音状态跨场景保持） */",
+            "line": 137
+          },
+          {
+            "type": "add",
+            "content": "export const sfx = new Sfx()",
+            "line": 138
+          }
+        ]
+      }
+    },
+    {
+      "path": "games/star-vanguard/config.ts",
+      "sourceLines": 119,
+      "diff": {
+        "oldFileName": "games/star-vanguard/config.ts",
+        "newFileName": "games/star-vanguard/config.ts",
+        "changes": [
+          {
+            "type": "add",
+            "content": "// 星穹守卫 Star Vanguard —— 全局配置与工具函数",
+            "line": 1
+          },
+          {
+            "type": "add",
+            "content": "// 数值均来自 PRD v1.0（2.2~2.10 各节），按模块聚合便于二次开发调整",
+            "line": 2
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 3
+          },
+          {
+            "type": "add",
+            "content": "export const GAME_W = 960",
+            "line": 4
+          },
+          {
+            "type": "add",
+            "content": "export const GAME_H = 720",
+            "line": 5
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 6
+          },
+          {
+            "type": "add",
+            "content": "export const FONT = 'system-ui, -apple-system, \"PingFang SC\", \"Microsoft YaHei\", sans-serif'",
+            "line": 7
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 8
+          },
+          {
+            "type": "add",
+            "content": "export const BEST_KEY = 'star-vanguard:best'",
+            "line": 9
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 10
+          },
+          {
+            "type": "add",
+            "content": "// ── 玩家（2.3）───────────────────────────────────────────────",
+            "line": 11
+          },
+          {
+            "type": "add",
+            "content": "export const PLAYER = {",
+            "line": 12
+          },
+          {
+            "type": "add",
+            "content": "  speed: 430, // px/s 左右移动",
+            "line": 13
+          },
+          {
+            "type": "add",
+            "content": "  startLives: 3,",
+            "line": 14
+          },
+          {
+            "type": "add",
+            "content": "  maxLives: 5,",
+            "line": 15
+          },
+          {
+            "type": "add",
+            "content": "  invincibleMs: 1600, // 受击后无敌帧",
+            "line": 16
+          },
+          {
+            "type": "add",
+            "content": "  fireCooldown: 1000 / 3, // 自动射击间隔 ms（1 秒 3 发）",
+            "line": 17
+          },
+          {
+            "type": "add",
+            "content": "  rapidCooldown: 130, // 速射冷却 ms",
+            "line": 18
+          },
+          {
+            "type": "add",
+            "content": "  doubleMs: 8000, // 双发持续",
+            "line": 19
+          },
+          {
+            "type": "add",
+            "content": "  rapidMs: 8000, // 速射持续",
+            "line": 20
+          },
+          {
+            "type": "add",
+            "content": "  bulletSpeed: 700,",
+            "line": 21
+          },
+          {
+            "type": "add",
+            "content": "} as const",
+            "line": 22
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 23
+          },
+          {
+            "type": "add",
+            "content": "// ── 敌人（2.4）───────────────────────────────────────────────",
+            "line": 24
+          },
+          {
+            "type": "add",
+            "content": "export const ENEMY = {",
+            "line": 25
+          },
+          {
+            "type": "add",
+            "content": "  ufoBulletSpeed: 220,",
+            "line": 26
+          },
+          {
+            "type": "add",
+            "content": "  bossMaxHpBase: 200, // 第 3 波",
+            "line": 27
+          },
+          {
+            "type": "add",
+            "content": "  bossMaxHpFrom6: 300, // 第 6 波起",
+            "line": 28
+          },
+          {
+            "type": "add",
+            "content": "  bossMaxHpStep: 100,",
+            "line": 29
+          },
+          {
+            "type": "add",
+            "content": "  bossMaxHpCap: 600,",
+            "line": 30
+          },
+          {
+            "type": "add",
+            "content": "  bossScore: 500,",
+            "line": 31
+          },
+          {
+            "type": "add",
+            "content": "  bossTop: 90, // 悬浮 y 范围",
+            "line": 32
+          },
+          {
+            "type": "add",
+            "content": "  bossBottom: 110,",
+            "line": 33
+          },
+          {
+            "type": "add",
+            "content": "  bossMoveSpeed: 60, // 水平正弦速度 px/s",
+            "line": 34
+          },
+          {
+            "type": "add",
+            "content": "  bossFireDelay: 2000, // 进场后开炮延迟",
+            "line": 35
+          },
+          {
+            "type": "add",
+            "content": "  bossRingInterval: 1600, // 环形散射",
+            "line": 36
+          },
+          {
+            "type": "add",
+            "content": "  bossRingCount: 12,",
+            "line": 37
+          },
+          {
+            "type": "add",
+            "content": "  bossRingSpeed: 180,",
+            "line": 38
+          },
+          {
+            "type": "add",
+            "content": "  bossFanInterval: 2200, // 扇形齐射",
+            "line": 39
+          },
+          {
+            "type": "add",
+            "content": "  bossFanShots: 5,",
+            "line": 40
+          },
+          {
+            "type": "add",
+            "content": "  bossFanGapMs: 90,",
+            "line": 41
+          },
+          {
+            "type": "add",
+            "content": "  bossFanSpeed: 300,",
+            "line": 42
+          },
+          {
+            "type": "add",
+            "content": "  bossFanArc: 20, // 扇形 ±角度",
+            "line": 43
+          },
+          {
+            "type": "add",
+            "content": "} as const",
+            "line": 44
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 45
+          },
+          {
+            "type": "add",
+            "content": "export type EnemyKind = 'asteroidL' | 'asteroidS' | 'ufo' | 'dart' | 'boss'",
+            "line": 46
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 47
+          },
+          {
+            "type": "add",
+            "content": "export type EnemyDef = {",
+            "line": 48
+          },
+          {
+            "type": "add",
+            "content": "  kind: EnemyKind",
+            "line": 49
+          },
+          {
+            "type": "add",
+            "content": "  hp: number",
+            "line": 50
+          },
+          {
+            "type": "add",
+            "content": "  score: number",
+            "line": 51
+          },
+          {
+            "type": "add",
+            "content": "}",
+            "line": 52
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 53
+          },
+          {
+            "type": "add",
+            "content": "export const ENEMY_DEFS: Record<Exclude<EnemyKind, 'boss'>, EnemyDef> = {",
+            "line": 54
+          },
+          {
+            "type": "add",
+            "content": "  asteroidL: { kind: 'asteroidL', hp: 2, score: 20 },",
+            "line": 55
+          },
+          {
+            "type": "add",
+            "content": "  asteroidS: { kind: 'asteroidS', hp: 1, score: 10 },",
+            "line": 56
+          },
+          {
+            "type": "add",
+            "content": "  ufo: { kind: 'ufo', hp: 3, score: 40 },",
+            "line": 57
+          },
+          {
+            "type": "add",
+            "content": "  dart: { kind: 'dart', hp: 1, score: 30 },",
+            "line": 58
+          },
+          {
+            "type": "add",
+            "content": "}",
+            "line": 59
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 60
+          },
+          {
+            "type": "add",
+            "content": "// ── 波次（2.5）───────────────────────────────────────────────",
+            "line": 61
+          },
+          {
+            "type": "add",
+            "content": "export const WAVE = {",
+            "line": 62
+          },
+          {
+            "type": "add",
+            "content": "  spawnIntervalBase: 1900,",
+            "line": 63
+          },
+          {
+            "type": "add",
+            "content": "  spawnIntervalMin: 800,",
+            "line": 64
+          },
+          {
+            "type": "add",
+            "content": "  spawnIntervalStep: 120,",
+            "line": 65
+          },
+          {
+            "type": "add",
+            "content": "  minionsBase: 4,",
+            "line": 66
+          },
+          {
+            "type": "add",
+            "content": "  minionsMax: 10, // 4 + min(n, 6)",
+            "line": 67
+          },
+          {
+            "type": "add",
+            "content": "  bossEvery: 3, // n % 3 === 0 为 Boss 波",
+            "line": 68
+          },
+          {
+            "type": "add",
+            "content": "  clearDelayMs: 1500, // 清场后进下一波提示",
+            "line": 69
+          },
+          {
+            "type": "add",
+            "content": "  maxAlive: 24, // 同屏上限",
+            "line": 70
+          },
+          {
+            "type": "add",
+            "content": "  bossWaveMinions: 2, // Boss 波的少量杂兵",
+            "line": 71
+          },
+          {
+            "type": "add",
+            "content": "} as const",
+            "line": 72
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 73
+          },
+          {
+            "type": "add",
+            "content": "// ── 道具（2.7）───────────────────────────────────────────────",
+            "line": 74
+          },
+          {
+            "type": "add",
+            "content": "export const POWER = {",
+            "line": 75
+          },
+          {
+            "type": "add",
+            "content": "  dropChance: 0.12, // 敌机掉落概率",
+            "line": 76
+          },
+          {
+            "type": "add",
+            "content": "  fallSpeed: 120,",
+            "line": 77
+          },
+          {
+            "type": "add",
+            "content": "  pickupRadius: 22,",
+            "line": 78
+          },
+          {
+            "type": "add",
+            "content": "  fullLifeBonus: 50, // 满血拾取生命 +50 分",
+            "line": 79
+          },
+          {
+            "type": "add",
+            "content": "} as const",
+            "line": 80
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 81
+          },
+          {
+            "type": "add",
+            "content": "export type PowerKind = 'life' | 'double' | 'shield' | 'rapid'",
+            "line": 82
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 83
+          },
+          {
+            "type": "add",
+            "content": "// ── 表现（2.10）──────────────────────────────────────────────",
+            "line": 84
+          },
+          {
+            "type": "add",
+            "content": "export const FX = {",
+            "line": 85
+          },
+          {
+            "type": "add",
+            "content": "  starLayers: [",
+            "line": 86
+          },
+          {
+            "type": "add",
+            "content": "    { speed: 20, count: 26, sizeMin: 1, sizeMax: 2, alpha: 0.35 },",
+            "line": 87
+          },
+          {
+            "type": "add",
+            "content": "    { speed: 60, count: 20, sizeMin: 1.5, sizeMax: 2.5, alpha: 0.55 },",
+            "line": 88
+          },
+          {
+            "type": "add",
+            "content": "    { speed: 134, count: 14, sizeMin: 2, sizeMax: 3.5, alpha: 0.9 },",
+            "line": 89
+          },
+          {
+            "type": "add",
+            "content": "  ],",
+            "line": 90
+          },
+          {
+            "type": "add",
+            "content": "  lowFpsThreshold: 30, // E7：低于该帧率进入降级",
+            "line": 91
+          },
+          {
+            "type": "add",
+            "content": "  warnFlashes: 3,",
+            "line": 92
+          },
+          {
+            "type": "add",
+            "content": "  warnMs: 2000,",
+            "line": 93
+          },
+          {
+            "type": "add",
+            "content": "  menuDebounceMs: 300, // E9",
+            "line": 94
+          },
+          {
+            "type": "add",
+            "content": "} as const",
+            "line": 95
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 96
+          },
+          {
+            "type": "add",
+            "content": "export const COLOR = {",
+            "line": 97
+          },
+          {
+            "type": "add",
+            "content": "  bg: 0x0b0d12,",
+            "line": 98
+          },
+          {
+            "type": "add",
+            "content": "  player: 0x4cc9f0,",
+            "line": 99
+          },
+          {
+            "type": "add",
+            "content": "  playerDark: 0x2a9fd4,",
+            "line": 100
+          },
+          {
+            "type": "add",
+            "content": "  bullet: 0x9ff3ff,",
+            "line": 101
+          },
+          {
+            "type": "add",
+            "content": "  enemyBullet: 0xff4f9a,",
+            "line": 102
+          },
+          {
+            "type": "add",
+            "content": "  asteroid: 0x8b7d6b,",
+            "line": 103
+          },
+          {
+            "type": "add",
+            "content": "  asteroidDark: 0x5a4f44,",
+            "line": 104
+          },
+          {
+            "type": "add",
+            "content": "  ufo: 0x7b61ff,",
+            "line": 105
+          },
+          {
+            "type": "add",
+            "content": "  ufoDome: 0x9fe8ff,",
+            "line": 106
+          },
+          {
+            "type": "add",
+            "content": "  dart: 0xff9f43,",
+            "line": 107
+          },
+          {
+            "type": "add",
+            "content": "  boss: 0xff3d6e,",
+            "line": 108
+          },
+          {
+            "type": "add",
+            "content": "  bossDark: 0x8f1e3f,",
+            "line": 109
+          },
+          {
+            "type": "add",
+            "content": "  power: 0x7dff8f,",
+            "line": 110
+          },
+          {
+            "type": "add",
+            "content": "  text: 0xe9edf6,",
+            "line": 111
+          },
+          {
+            "type": "add",
+            "content": "  textDim: 0x8b95ab,",
+            "line": 112
+          },
+          {
+            "type": "add",
+            "content": "} as const",
+            "line": 113
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 114
+          },
+          {
+            "type": "add",
+            "content": "// ── 工具函数（与项目其他游戏一致）──────────────────────────────",
+            "line": 115
+          },
+          {
+            "type": "add",
+            "content": "export const rand = (min: number, max: number): number => min + Math.random() * (max - min)",
+            "line": 116
+          },
+          {
+            "type": "add",
+            "content": "export const randInt = (min: number, max: number): number => Math.floor(rand(min, max + 1))",
+            "line": 117
+          },
+          {
+            "type": "add",
+            "content": "export const pick = <T,>(list: readonly T[]): T => list[Math.floor(Math.random() * list.length)] as T",
+            "line": 118
+          },
+          {
+            "type": "add",
+            "content": "export const clamp = (v: number, min: number, max: number): number => Math.min(max, Math.max(min, v))",
+            "line": 119
+          }
+        ]
+      }
+    },
+    {
+      "path": "games/star-vanguard/index.html",
+      "sourceLines": 69,
+      "diff": {
+        "oldFileName": "games/star-vanguard/index.html",
+        "newFileName": "games/star-vanguard/index.html",
+        "changes": [
+          {
+            "type": "add",
+            "content": "<!doctype html>",
+            "line": 1
+          },
+          {
+            "type": "add",
+            "content": "<html lang=\"zh-CN\">",
+            "line": 2
+          },
+          {
+            "type": "add",
+            "content": "  <head>",
+            "line": 3
+          },
+          {
+            "type": "add",
+            "content": "    <meta charset=\"UTF-8\" />",
+            "line": 4
+          },
+          {
+            "type": "add",
+            "content": "    <meta",
+            "line": 5
+          },
+          {
+            "type": "add",
+            "content": "      name=\"viewport\"",
+            "line": 6
+          },
+          {
+            "type": "add",
+            "content": "      content=\"width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover\"",
+            "line": 7
+          },
+          {
+            "type": "add",
+            "content": "    />",
+            "line": 8
+          },
+          {
+            "type": "add",
+            "content": "    <title>星穹守卫 — 在线玩，无需下载 | Neon Arcade</title>",
+            "line": 9
+          },
+          {
+            "type": "add",
+            "content": "    <meta",
+            "line": 10
+          },
+          {
+            "type": "add",
+            "content": "      name=\"description\"",
+            "line": 11
+          },
+          {
+            "type": "add",
+            "content": "      content=\"星穹守卫 Star Vanguard 是一款在浏览器里直接玩的太空射击小游戏：操控飞船抵御一波波小行星与敌机，击败 Boss 刷新最高分。无需下载、无需注册，打开即玩。\"",
+            "line": 12
+          },
+          {
+            "type": "add",
+            "content": "    />",
+            "line": 13
+          },
+          {
+            "type": "add",
+            "content": "    <link rel=\"icon\" href=\"/favicon.svg\" type=\"image/svg+xml\" />",
+            "line": 14
+          },
+          {
+            "type": "add",
+            "content": "    <link rel=\"canonical\" href=\"https://example.com/games/star-vanguard/\" />",
+            "line": 15
+          },
+          {
+            "type": "add",
+            "content": "    <meta property=\"og:type\" content=\"website\" />",
+            "line": 16
+          },
+          {
+            "type": "add",
+            "content": "    <meta property=\"og:title\" content=\"星穹守卫 — 在线玩，无需下载\" />",
+            "line": 17
+          },
+          {
+            "type": "add",
+            "content": "    <meta",
+            "line": 18
+          },
+          {
+            "type": "add",
+            "content": "      property=\"og:description\"",
+            "line": 19
+          },
+          {
+            "type": "add",
+            "content": "      content=\"操控飞船抵御小行星与敌机，击败 Boss 刷新最高分。打开即玩。\"",
+            "line": 20
+          },
+          {
+            "type": "add",
+            "content": "    />",
+            "line": 21
+          },
+          {
+            "type": "add",
+            "content": "    <style>",
+            "line": 22
+          },
+          {
+            "type": "add",
+            "content": "      html,",
+            "line": 23
+          },
+          {
+            "type": "add",
+            "content": "      body {",
+            "line": 24
+          },
+          {
+            "type": "add",
+            "content": "        margin: 0;",
+            "line": 25
+          },
+          {
+            "type": "add",
+            "content": "        padding: 0;",
+            "line": 26
+          },
+          {
+            "type": "add",
+            "content": "        height: 100%;",
+            "line": 27
+          },
+          {
+            "type": "add",
+            "content": "        background: #0b0d12;",
+            "line": 28
+          },
+          {
+            "type": "add",
+            "content": "        overflow: hidden;",
+            "line": 29
+          },
+          {
+            "type": "add",
+            "content": "        font-family: system-ui, -apple-system, \"PingFang SC\", \"Microsoft YaHei\", sans-serif;",
+            "line": 30
+          },
+          {
+            "type": "add",
+            "content": "      }",
+            "line": 31
+          },
+          {
+            "type": "add",
+            "content": "      #stage {",
+            "line": 32
+          },
+          {
+            "type": "add",
+            "content": "        width: 100vw;",
+            "line": 33
+          },
+          {
+            "type": "add",
+            "content": "        height: 100vh;",
+            "line": 34
+          },
+          {
+            "type": "add",
+            "content": "        display: flex;",
+            "line": 35
+          },
+          {
+            "type": "add",
+            "content": "        align-items: center;",
+            "line": 36
+          },
+          {
+            "type": "add",
+            "content": "        justify-content: center;",
+            "line": 37
+          },
+          {
+            "type": "add",
+            "content": "      }",
+            "line": 38
+          },
+          {
+            "type": "add",
+            "content": "      #stage canvas {",
+            "line": 39
+          },
+          {
+            "type": "add",
+            "content": "        display: block;",
+            "line": 40
+          },
+          {
+            "type": "add",
+            "content": "        touch-action: none;",
+            "line": 41
+          },
+          {
+            "type": "add",
+            "content": "        cursor: crosshair;",
+            "line": 42
+          },
+          {
+            "type": "add",
+            "content": "      }",
+            "line": 43
+          },
+          {
+            "type": "add",
+            "content": "      .back-link {",
+            "line": 44
+          },
+          {
+            "type": "add",
+            "content": "        position: fixed;",
+            "line": 45
+          },
+          {
+            "type": "add",
+            "content": "        right: 18px;",
+            "line": 46
+          },
+          {
+            "type": "add",
+            "content": "        bottom: 16px;",
+            "line": 47
+          },
+          {
+            "type": "add",
+            "content": "        z-index: 20;",
+            "line": 48
+          },
+          {
+            "type": "add",
+            "content": "        font-size: 13px;",
+            "line": 49
+          },
+          {
+            "type": "add",
+            "content": "        color: #8b95ab;",
+            "line": 50
+          },
+          {
+            "type": "add",
+            "content": "        text-decoration: none;",
+            "line": 51
+          },
+          {
+            "type": "add",
+            "content": "        padding: 7px 13px;",
+            "line": 52
+          },
+          {
+            "type": "add",
+            "content": "        border-radius: 999px;",
+            "line": 53
+          },
+          {
+            "type": "add",
+            "content": "        background: rgba(20, 24, 33, 0.82);",
+            "line": 54
+          },
+          {
+            "type": "add",
+            "content": "        border: 1px solid #252c3d;",
+            "line": 55
+          },
+          {
+            "type": "add",
+            "content": "        transition: color 0.15s, border-color 0.15s;",
+            "line": 56
+          },
+          {
+            "type": "add",
+            "content": "      }",
+            "line": 57
+          },
+          {
+            "type": "add",
+            "content": "      .back-link:hover {",
+            "line": 58
+          },
+          {
+            "type": "add",
+            "content": "        color: #e9edf6;",
+            "line": 59
+          },
+          {
+            "type": "add",
+            "content": "        border-color: #3a4359;",
+            "line": 60
+          },
+          {
+            "type": "add",
+            "content": "      }",
+            "line": 61
+          },
+          {
+            "type": "add",
+            "content": "    </style>",
+            "line": 62
+          },
+          {
+            "type": "add",
+            "content": "  </head>",
+            "line": 63
+          },
+          {
+            "type": "add",
+            "content": "  <body>",
+            "line": 64
+          },
+          {
+            "type": "add",
+            "content": "    <div id=\"stage\"></div>",
+            "line": 65
+          },
+          {
+            "type": "add",
+            "content": "    <a class=\"back-link\" href=\"/\">← 全部游戏</a>",
+            "line": 66
+          },
+          {
+            "type": "add",
+            "content": "    <script type=\"module\" src=\"/games/star-vanguard/main.ts\"></script>",
+            "line": 67
+          },
+          {
+            "type": "add",
+            "content": "  </body>",
+            "line": 68
+          },
+          {
+            "type": "add",
+            "content": "</html>",
+            "line": 69
+          }
+        ]
+      }
+    }
+  ]
+}

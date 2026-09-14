@@ -1,149 +1,226 @@
-diff --git a/games/snake/index.html b/games/snake/index.html
-new file mode 100644
-index 0000000..42c6d7d
---- /dev/null
-+++ b/games/snake/index.html
-@@ -0,0 +1,68 @@
-+<!doctype html>
-+<html lang="zh-CN">
-+  <head>
-+    <meta charset="UTF-8" />
-+    <meta
-+      name="viewport"
-+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
-+    />
-+    <title>Neon Snake — 在线玩，无需下载 | Neon Arcade</title>
-+    <meta
-+      name="description"
-+      content="Neon Snake 是一款在浏览器里直接玩的贪吃蛇小游戏：控制小蛇吃光点不断变长，别撞墙也别咬到自己。无需下载、无需注册，手机和电脑打开即玩。"
-+    />
-+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-+    <link rel="canonical" href="https://example.com/games/snake/" />
-+    <meta property="og:type" content="article" />
-+    <meta property="og:title" content="Neon Snake — 在线玩，无需下载" />
-+    <meta
-+      property="og:description"
-+      content="控制小蛇吃光点不断变长，别撞墙也别咬到自己。打开即玩。"
-+    />
-+    <style>
-+      html,
-+      body {
-+        margin: 0;
-+        padding: 0;
-+        height: 100%;
-+        background: #0b0d12;
-+        overflow: hidden;
-+        font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
-+      }
-+      #stage {
-+        width: 100vw;
-+        height: 100vh;
-+        display: flex;
-+        align-items: center;
-+        justify-content: center;
-+      }
-+      #stage canvas {
-+        display: block;
-+        touch-action: none;
-+      }
-+      .back-link {
-+        position: fixed;
-+        right: 18px;
-+        bottom: 16px;
-+        z-index: 20;
-+        font-size: 13px;
-+        color: #8b95ab;
-+        text-decoration: none;
-+        padding: 7px 13px;
-+        border-radius: 999px;
-+        background: rgba(20, 24, 33, 0.82);
-+        border: 1px solid #252c3d;
-+        transition: color 0.15s, border-color 0.15s;
-+      }
-+      .back-link:hover {
-+        color: #e9edf6;
-+        border-color: #3a4359;
-+      }
-+    </style>
-+  </head>
-+  <body>
-+    <div id="stage"></div>
-+    <a class="back-link" href="/">← 全部游戏</a>
-+    <script type="module" src="/games/snake/main.ts"></script>
-+  </body>
-+</html>
-\ No newline at end of file
-diff --git a/games/snake/main.ts b/games/snake/main.ts
-new file mode 100644
-index 0000000..c67f0e2
---- /dev/null
-+++ b/games/snake/main.ts
-@@ -0,0 +1,710 @@
+diff --git a/games/star-vanguard/BootScene.ts b/games/star-vanguard/BootScene.ts
+index e69de29..147191f 100644
+--- a/games/star-vanguard/BootScene.ts
++++ b/games/star-vanguard/BootScene.ts
+@@ -0,0 +1,15 @@
++// 星穹守卫 —— Boot 场景：程序化生成全部纹理后进入主菜单
++
 +import Phaser from 'phaser'
++import { createTextures } from './textures'
 +
-+const GAME_W = 960
-+const GAME_H = 540
-+const GRID = 30
-+const COLS = GAME_W / GRID
-+const ROWS = GAME_H / GRID
++export class BootScene extends Phaser.Scene {
++  constructor() {
++    super('boot')
++  }
 +
-+const TICK_MS_START = 130
-+const TICK_MS_MIN = 78
-+const TICK_MS_STEP = 4
++  create(): void {
++    createTextures(this)
++    this.scene.start('menu')
++  }
++}
+\ No newline at end of file
+diff --git a/games/star-vanguard/GameOverScene.ts b/games/star-vanguard/GameOverScene.ts
+index e69de29..10e01e2 100644
+--- a/games/star-vanguard/GameOverScene.ts
++++ b/games/star-vanguard/GameOverScene.ts
+@@ -0,0 +1,125 @@
++// 星穹守卫 —— 结算场景（分数 / 最高分 / 新纪录 / 重开 / 回菜单）
 +
-+const START_LEN = 3
-+const SWIPE_THRESHOLD = 24
-+const FOOD_R = 9.5
-+const STAR_COUNT = 26
++import Phaser from 'phaser'
++import { FONT, GAME_W, GAME_H, COLOR, FX } from './config'
++import { sfx } from './Sfx'
 +
-+const BEST_KEY = 'neon-snake:best'
-+const RESTART_LOCK_MS = 420
-+
-+const FONT = 'system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif'
-+
-+const COLOR = {
-+  checker: 0x0f1626,
-+  grid: 0x1b2233,
-+  frame: 0x252c3d,
-+  outline: 0x0b0d12,
-+  head: 0x4cc9f0,
-+  tail: 0x7b61ff,
-+  food: 0xff4f9a,
-+  foodGlow: 0xff4f9a,
-+  star: 0x4c8fd6,
++export type GameOverData = {
++  score: number
++  best: number
++  isNew: boolean
 +}
 +
-+const rand = (min: number, max: number): number => min + Math.random() * (max - min)
++export class GameOverScene extends Phaser.Scene {
++  private lastActionAt = -10000
 +
-+const DIR_VEC: Record<Dir, Cell> = {
-+  up: { x: 0, y: -1 },
-+  down: { x: 0, y: 1 },
-+  left: { x: -1, y: 0 },
-+  right: { x: 1, y: 0 },
++  constructor() {
++    super('gameover')
++  }
++
++  create(data: GameOverData): void {
++    this.cameras.main.setBackgroundColor(COLOR.bg)
++    const cx = GAME_W / 2
++
++    // 背景星空
++    const rnd = new Phaser.Math.RandomDataGenerator(['over'])
++    for (let i = 0; i < 60; i += 1) {
++      const size = rnd.between(1, 3)
++      this.add
++        .rectangle(rnd.between(0, GAME_W), rnd.between(0, GAME_H), size, size, 0xffffff, 0.16)
++        .setDepth(0)
++    }
++
++    this.add
++      .text(cx, 128, '游 戏 结 束', {
++        fontFamily: FONT,
++        fontSize: '52px',
++        color: '#e9edf6',
++        fontStyle: 'bold',
++      })
++      .setOrigin(0.5)
++
++    if (data.isNew) {
++      this.add
++        .text(cx, 192, '★ 新纪录！ ★', {
++          fontFamily: FONT,
++          fontSize: '22px',
++          color: '#ffd166',
++        })
++        .setOrigin(0.5)
++    }
++
++    this.add
++      .text(cx, 268, '本 局 分 数', { fontFamily: FONT, fontSize: '16px', color: '#8b95ab' })
++      .setOrigin(0.5)
++    this.add
++      .text(cx, 318, String(data.score), {
++        fontFamily: FONT,
++        fontSize: '64px',
++        color: '#4cc9f0',
++        fontStyle: 'bold',
++      })
++      .setOrigin(0.5)
++    this.add
++      .text(cx, 392, `历史最高分　${data.best}`, {
++        fontFamily: FONT,
++        fontSize: '17px',
++        color: '#8b95ab',
++      })
++      .setOrigin(0.5)
++
++    // 再来一局
++    const again = this.add
++      .text(cx, 470, '再 来 一 局', {
++        fontFamily: FONT,
++        fontSize: '26px',
++        color: '#0b0d12',
++        backgroundColor: '#4cc9f0',
++        padding: { x: 26, y: 10 },
++      })
++      .setOrigin(0.5)
++      .setInteractive({ useHandCursor: true })
++    again.on('pointerover', () => again.setBackgroundColor('#6ad8ff'))
++    again.on('pointerout', () => again.setBackgroundColor('#4cc9f0'))
++    again.on('pointerdown', () => this.again())
++
++    // 返回主菜单
++    const menu = this.add
++      .text(cx, 536, '返回主菜单', {
++        fontFamily: FONT,
++        fontSize: '18px',
++        color: '#8b95ab',
++      })
++      .setOrigin(0.5)
++      .setInteractive({ useHandCursor: true })
++    menu.on('pointerover', () => menu.setColor('#e9edf6'))
++    menu.on('pointerout', () => menu.setColor('#8b95ab'))
++    menu.on('pointerdown', () => this.toMenu())
++
++    this.add
++      .text(cx, 590, 'Enter 再来一局　·　Esc 返回主菜单', {
++        fontFamily: FONT,
++        fontSize: '13px',
++        color: '#5b6478',
++      })
++      .setOrigin(0.5)
++
++    this.input.keyboard?.on('keydown-ENTER', () => this.again())
++    this.input.keyboard?.on('keydown-ESC', () => this.toMenu())
++    this.input.keyboard?.on('keydown-SPACE', () => this.again())
++  }
++
++  private again(): void {
++    // E9：快速连点防抖
++    if (this.time.now - this.lastActionAt < FX.menuDebounceMs) return
++    this.lastActionAt = this.time.now
++    sfx.warm()
++    this.scene.start('game')
++  }
++
++  private toMenu(): void {
++    if (this.time.now - this.lastActionAt < FX.menuDebounceMs) return
++    this.lastActionAt = this.time.now
++    this.scene.start('menu')
++  }
++}
+\ No newline at end of file
+diff --git a/games/star-vanguard/GameScene.ts b/games/star-vanguard/GameScene.ts
+index e69de29..2333850 100644
+--- a/games/star-vanguard/GameScene.ts
++++ b/games/star-vanguard/GameScene.ts
+@@ -0,0 +1,1073 @@
++// 星穹守卫 —— 主游戏场景
++// 自定义更新循环（与项目其他游戏一致，不依赖 Phaser 物理/粒子引擎）：
++// 所有实体（玩家/敌人/子弹/道具/粒子）为数组 + AABB 碰撞，暂停/结束由 phase 统一控制
++
++import Phaser from 'phaser'
++import {
++  GAME_W,
++  GAME_H,
++  FONT,
++  BEST_KEY,
++  PLAYER,
++  ENEMY,
++  ENEMY_DEFS,
++  WAVE,
++  POWER,
++  FX,
++  COLOR,
++  rand,
++  randInt,
++  pick,
++  clamp,
++} from './config'
++import type { EnemyKind, PowerKind } from './config'
++import { sfx } from './Sfx'
++
++const HALF_W = GAME_W / 2
++const PLAYER_BOTTOM = GAME_H - 54 // 玩家固定 y
++const PLAYER_HIT_W = 34 // 玩家碰撞盒（比纹理小，鼓励精准）
++const PLAYER_HIT_H = 48
++
++type Phase = 'playing' | 'paused' | 'dying'
++type WaveState = 'warn' | 'spawning' | 'clearing' | 'intermission'
++
++type Bullet = {
++  node: Phaser.GameObjects.Image
++  vx: number
++  vy: number
++  hostile: boolean
 +}
 +
-+const OPPOSITE: Record<Dir, Dir> = {
-+  up: 'down',
-+  down: 'up',
-+  left: 'right',
-+  right: 'left',
++type Enemy = {
++  kind: EnemyKind
++  node: Phaser.GameObjects.Image
++  hp: number
++  maxHp: number
++  score: number
++  vx: number
++  vy: number
++  spin: number
++  t: number // ufo 正弦相位 / boss 移动相位
++  baseY: number // ufo 悬浮高度 / boss 高度
++  fireAcc: number // ufo 射击 / boss 环形弹幕计时
++  fanAcc: number // boss 扇形齐射启动计时
++  fanRemain: number // boss 扇形齐射剩余连发数
++  fanGapAcc: number
++  entered: boolean
++  hpBar?: Phaser.GameObjects.Rectangle
++  hpBarBg?: Phaser.GameObjects.Rectangle
 +}
 +
-+const randInt = (min: number, max: number): number =>
-+  Math.floor(min + Math.random() * (max - min + 1))
-+
-+type Dir = 'up' | 'down' | 'left' | 'right'
-+type Phase = 'idle' | 'playing' | 'over'
-+
-+type Cell = { x: number; y: number }
-+
-+type Star = {
-+  node: Phaser.GameObjects.Rectangle
-+  speed: number
-+  phase: number
++type PowerDrop = {
++  node: Phaser.GameObjects.Image
++  kind: PowerKind
 +}
 +
-+type Debris = {
++type Particle = {
 +  node: Phaser.GameObjects.Rectangle
 +  vx: number
 +  vy: number
@@ -151,10 +228,1176 @@ index 0000000..c67f0e2
 +  maxLife: number
 +}
 +
-+class Sfx {
++export class GameScene extends Phaser.Scene {
++  // 玩家状态
++  private px = HALF_W
++  private lives = PLAYER.startLives
++  private shields = 0
++  private invincibleUntil = 0
++  private doubleUntil = 0
++  private rapidUntil = 0
++  private fireAcc = 0
++  private exhaustAcc = 0
++
++  private playerNode!: Phaser.GameObjects.Image
++  private playerGlow!: Phaser.GameObjects.Image
++
++  // 实体
++  private readonly playerBullets: Bullet[] = []
++  private readonly enemyBullets: Bullet[] = []
++  private readonly enemies: Enemy[] = []
++  private readonly drops: PowerDrop[] = []
++  private readonly particles: Particle[] = []
++  private readonly stars: { node: Phaser.GameObjects.Rectangle; layer: number; y: number }[] = []
++
++  // 波次
++  private wave = 0
++  private waveState: WaveState = 'intermission'
++  private spawnQueue = 0
++  private spawnAcc = 0
++  private spawnInterval = 0
++  private stateTimer = 0 // warn / intermission 计时
++  private warnFlashAcc = 0
++  private warnFlashCount = 0
++
++  // 分数 / HUD
++  private score = 0
++  private best = 0
++  private scorePulse = 0
++  private scoreText!: Phaser.GameObjects.Text
++  private bestText!: Phaser.GameObjects.Text
++  private livesText!: Phaser.GameObjects.Text
++  private buffText!: Phaser.GameObjects.Text
++  private waveText!: Phaser.GameObjects.Text
++  private bannerText!: Phaser.GameObjects.Text
++  private warnText!: Phaser.GameObjects.Text
++  private pauseOverlay!: Phaser.GameObjects.Container
++
++  private phase: Phase = 'playing'
++  private lowFx = false
++  private lastFpsCheck = 0
++  private dieAt = 0
++
++  private keys!: {
++    left: Phaser.Input.Keyboard.Key
++    right: Phaser.Input.Keyboard.Key
++    a: Phaser.Input.Keyboard.Key
++    d: Phaser.Input.Keyboard.Key
++  }
++
++  constructor() {
++    super('game')
++  }
++
++  create(): void {
++    // 每局完整重置：场景实例会被复用（scene.start 只重跑 create），
++    // 必须清空实体数组并复位全部状态
++    this.playerBullets.length = 0
++    this.enemyBullets.length = 0
++    this.enemies.length = 0
++    this.drops.length = 0
++    this.particles.length = 0
++    this.stars.length = 0
++    this.lives = PLAYER.startLives
++    this.shields = 0
++    this.score = 0
++    this.px = HALF_W
++    this.invincibleUntil = 0
++    this.doubleUntil = 0
++    this.rapidUntil = 0
++    this.fireAcc = 0
++    this.exhaustAcc = 0
++    this.wave = 0
++    this.waveState = 'intermission'
++    this.spawnQueue = 0
++    this.spawnAcc = 0
++    this.scorePulse = 0
++    this.phase = 'playing'
++    this.lowFx = false
++    this.lastFpsCheck = this.time.now
++    this.best = this.readBest()
++
++    this.buildBackdrop()
++    this.buildPlayer()
++    this.buildHud()
++    this.buildPauseOverlay()
++    this.bindInput()
++
++    this.startWave(1)
++  }
++
++  // ── 构建 ────────────────────────────────────────────────────
++
++  private buildBackdrop(): void {
++    this.cameras.main.setBackgroundColor(COLOR.bg)
++    // 3 层视差星空（FX.starLayers：[速度, 数量, 尺寸, 透明度]）
++    for (let layer = 0; layer < FX.starLayers.length; layer += 1) {
++      const cfg = FX.starLayers[layer]
++      for (let i = 0; i < cfg.count; i += 1) {
++        const size = rand(cfg.sizeMin, cfg.sizeMax)
++        const node = this.add
++          .rectangle(rand(0, GAME_W), rand(0, GAME_H), size, size, 0xffffff, cfg.alpha)
++          .setDepth(1)
++        this.stars.push({ node, layer, y: node.y })
++      }
++    }
++  }
++
++  private buildPlayer(): void {
++    this.playerGlow = this.add
++      .image(this.px, PLAYER_BOTTOM, 'glow')
++      .setDepth(9)
++      .setTint(COLOR.player)
++      .setScale(1.5, 1.8)
++      .setAlpha(0.5)
++    this.playerNode = this.add
++      .image(this.px, PLAYER_BOTTOM, 'player')
++      .setDepth(10)
++      .setData('w', PLAYER_HIT_W)
++      .setData('h', PLAYER_HIT_H)
++  }
++
++  private buildHud(): void {
++    this.scoreText = this.add
++      .text(26, 18, '0', { fontFamily: FONT, fontSize: '38px', color: '#e9edf6' })
++      .setDepth(30)
++    this.bestText = this.add
++      .text(GAME_W - 26, 26, `BEST ${this.best}`, {
++        fontFamily: FONT,
++        fontSize: '16px',
++        color: '#8b95ab',
++      })
++      .setOrigin(1, 0)
++      .setDepth(30)
++    this.waveText = this.add
++      .text(HALF_W, 24, '', { fontFamily: FONT, fontSize: '18px', color: '#7b85a0' })
++      .setOrigin(0.5, 0)
++      .setDepth(30)
++    this.livesText = this.add
++      .text(26, 64, '', { fontFamily: FONT, fontSize: '20px', color: '#ff5d7e' })
++      .setDepth(30)
++    this.buffText = this.add
++      .text(26, 92, '', { fontFamily: FONT, fontSize: '13px', color: '#4cc9f0' })
++      .setDepth(30)
++
++    this.bannerText = this.add
++      .text(HALF_W, GAME_H * 0.36, '', {
++        fontFamily: FONT,
++        fontSize: '30px',
++        color: '#e9edf6',
++        fontStyle: 'bold',
++        align: 'center',
++        lineSpacing: 8,
++      })
++      .setOrigin(0.5)
++      .setDepth(40)
++      .setAlpha(0)
++
++    this.warnText = this.add
++      .text(HALF_W, GAME_H * 0.4, '', {
++        fontFamily: FONT,
++        fontSize: '64px',
++        color: '#ff3d6e',
++        fontStyle: 'bold',
++      })
++      .setOrigin(0.5)
++      .setDepth(41)
++      .setVisible(false)
++
++    this.refreshHud()
++  }
++
++  private buildPauseOverlay(): void {
++    this.pauseOverlay = this.add.container(0, 0).setDepth(60).setVisible(false)
++    const dim = this.add.rectangle(HALF_W, GAME_H / 2, GAME_W, GAME_H, 0x000000, 0.62)
++    const title = this.add
++      .text(HALF_W, GAME_H / 2 - 24, '已暂停', {
++        fontFamily: FONT,
++        fontSize: '52px',
++        color: '#e9edf6',
++        fontStyle: 'bold',
++      })
++      .setOrigin(0.5)
++    const hint = this.add
++      .text(HALF_W, GAME_H / 2 + 34, '按 P 继续', { fontFamily: FONT, fontSize: '18px', color: '#8b95ab' })
++      .setOrigin(0.5)
++    this.pauseOverlay.add([dim, title, hint])
++  }
++
++  private bindInput(): void {
++    this.input.keyboard?.addCapture('SPACE,LEFT,RIGHT,UP,DOWN,A,D,P,M,ENTER,ESC')
++    this.input.keyboard?.on('keydown-P', () => this.togglePause())
++    this.input.keyboard?.on('keydown-M', () => sfx.setMuted(!sfx.isMuted()))
++    const kc = Phaser.Input.Keyboard.KeyCodes
++    this.keys = this.input.keyboard!.addKeys('left,right,a,d') as GameScene['keys']
++  }
++
++  // ── 主循环 ──────────────────────────────────────────────────
++
++  update(time: number, delta: number): void {
++    const dt = Math.min(delta, 50) / 1000
++
++    this.updateBackdrop(dt)
++    this.updateParticles(dt)
++    this.updateFpsGuard(time)
++
++    if (this.phase === 'paused') return
++    if (this.phase === 'dying') {
++      this.updateEnemies(dt, time)
++      this.updateBullets(dt)
++      if (time >= this.dieAt) this.goGameOver()
++      return
++    }
++
++    this.updateWave(dt, time)
++    this.updatePlayer(dt, time)
++    this.updateBullets(dt)
++    this.updateEnemies(dt, time)
++    this.updateDrops(dt)
++    this.collide()
++    this.updateHud()
++  }
++
++  // ── 玩家 ────────────────────────────────────────────────────
++
++  private updatePlayer(dt: number, time: number): void {
++    const k = this.keys
++    const left = k.left.isDown || k.a.isDown
++    const right = k.right.isDown || k.d.isDown
++
++    const dir = (right ? 1 : 0) - (left ? 1 : 0)
++    if (dir !== 0) {
++      this.px = clamp(this.px + dir * PLAYER.speed * dt, 30, GAME_W - 30)
++    }
++
++    // 尾焰粒子
++    this.exhaustAcc += dt
++    if (this.exhaustAcc > 0.03) {
++      this.exhaustAcc = 0
++      const count = this.lowFx ? 1 : 2
++      for (let i = 0; i < count; i += 1) {
++        this.spawnParticle(
++          this.px + rand(-6, 6),
++          PLAYER_BOTTOM + 26,
++          rand(-18, 18),
++          rand(120, 190),
++          rand(0.2, 0.35),
++          COLOR.player,
++        )
++      }
++    }
++
++    // 无敌帧闪烁
++    const invincible = time < this.invincibleUntil
++    const targetAlpha = invincible ? (Math.sin(time / 45) > 0 ? 0.25 : 1) : 1
++    if (this.playerNode.alpha !== targetAlpha) {
++      this.playerNode.setAlpha(targetAlpha)
++      this.playerGlow.setAlpha(invincible ? 0.15 : 0.5)
++    }
++
++    // 自动射击（1 秒 3 发；rapid 道具期间加速）
++    const cooldown = time < this.rapidUntil ? PLAYER.rapidCooldown : PLAYER.fireCooldown
++    this.fireAcc += dt * 1000
++    if (this.fireAcc >= cooldown) {
++      this.fireAcc = 0
++      this.fire()
++    }
++
++    this.playerNode.setPosition(this.px, PLAYER_BOTTOM)
++    this.playerGlow.setPosition(this.px, PLAYER_BOTTOM + 6)
++  }
++
++  private fire(): void {
++    const double = this.time.now < this.doubleUntil
++    const xs = double ? [this.px - 9, this.px + 9] : [this.px]
++    for (const x of xs) {
++      const node = this.add.image(x, PLAYER_BOTTOM - 30, 'bullet').setDepth(15)
++      node.setData('w', 6)
++      node.setData('h', 16)
++      this.playerBullets.push({ node, vx: 0, vy: -PLAYER.bulletSpeed, hostile: false })
++    }
++    sfx.shoot()
++  }
++
++  // ── 子弹 ────────────────────────────────────────────────────
++
++  private updateBullets(dt: number): void {
++    for (let i = this.playerBullets.length - 1; i >= 0; i -= 1) {
++      const b = this.playerBullets[i] as Bullet
++      b.node.x += b.vx * dt
++      b.node.y += b.vy * dt
++      if (b.node.y < -24) {
++        b.node.destroy()
++        this.playerBullets.splice(i, 1)
++      }
++    }
++    for (let i = this.enemyBullets.length - 1; i >= 0; i -= 1) {
++      const b = this.enemyBullets[i] as Bullet
++      b.node.x += b.vx * dt
++      b.node.y += b.vy * dt
++      if (b.node.y > GAME_H + 24 || b.node.x < -24 || b.node.x > GAME_W + 24) {
++        b.node.destroy()
++        this.enemyBullets.splice(i, 1)
++      }
++    }
++  }
++
++  private spawnEnemyBullet(x: number, y: number, vx: number, vy: number): void {
++    const node = this.add.image(x, y, 'ebullet').setDepth(15)
++    this.enemyBullets.push({ node, vx, vy, hostile: true })
++  }
++
++  // ── 敌人 ────────────────────────────────────────────────────
++
++  private spawnMinion(): void {
++    const roll = Math.random()
++    let kind: EnemyKind
++    if (this.wave === 1) {
++      kind = Math.random() < 0.6 ? 'asteroidL' : 'asteroidS'
++    } else if (this.wave === 2) {
++      kind = roll < 0.4 ? 'asteroidL' : roll < 0.75 ? 'asteroidS' : 'dart'
++    } else {
++      kind = roll < 0.3 ? 'asteroidL' : roll < 0.55 ? 'asteroidS' : roll < 0.8 ? 'dart' : 'ufo'
++    }
++    this.spawnEnemy(kind)
++  }
++
++  private spawnEnemy(kind: EnemyKind): void {
++    const def = ENEMY_DEFS[kind as Exclude<EnemyKind, 'boss'>]
++    const x = rand(50, GAME_W - 50)
++    const node = this.add.image(x, -40, kind).setDepth(12)
++    node.setData('w', kind === 'asteroidL' ? 60 : kind === 'ufo' ? 60 : kind === 'asteroidS' ? 34 : 42)
++    node.setData('h', kind === 'asteroidL' ? 60 : kind === 'ufo' ? 38 : kind === 'asteroidS' ? 34 : 42)
++
++    const e: Enemy = {
++      kind,
++      node,
++      hp: def.hp,
++      maxHp: def.hp,
++      score: def.score,
++      vx: 0,
++      vy: 0,
++      spin: rand(-1.4, 1.4),
++      t: 0,
++      baseY: 0,
++      fireAcc: 0,
++      fanAcc: 0,
++      fanRemain: 0,
++      fanGapAcc: 0,
++      entered: false,
++    }
++
++    if (kind === 'asteroidL' || kind === 'asteroidS') {
++      // 自屏幕上方漂移入场、旋转、速度随机
++      e.vy = (kind === 'asteroidL' ? rand(55, 95) : rand(110, 165)) * (1 + this.wave * 0.03)
++      e.vx = rand(-22, 22)
++    } else if (kind === 'dart') {
++      // 高速斜向俯冲，带小角度随机
++      e.vy = rand(230, 300)
++      const dir = Math.random() < 0.5 ? -1 : 1
++      e.vx = dir * rand(70, 150) * (1 + this.wave * 0.04)
++      e.spin = 0
++    } else if (kind === 'ufo') {
++      // 入场后正弦横向移动：相位取当前 x 对应的值，避免入场瞬间横跳
++      e.baseY = rand(110, 200)
++      e.vy = 120
++      e.vx = 0
++      e.spin = 0
++      e.fireAcc = 1400
++      const amp = HALF_W - 120
++      const phase = Math.asin(clamp((x - HALF_W) / amp, -1, 1))
++      e.t = phase / 0.85
++    } else {
++      // boss：由 spawnBoss 处理，此处兜底
++      node.destroy()
++      return
++    }
++
++    this.enemies.push(e)
++  }
++
++  private spawnBoss(): void {
++    const x = HALF_W
++    const node = this.add.image(x, -100, 'boss').setDepth(12)
++    node.setData('w', 160)
++    node.setData('h', 76)
++    const hpBase =
++      this.wave < 6 ? ENEMY.bossMaxHpBase : Math.min(ENEMY.bossMaxHpCap, ENEMY.bossMaxHpFrom6 + (this.wave - 6) * ENEMY.bossMaxHpStep)
++    const e: Enemy = {
++      kind: 'boss',
++      node,
++      hp: hpBase,
++      maxHp: hpBase,
++      score: ENEMY.bossScore,
++      vx: 0,
++      vy: 130, // 入场下移速度
++      spin: 0,
++      t: 0,
++      baseY: rand(ENEMY.bossTop, ENEMY.bossBottom),
++      fireAcc: 0,
++      fanAcc: 0,
++      fanRemain: 0,
++      fanGapAcc: 0,
++      entered: false,
++    }
++    // 血条
++    const barW = 150
++    e.hpBarBg = this.add.rectangle(x, 0, barW + 4, 12, 0x000000, 0.65).setDepth(14)
++    e.hpBar = this.add.rectangle(x, 0, barW, 8, 0xff3d6e).setDepth(14)
++    this.enemies.push(e)
++  }
++
++  private updateEnemies(dt: number, time: number): void {
++    for (let i = this.enemies.length - 1; i >= 0; i -= 1) {
++      const e = this.enemies[i] as Enemy
++      const n = e.node
++
++      if (e.kind === 'boss') {
++        this.updateBoss(e, dt, time)
++        continue
++      }
++
++      if (e.kind === 'ufo') {
++        e.t += dt
++        if (!e.entered) {
++          n.y += e.vy * dt
++          if (n.y >= e.baseY) {
++            e.entered = true
++            n.y = e.baseY
++          }
++        } else {
++          n.x = HALF_W + Math.sin(e.t * 0.85) * (HALF_W - 120)
++          // 朝向玩家发射子弹
++          e.fireAcc += dt * 1000
++          if (e.fireAcc >= 1500) {
++            e.fireAcc = 0
++            const ux = this.px - n.x
++            const uy = PLAYER_BOTTOM - n.y
++            const len = Math.hypot(ux, uy) || 1
++            this.spawnEnemyBullet(
++              n.x,
++              n.y + 18,
++              (ux / len) * ENEMY.ufoBulletSpeed,
++              (uy / len) * ENEMY.ufoBulletSpeed,
++            )
++            sfx.enemyShoot()
++          }
++        }
++      } else if (e.kind === 'dart') {
++        // 末段加速
++        if (n.y > GAME_H * 0.45) e.vy += 620 * dt
++        n.x += e.vx * dt
++        n.y += e.vy * dt
++      } else {
++        // 小行星
++        n.x += e.vx * dt
++        n.y += e.vy * dt
++        n.rotation += e.spin * dt
++      }
++
++      if (n.y > GAME_H + 60 || n.x < -70 || n.x > GAME_W + 70) {
++        e.hpBar?.destroy()
++        e.hpBarBg?.destroy()
++        n.destroy()
++        this.enemies.splice(i, 1)
++      }
++    }
++  }
++
++  private updateBoss(e: Enemy, dt: number, _time: number): void {
++    const n = e.node
++    if (!e.entered) {
++      // 入场：下移到目标高度，进场 2s 后开炮（fireAcc 预置负值实现延迟）
++      n.y += e.vy * dt
++      if (n.y >= e.baseY) {
++        n.y = e.baseY
++        e.entered = true
++        e.fireAcc = -ENEMY.bossFireDelay
++      }
++    } else {
++      // 水平正弦移动（约 60px/s 峰值）
++      e.t += dt * ENEMY.bossMoveSpeed * 0.02
++      n.x = HALF_W + Math.sin(e.t * 1.4) * (HALF_W - 200)
++
++      // 弹幕 1：环形散射（每 1.6s，12 向，180px/s）
++      e.fireAcc += dt * 1000
++      if (e.fireAcc >= ENEMY.bossRingInterval) {
++        e.fireAcc = 0
++        for (let k = 0; k < ENEMY.bossRingCount; k += 1) {
++          const a = (k / ENEMY.bossRingCount) * Math.PI * 2 + e.t
++          this.spawnEnemyBullet(
++            n.x,
++            n.y + 10,
++            Math.cos(a) * ENEMY.bossRingSpeed,
++            Math.sin(a) * ENEMY.bossRingSpeed,
++          )
++        }
++        sfx.enemyShoot()
++      }
++
++      // 弹幕 2：扇形齐射（每 2.2s 启动一轮 5 连发，90ms 间隔，300px/s，±20°）
++      if (e.fanRemain > 0) {
++        // 连发进行中
++        e.fanGapAcc += dt * 1000
++        if (e.fanGapAcc >= ENEMY.bossFanGapMs) {
++          e.fanGapAcc = 0
++          e.fanRemain -= 1
++          const shotIndex = ENEMY.bossFanShots - e.fanRemain // 1..5
++          const center = Math.atan2(PLAYER_BOTTOM - n.y, this.px - n.x)
++          const a =
++            center +
++            Phaser.Math.DegToRad(ENEMY.bossFanArc) -
++            ((shotIndex - 0.5) / ENEMY.bossFanShots) * 2 * Phaser.Math.DegToRad(ENEMY.bossFanArc)
++          this.spawnEnemyBullet(
++            n.x,
++            n.y + 10,
++            Math.cos(a) * ENEMY.bossFanSpeed,
++            Math.sin(a) * ENEMY.bossFanSpeed,
++          )
++        }
++      } else {
++        e.fanAcc += dt * 1000
++        if (e.fanAcc >= ENEMY.bossFanInterval) {
++          e.fanAcc = 0
++          e.fanRemain = ENEMY.bossFanShots
++          e.fanGapAcc = 0
++        }
++      }
++    }
++
++    // 血条跟随
++    if (e.hpBar && e.hpBarBg) {
++      const y = n.y - 62
++      e.hpBarBg.setPosition(n.x, y)
++      e.hpBar.setPosition(n.x - (e.hpBar.width / 2) * (1 - e.hp / e.maxHp), y)
++      e.hpBar.setScale(e.hp / e.maxHp, 1)
++    }
++  }
++
++  private damageEnemy(e: Enemy, dmg: number): void {
++    e.hp -= dmg
++    if (e.hp > 0) return
++    this.killEnemy(e)
++  }
++
++  private killEnemy(e: Enemy): void {
++    const { node } = e
++    const idx = this.enemies.indexOf(e)
++    if (idx >= 0) this.enemies.splice(idx, 1)
++
++    if (e.kind === 'asteroidL') {
++      // 分裂为 2 颗小行星
++      this.burst(node.x, node.y, COLOR.asteroid, this.lowFx ? 6 : 12)
++      sfx.boomSmall()
++      this.spawnAsteroidChild(node.x - 16, node.y, -1)
++      this.spawnAsteroidChild(node.x + 16, node.y, 1)
++    } else if (e.kind === 'asteroidS') {
++      this.burst(node.x, node.y, COLOR.asteroid, this.lowFx ? 5 : 9)
++      sfx.boomSmall()
++    } else if (e.kind === 'dart') {
++      this.burst(node.x, node.y, COLOR.dart, this.lowFx ? 5 : 9)
++      sfx.boomSmall()
++    } else if (e.kind === 'ufo') {
++      this.burst(node.x, node.y, COLOR.ufo, this.lowFx ? 8 : 14)
++      sfx.boomSmall()
++    } else {
++      // Boss：大爆炸 + 震屏 + 掉落 2 道具（必含 1 生命）+ 500 分
++      this.burst(node.x, node.y, COLOR.boss, this.lowFx ? 30 : 55)
++      this.burst(node.x, node.y, 0xffffff, this.lowFx ? 8 : 16)
++      this.cameras.main.shake(320, 0.014)
++      sfx.boomBig()
++      this.spawnDrop(node.x, node.y, 'life')
++      this.spawnDrop(node.x + 40, node.y, pick(['double', 'shield', 'rapid', 'life'] as const))
++    }
++
++    // 掉落（Boss 已单独处理）
++    if (e.kind !== 'boss') {
++      this.rollDrop(node.x, node.y)
++    }
++
++    e.hpBar?.destroy()
++    e.hpBarBg?.destroy()
++    node.destroy()
++
++    this.addScore(e.score)
++  }
++
++  private spawnAsteroidChild(x: number, y: number, dir: number): void {
++    const node = this.add.image(x, y, 'asteroidS').setDepth(12)
++    node.setData('w', 34)
++    node.setData('h', 34)
++    this.enemies.push({
++      kind: 'asteroidS',
++      node,
++      hp: ENEMY_DEFS.asteroidS.hp,
++      maxHp: ENEMY_DEFS.asteroidS.hp,
++      score: ENEMY_DEFS.asteroidS.score,
++      vx: dir * rand(40, 80),
++      vy: rand(40, 80),
++      spin: rand(-2, 2),
++      t: 0,
++      baseY: 0,
++      fireAcc: 0,
++      fanAcc: 0,
++      fanRemain: 0,
++      fanGapAcc: 0,
++      entered: true,
++    })
++  }
++
++  // Boss 的扇形齐射独立于环形节奏（环形满足时也尝试启动扇形）
++
++  // ── 波次 ────────────────────────────────────────────────────
++
++  private startWave(n: number): void {
++    this.wave = n
++    this.spawnQueue = 0
++    this.spawnAcc = 0
++    const isBossWave = n % WAVE.bossEvery === 0
++
++    if (isBossWave) {
++      // E：Boss 警告（红闪 3 次 + WARNING 2s），结束后生成
++      this.waveState = 'warn'
++      this.stateTimer = 0
++      this.warnFlashCount = 0
++      this.warnFlashAcc = 0
++      this.warnText.setText('WARNING').setVisible(true)
++      this.warnText.setAlpha(0)
++      sfx.bossWarn()
++    } else {
++      this.waveState = 'spawning'
++      this.spawnQueue = WAVE.minionsBase + Math.min(n, 6)
++      this.spawnInterval = Math.max(WAVE.spawnIntervalMin, WAVE.spawnIntervalBase - n * WAVE.spawnIntervalStep)
++      this.showBanner(`WAVE ${n}`)
++    }
++    this.waveText.setText(`WAVE ${n}`)
++  }
++
++  private updateWave(dt: number, time: number): void {
++    if (this.waveState === 'warn') {
++      this.stateTimer += dt * 1000
++      // 红闪 3 次（每 400ms 闪一次，持续 120ms）
++      this.warnFlashAcc += dt * 1000
++      if (this.warnFlashAcc >= 400 && this.warnFlashCount < FX.warnFlashes * 2) {
++        this.warnFlashAcc = 0
++        this.warnFlashCount += 1
++        const on = this.warnFlashCount % 2 === 1
++        this.cameras.main.flash(110, 255, 40, 70)
++        this.warnText.setAlpha(on ? 1 : 0.25)
++      }
++      if (this.stateTimer >= FX.warnMs) {
++        this.warnText.setVisible(false)
++        this.waveState = 'spawning'
++        this.spawnQueue = WAVE.bossWaveMinions
++        this.spawnInterval = 900
++        this.spawnAcc = 0
++        this.spawnBoss()
++        this.showBanner(`WAVE ${this.wave}`)
++      }
++      return
++    }
++
++    if (this.waveState === 'spawning') {
++      if (this.spawnQueue > 0 && this.enemies.length < WAVE.maxAlive) {
++        this.spawnAcc += dt * 1000
++        if (this.spawnAcc >= this.spawnInterval) {
++          this.spawnAcc = 0
++          this.spawnQueue -= 1
++          this.spawnMinion()
++        }
++      } else if (this.spawnQueue <= 0) {
++        this.waveState = 'clearing'
++      }
++      return
++    }
++
++    if (this.waveState === 'clearing') {
++      if (this.enemies.length === 0) {
++        this.waveState = 'intermission'
++        this.stateTimer = 0
++        this.showBanner('WAVE CLEAR')
++        sfx.wave()
++      }
++      return
++    }
++
++    if (this.waveState === 'intermission') {
++      this.stateTimer += dt * 1000
++      if (this.stateTimer >= WAVE.clearDelayMs) {
++        this.startWave(this.wave + 1)
++      }
++    }
++  }
++
++  private showBanner(text: string): void {
++    this.bannerText.setText(text).setAlpha(0)
++    this.tweens.killTweensOf(this.bannerText)
++    this.tweens.add({
++      targets: this.bannerText,
++      alpha: 1,
++      duration: 240,
++      yoyo: true,
++      hold: 900,
++      onComplete: () => this.bannerText.setAlpha(0),
++    })
++  }
++
++  // ── 道具 ────────────────────────────────────────────────────
++
++  private rollDrop(x: number, y: number): void {
++    if (Math.random() > POWER.dropChance) return
++    this.spawnDrop(x, y, pick(['life', 'double', 'shield', 'rapid'] as const))
++  }
++
++  private spawnDrop(x: number, y: number, kind: PowerKind): void {
++    const node = this.add.image(x, y, `power-${kind}`).setDepth(16)
++    this.drops.push({ node, kind })
++  }
++
++  private updateDrops(dt: number): void {
++    for (let i = this.drops.length - 1; i >= 0; i -= 1) {
++      const d = this.drops[i] as PowerDrop
++      d.node.y += POWER.fallSpeed * dt
++      d.node.rotation += dt * 1.2
++      if (d.node.y > GAME_H + 30) {
++        d.node.destroy()
++        this.drops.splice(i, 1)
++        continue
++      }
++      // 拾取检测（半径）
++      if (Math.hypot(d.node.x - this.px, d.node.y - PLAYER_BOTTOM) <= POWER.pickupRadius + 14) {
++        this.applyPower(d.kind)
++        d.node.destroy()
++        this.drops.splice(i, 1)
++      }
++    }
++  }
++
++  private applyPower(kind: PowerKind): void {
++    const time = this.time.now
++    if (kind === 'life') {
++      if (this.lives < PLAYER.maxLives) {
++        this.lives += 1
++      } else {
++        this.addScore(POWER.fullLifeBonus, true)
++      }
++    } else if (kind === 'double') {
++      this.doubleUntil = time + PLAYER.doubleMs
++    } else if (kind === 'rapid') {
++      this.rapidUntil = time + PLAYER.rapidMs
++    } else {
++      this.shields += 1
++    }
++    sfx.pickup()
++    this.cameras.main.flash(80, 80, 200, 120)
++  }
++
++  // ── 碰撞 ────────────────────────────────────────────────────
++
++  private collide(): void {
++    // 玩家子弹 vs 敌人
++    for (let bi = this.playerBullets.length - 1; bi >= 0; bi -= 1) {
++      const b = this.playerBullets[bi] as Bullet
++      for (let ei = this.enemies.length - 1; ei >= 0; ei -= 1) {
++        const e = this.enemies[ei] as Enemy
++        if (this.hit(b.node, e.node)) {
++          b.node.destroy()
++          this.playerBullets.splice(bi, 1)
++          this.damageEnemy(e, 1)
++          break
++        }
++      }
++    }
++
++    // 敌方子弹 vs 玩家
++    for (let bi = this.enemyBullets.length - 1; bi >= 0; bi -= 1) {
++      const b = this.enemyBullets[bi] as Bullet
++      if (this.hit(b.node, this.playerNode)) {
++        b.node.destroy()
++        this.enemyBullets.splice(bi, 1)
++        this.damagePlayer()
++        if (this.phase === 'dying') return
++      }
++    }
++
++    // 敌人 vs 玩家（冲撞）
++    for (let ei = this.enemies.length - 1; ei >= 0; ei -= 1) {
++      const e = this.enemies[ei] as Enemy
++      if (e.kind === 'boss') {
++        // Boss 很少贴玩家，为公平不因贴脸即死，仅当进入下方区域时判定
++        if (e.node.y > GAME_H * 0.55 && this.hit(e.node, this.playerNode)) {
++          this.collideEnemyPlayer(e, ei)
++        }
++        continue
++      }
++      if (this.hit(e.node, this.playerNode)) {
++        this.collideEnemyPlayer(e, ei)
++      }
++    }
++  }
++
++  private collideEnemyPlayer(e: Enemy, ei: number): void {
++    if (this.phase !== 'playing') return
++    if (this.time.now < this.invincibleUntil) return
++    // 护盾：抵免 1 次，摧毁撞击来源
++    if (this.shields > 0) {
++      this.shields -= 1
++      this.invincibleUntil = this.time.now + 600
++      sfx.shieldBreak()
++      this.burst(e.node.x, e.node.y, COLOR.power, this.lowFx ? 6 : 10)
++      this.damageEnemy(e, 999)
++      this.refreshHud()
++      return
++    }
++    this.damagePlayer()
++  }
++
++  /** AABB 碰撞（基于纹理尺寸） */
++  private hit(a: { x: number; y: number; getData?(k: string): unknown }, b: { x: number; y: number; getData?(k: string): unknown }): boolean {
++    const aw = ((a.getData?.('w') as number) ?? 0) / 2
++    const ah = ((a.getData?.('h') as number) ?? 0) / 2
++    const bw = ((b.getData?.('w') as number) ?? 0) / 2
++    const bh = ((b.getData?.('h') as number) ?? 0) / 2
++    return Math.abs(a.x - b.x) < aw + bw && Math.abs(a.y - b.y) < ah + bh
++  }
++
++  private damagePlayer(): void {
++    if (this.phase !== 'playing') return
++    const time = this.time.now
++    if (time < this.invincibleUntil) return
++
++    this.lives -= 1
++    this.invincibleUntil = time + PLAYER.invincibleMs
++    this.refreshHud()
++    this.cameras.main.shake(200, 0.01)
++    sfx.hit()
++    this.burst(this.px, PLAYER_BOTTOM, COLOR.player, this.lowFx ? 6 : 12)
++
++    if (this.lives <= 0) {
++      this.die()
++    }
++  }
++
++  private die(): void {
++    this.phase = 'dying'
++    this.dieAt = this.time.now + 1000
++    this.playerNode.setVisible(false)
++    this.playerGlow.setVisible(false)
++    this.burst(this.px, PLAYER_BOTTOM, COLOR.player, this.lowFx ? 20 : 36)
++    this.burst(this.px, PLAYER_BOTTOM, 0xffffff, this.lowFx ? 8 : 14)
++    this.cameras.main.shake(400, 0.02)
++    sfx.boomBig()
++    sfx.gameOver()
++  }
++
++  private goGameOver(): void {
++    const isNew = this.score > this.best
++    if (isNew) {
++      this.best = this.score
++      this.writeBest(this.best)
++    }
++    this.scene.start('gameover', { score: this.score, best: this.best, isNew })
++  }
++
++  // ── 粒子 ────────────────────────────────────────────────────
++
++  private spawnParticle(
++    x: number,
++    y: number,
++    vx: number,
++    vy: number,
++    life: number,
++    color: number,
++  ): void {
++    const size = rand(2, 4)
++    const node = this.add.rectangle(x, y, size, size, color, 0.9).setDepth(8)
++    this.particles.push({ node, vx, vy, life: 0, maxLife: life })
++  }
++
++  private burst(x: number, y: number, color: number, count: number): void {
++    for (let i = 0; i < count; i += 1) {
++      const a = rand(0, Math.PI * 2)
++      const speed = rand(40, 260)
++      this.spawnParticle(
++        x,
++        y,
++        Math.cos(a) * speed,
++        Math.sin(a) * speed - 40,
++        rand(0.3, 0.7),
++        color,
++      )
++    }
++  }
++
++  private updateParticles(dt: number): void {
++    for (let i = this.particles.length - 1; i >= 0; i -= 1) {
++      const p = this.particles[i] as Particle
++      p.life += dt
++      p.vy += 260 * dt
++      p.node.x += p.vx * dt
++      p.node.y += p.vy * dt
++      p.node.setAlpha(Math.max(0, 0.9 * (1 - p.life / p.maxLife)))
++      if (p.life >= p.maxLife) {
++        p.node.destroy()
++        this.particles.splice(i, 1)
++      }
++    }
++  }
++
++  // ── 星空 / HUD / 降级 ───────────────────────────────────────
++
++  private updateBackdrop(dt: number): void {
++    for (const s of this.stars) {
++      s.y += FX.starLayers[s.layer].speed * dt
++      if (s.y > GAME_H + 4) {
++        s.y = -4
++        s.node.x = rand(0, GAME_W)
++      }
++      s.node.y = s.y
++    }
++  }
++
++  private addScore(v: number, silent = false): void {
++    this.score += v
++    this.scorePulse = 1
++    if (silent) {
++      // 满血生命 +50 的提示
++      this.showBanner('+50')
++      return
++    }
++  }
++
++  private updateHud(): void {
++    this.scoreText.setText(String(this.score))
++    if (this.scorePulse > 0) {
++      this.scorePulse = Math.max(0, this.scorePulse - 0.06)
++      this.scoreText.setScale(1 + this.scorePulse * 0.2)
++    }
++    this.refreshHud()
++  }
++
++  private refreshHud(): void {
++    this.livesText.setText('♥'.repeat(Math.max(0, this.lives)))
++    const time = this.time.now
++    const buffs: string[] = []
++    if (this.shields > 0) buffs.push(`◆护盾×${this.shields}`)
++    if (time < this.doubleUntil) buffs.push(`ǁ双发 ${Math.ceil((this.doubleUntil - time) / 1000)}s`)
++    if (time < this.rapidUntil) buffs.push(`»速射 ${Math.ceil((this.rapidUntil - time) / 1000)}s`)
++    this.buffText.setText(buffs.join('　'))
++  }
++
++  private updateFpsGuard(time: number): void {
++    // E7：帧率低于阈值时进入降级（粒子减半）
++    if (time - this.lastFpsCheck < 2000) return
++    this.lastFpsCheck = time
++    const fps = this.game.loop.actualFps
++    if (fps > 0 && fps < FX.lowFpsThreshold) {
++      this.lowFx = true
++    }
++  }
++
++  // ── 暂停 / 结束 ─────────────────────────────────────────────
++
++  private togglePause(): void {
++    if (this.phase === 'paused') {
++      this.phase = 'playing'
++      this.pauseOverlay.setVisible(false)
++      return
++    }
++    if (this.phase !== 'playing') return
++    this.phase = 'paused'
++    this.pauseOverlay.setVisible(true)
++  }
++
++  private readBest(): number {
++    try {
++      const raw = localStorage.getItem(BEST_KEY)
++      if (!raw) return 0
++      const value = Number.parseInt(raw, 10)
++      return Number.isFinite(value) && value > 0 ? value : 0
++    } catch {
++      return 0
++    }
++  }
++
++  private writeBest(value: number): void {
++    try {
++      localStorage.setItem(BEST_KEY, String(value))
++    } catch {
++      return
++    }
++  }
++}
+\ No newline at end of file
+diff --git a/games/star-vanguard/MenuScene.ts b/games/star-vanguard/MenuScene.ts
+index e69de29..e82a1d3 100644
+--- a/games/star-vanguard/MenuScene.ts
++++ b/games/star-vanguard/MenuScene.ts
+@@ -0,0 +1,141 @@
++// 星穹守卫 —— 主菜单场景（标题 / 操作说明 / 开始 / 静音）
++
++import Phaser from 'phaser'
++import { FONT, GAME_W, GAME_H, COLOR, FX, BEST_KEY } from './config'
++import { sfx } from './Sfx'
++
++export class MenuScene extends Phaser.Scene {
++  private mutedText!: Phaser.GameObjects.Text
++  private lastStartAt = -10000
++
++  constructor() {
++    super('menu')
++  }
++
++  create(): void {
++    this.drawBackdrop()
++
++    const cx = GAME_W / 2
++    sfx.warm()
++
++    this.add
++      .text(cx, 150, '星穹守卫', {
++        fontFamily: FONT,
++        fontSize: '72px',
++        color: '#e9edf6',
++        fontStyle: 'bold',
++      })
++      .setOrigin(0.5)
++    this.add
++      .text(cx, 216, 'S T A R   V A N G U A R D', {
++        fontFamily: FONT,
++        fontSize: '20px',
++        color: '#4cc9f0',
++      })
++      .setOrigin(0.5)
++
++    // 操作说明
++    this.add
++      .text(
++        cx,
++        306,
++        [
++          '← → / A D　移动　·　子弹自动发射',
++          'P 暂停　·　M 静音',
++        ],
++        {
++          fontFamily: FONT,
++          fontSize: '15px',
++          color: '#8b95ab',
++          align: 'center',
++          lineSpacing: 10,
++        },
++      )
++      .setOrigin(0.5)
++
++    const best = this.readBest()
++    this.add
++      .text(cx, 372, best > 0 ? `历史最高分　${best}` : '尚无记录，快来创造第一个纪录', {
++        fontFamily: FONT,
++        fontSize: '15px',
++        color: '#ffd166',
++      })
++      .setOrigin(0.5)
++
++    // 开始按钮
++    const btn = this.add
++      .text(cx, 452, '开 始 游 戏', {
++        fontFamily: FONT,
++        fontSize: '30px',
++        color: '#0b0d12',
++        backgroundColor: '#4cc9f0',
++        padding: { x: 34, y: 13 },
++      })
++      .setOrigin(0.5)
++      .setInteractive({ useHandCursor: true })
++    btn.on('pointerover', () => btn.setBackgroundColor('#6ad8ff'))
++    btn.on('pointerout', () => btn.setBackgroundColor('#4cc9f0'))
++    // E9：先触发防抖更新，再开始
++    btn.on('pointerdown', () => this.startGame())
++
++    this.add
++      .text(cx, 540, '按 Enter 或点击按钮开始', {
++        fontFamily: FONT,
++        fontSize: '13px',
++        color: '#5b6478',
++      })
++      .setOrigin(0.5)
++
++    this.mutedText = this.add
++      .text(GAME_W - 26, 26, '', {
++        fontFamily: FONT,
++        fontSize: '14px',
++        color: '#8b95ab',
++      })
++      .setOrigin(1, 0)
++    this.refreshMuted()
++
++    this.input.keyboard?.on('keydown-ENTER', () => this.startGame())
++    this.input.keyboard?.on('keydown-M', () => this.toggleMute())
++  }
++
++  private startGame(): void {
++    // E9：快速连点防抖，避免同帧重复 start
++    if (this.time.now - this.lastStartAt < FX.menuDebounceMs) return
++    this.lastStartAt = this.time.now
++    this.scene.start('game')
++  }
++
++  private toggleMute(): void {
++    sfx.setMuted(!sfx.isMuted())
++    this.refreshMuted()
++  }
++
++  private refreshMuted(): void {
++    this.mutedText.setText(sfx.isMuted() ? '🔇 已静音 (M)' : '🔊 音效开启 (M)')
++  }
++
++  private readBest(): number {
++    try {
++      const raw = localStorage.getItem(BEST_KEY)
++      if (!raw) return 0
++      const value = Number.parseInt(raw, 10)
++      return Number.isFinite(value) && value > 0 ? value : 0
++    } catch {
++      return 0
++    }
++  }
++
++  private drawBackdrop(): void {
++    this.cameras.main.setBackgroundColor(COLOR.bg)
++    const rnd = new Phaser.Math.RandomDataGenerator(['menu'])
++    for (let i = 0; i < 70; i += 1) {
++      const size = rnd.between(1, 3)
++      this.add
++        .rectangle(rnd.between(0, GAME_W), rnd.between(0, GAME_H), size, size, 0xffffff, 0.18)
++        .setDepth(0)
++    }
++    // 一艘展示用战机
++    this.add.image(GAME_W / 2, 250, 'player').setScale(1.6).setAlpha(0.12)
++  }
++}
+\ No newline at end of file
+diff --git a/games/star-vanguard/Sfx.ts b/games/star-vanguard/Sfx.ts
+index e69de29..d5678fa 100644
+--- a/games/star-vanguard/Sfx.ts
++++ b/games/star-vanguard/Sfx.ts
+@@ -0,0 +1,138 @@
++// 星穹守卫 —— Web Audio 实时合成音效（零音频文件）
++// 参考 games/neon-dash/main.ts 的 Sfx 模式扩展；E1：AudioContext 不可用则静默，E2：首次交互自动 resume
++
++export class Sfx {
 +  private ctx: AudioContext | null = null
++  private muted = false
++
++  setMuted(v: boolean): void {
++    this.muted = v
++  }
++
++  isMuted(): boolean {
++    return this.muted
++  }
 +
 +  private ensure(): AudioContext | null {
++    if (this.muted) return null
 +    if (!this.ctx) {
 +      try {
 +        this.ctx = new AudioContext()
@@ -168,6 +1411,7 @@ index 0000000..c67f0e2
 +    return this.ctx
 +  }
 +
++  /** 首次用户交互时预热（E2：自动播放策略） */
 +  warm(): void {
 +    this.ensure()
 +  }
@@ -197,626 +1441,580 @@ index 0000000..c67f0e2
 +    osc.stop(t0 + dur + 0.02)
 +  }
 +
-+  eat(): void {
-+    this.tone(660, 880, 0.08, 'square', 0.09)
-+    this.tone(990, 1320, 0.1, 'square', 0.07, 0.06)
++  /** 白噪声爆（低通滤波），用于爆炸类音效 */
++  private noise(dur: number, vol: number, cutoff: number, delay = 0): void {
++    const ctx = this.ensure()
++    if (!ctx) return
++    const t0 = ctx.currentTime + delay
++    const buffer = ctx.createBuffer(1, Math.max(1, Math.floor(ctx.sampleRate * dur)), ctx.sampleRate)
++    const data = buffer.getChannelData(0)
++    for (let i = 0; i < data.length; i += 1) {
++      data[i] = (Math.random() * 2 - 1) * (1 - i / data.length)
++    }
++    const src = ctx.createBufferSource()
++    src.buffer = buffer
++    const filter = ctx.createBiquadFilter()
++    filter.type = 'lowpass'
++    filter.frequency.value = cutoff
++    const gain = ctx.createGain()
++    gain.gain.value = vol
++    src.connect(filter)
++    filter.connect(gain)
++    gain.connect(ctx.destination)
++    src.start(t0)
++  }
++
++  shoot(): void {
++    this.tone(920, 440, 0.06, 'square', 0.05)
++  }
++
++  enemyShoot(): void {
++    this.tone(320, 190, 0.09, 'sawtooth', 0.045)
 +  }
 +
 +  hit(): void {
-+    this.tone(300, 60, 0.3, 'sawtooth', 0.14)
++    this.tone(220, 70, 0.08, 'square', 0.09)
 +  }
 +
-+  win(): void {
-+    this.tone(440, 440, 0.12, 'square', 0.1)
-+    this.tone(660, 660, 0.12, 'square', 0.1, 0.1)
-+    this.tone(880, 880, 0.18, 'square', 0.1, 0.2)
++  boomSmall(): void {
++    this.noise(0.22, 0.16, 900)
++    this.tone(150, 40, 0.2, 'triangle', 0.12)
++  }
++
++  boomBig(): void {
++    this.noise(0.55, 0.24, 650)
++    this.tone(120, 28, 0.5, 'triangle', 0.18)
++    this.tone(60, 20, 0.6, 'sine', 0.14, 0.05)
++  }
++
++  pickup(): void {
++    this.tone(523, 523, 0.06, 'square', 0.07)
++    this.tone(659, 659, 0.06, 'square', 0.07, 0.06)
++    this.tone(784, 784, 0.1, 'square', 0.07, 0.12)
++  }
++
++  shieldBreak(): void {
++    this.tone(1100, 180, 0.16, 'triangle', 0.1)
++  }
++
++  bossWarn(): void {
++    for (let i = 0; i < 3; i += 1) {
++      this.tone(440, 440, 0.12, 'square', 0.09, i * 0.3)
++      this.tone(622, 622, 0.12, 'square', 0.09, i * 0.3 + 0.15)
++    }
++  }
++
++  wave(): void {
++    this.tone(880, 880, 0.09, 'square', 0.07)
++    this.tone(1320, 1320, 0.13, 'square', 0.07, 0.09)
++  }
++
++  gameOver(): void {
++    this.tone(392, 392, 0.16, 'triangle', 0.12)
++    this.tone(262, 262, 0.16, 'triangle', 0.12, 0.18)
++    this.tone(131, 131, 0.4, 'triangle', 0.12, 0.36)
++    this.noise(0.4, 0.1, 500, 0.36)
 +  }
 +}
 +
-+class SnakeScene extends Phaser.Scene {
-+  private snakeGfx!: Phaser.GameObjects.Graphics
-+  private foodContainer!: Phaser.GameObjects.Container
-+  private foodStar!: Phaser.GameObjects.Graphics
-+  private scoreText!: Phaser.GameObjects.Text
-+  private bestText!: Phaser.GameObjects.Text
-+  private overlay!: Phaser.GameObjects.Container
-+  private overlayTitle!: Phaser.GameObjects.Text
-+  private overlayDetail!: Phaser.GameObjects.Text
-+  private overlayHint!: Phaser.GameObjects.Text
++/** 全局共享音效单例（各场景共用，静音状态跨场景保持） */
++export const sfx = new Sfx()
+\ No newline at end of file
+diff --git a/games/star-vanguard/config.ts b/games/star-vanguard/config.ts
+index e69de29..4316b85 100644
+--- a/games/star-vanguard/config.ts
++++ b/games/star-vanguard/config.ts
+@@ -0,0 +1,119 @@
++// 星穹守卫 Star Vanguard —— 全局配置与工具函数
++// 数值均来自 PRD v1.0（2.2~2.10 各节），按模块聚合便于二次开发调整
 +
-+  private readonly stars: Star[] = []
-+  private readonly debris: Debris[] = []
-+  private readonly sfx = new Sfx()
++export const GAME_W = 960
++export const GAME_H = 720
 +
-+  private phase: Phase = 'idle'
-+  private paused = false
-+  private snake: Cell[] = []
-+  private dir: Dir = 'right'
-+  private dirQueue: Dir[] = []
-+  private food: Cell = { x: 0, y: 0 }
++export const FONT = 'system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif'
 +
-+  private score = 0
-+  private best = 0
-+  private tickMs = TICK_MS_START
-+  private accum = 0
-+  private scorePulse = 0
-+  private overAt = 0
-+  private swipeStart: { x: number; y: number } | null = null
++export const BEST_KEY = 'star-vanguard:best'
 +
-+  constructor() {
-+    super('snake')
-+  }
++// ── 玩家（2.3）───────────────────────────────────────────────
++export const PLAYER = {
++  speed: 430, // px/s 左右移动
++  startLives: 3,
++  maxLives: 5,
++  invincibleMs: 1600, // 受击后无敌帧
++  fireCooldown: 1000 / 3, // 自动射击间隔 ms（1 秒 3 发）
++  rapidCooldown: 130, // 速射冷却 ms
++  doubleMs: 8000, // 双发持续
++  rapidMs: 8000, // 速射持续
++  bulletSpeed: 700,
++} as const
 +
-+  create(): void {
-+    this.best = this.readBest()
++// ── 敌人（2.4）───────────────────────────────────────────────
++export const ENEMY = {
++  ufoBulletSpeed: 220,
++  bossMaxHpBase: 200, // 第 3 波
++  bossMaxHpFrom6: 300, // 第 6 波起
++  bossMaxHpStep: 100,
++  bossMaxHpCap: 600,
++  bossScore: 500,
++  bossTop: 90, // 悬浮 y 范围
++  bossBottom: 110,
++  bossMoveSpeed: 60, // 水平正弦速度 px/s
++  bossFireDelay: 2000, // 进场后开炮延迟
++  bossRingInterval: 1600, // 环形散射
++  bossRingCount: 12,
++  bossRingSpeed: 180,
++  bossFanInterval: 2200, // 扇形齐射
++  bossFanShots: 5,
++  bossFanGapMs: 90,
++  bossFanSpeed: 300,
++  bossFanArc: 20, // 扇形 ±角度
++} as const
 +
-+    this.buildBackground()
-+    this.buildStars()
-+    this.buildBoard()
-+    this.buildSnake()
-+    this.buildFood()
-+    this.buildHud()
-+    this.buildOverlay()
++export type EnemyKind = 'asteroidL' | 'asteroidS' | 'ufo' | 'dart' | 'boss'
 +
-+    this.input.keyboard?.addCapture('SPACE,UP,DOWN,LEFT,RIGHT,W,A,S,D,P')
-+    this.input.keyboard?.on('keydown-SPACE', this.onAction, this)
-+    this.input.keyboard?.on('keydown-P', this.togglePause, this)
-+    this.input.keyboard?.on('keydown-UP', () => this.queueDir('up'), this)
-+    this.input.keyboard?.on('keydown-DOWN', () => this.queueDir('down'), this)
-+    this.input.keyboard?.on('keydown-LEFT', () => this.queueDir('left'), this)
-+    this.input.keyboard?.on('keydown-RIGHT', () => this.queueDir('right'), this)
-+    this.input.keyboard?.on('keydown-W', () => this.queueDir('up'), this)
-+    this.input.keyboard?.on('keydown-S', () => this.queueDir('down'), this)
-+    this.input.keyboard?.on('keydown-A', () => this.queueDir('left'), this)
-+    this.input.keyboard?.on('keydown-D', () => this.queueDir('right'), this)
-+    this.input.on('pointerdown', this.onPointerDown, this)
-+    this.input.on('pointerup', this.onPointerUp, this)
-+
-+    this.showIdle()
-+  }
-+
-+  update(time: number, delta: number): void {
-+    this.updateStars(time)
-+    this.updateFoodFx(time)
-+    this.updateScorePulse(delta)
-+    this.updateDebris(delta)
-+
-+    if (this.phase !== 'playing' || this.paused) return
-+
-+    this.accum += delta
-+    while (this.accum >= this.tickMs) {
-+      this.accum -= this.tickMs
-+      this.tick()
-+      if (this.phase !== 'playing') return
-+    }
-+  }
-+
-+  private buildBackground(): void {
-+    // 一张 Canvas 纹理：竖向渐变 + 中心淡光 + 四周暗角
-+    const tex = this.textures.createCanvas('bg', GAME_W, GAME_H)
-+    if (tex) {
-+      const ctx = tex.getContext()
-+      const grad = ctx.createLinearGradient(0, 0, 0, GAME_H)
-+      grad.addColorStop(0, '#0e1526')
-+      grad.addColorStop(0.55, '#0a0e1a')
-+      grad.addColorStop(1, '#070910')
-+      ctx.fillStyle = grad
-+      ctx.fillRect(0, 0, GAME_W, GAME_H)
-+
-+      const glow = ctx.createRadialGradient(
-+        GAME_W / 2, GAME_H / 2, 60,
-+        GAME_W / 2, GAME_H / 2, 520,
-+      )
-+      glow.addColorStop(0, 'rgba(76, 201, 240, 0.055)')
-+      glow.addColorStop(1, 'rgba(0, 0, 0, 0)')
-+      ctx.fillStyle = glow
-+      ctx.fillRect(0, 0, GAME_W, GAME_H)
-+
-+      const vig = ctx.createRadialGradient(
-+        GAME_W / 2, GAME_H / 2, 190,
-+        GAME_W / 2, GAME_H / 2, 660,
-+      )
-+      vig.addColorStop(0, 'rgba(0, 0, 0, 0)')
-+      vig.addColorStop(1, 'rgba(0, 0, 0, 0.42)')
-+      ctx.fillStyle = vig
-+      ctx.fillRect(0, 0, GAME_W, GAME_H)
-+
-+      tex.refresh()
-+    }
-+    this.add.image(0, 0, 'bg').setOrigin(0).setDepth(0)
-+  }
-+
-+  private buildStars(): void {
-+    for (let i = 0; i < STAR_COUNT; i += 1) {
-+      const size = randInt(1, 2)
-+      const node = this.add
-+        .rectangle(rand(0, GAME_W), rand(0, GAME_H), size, size, COLOR.star, 0)
-+        .setDepth(1)
-+      this.stars.push({ node, speed: rand(0.6, 1.8), phase: Math.random() * Math.PI * 2 })
-+    }
-+  }
-+
-+  private updateStars(time: number): void {
-+    for (const s of this.stars) {
-+      const t = (time / 1000) * s.speed + s.phase
-+      s.node.setAlpha(0.1 + 0.24 * (0.5 + 0.5 * Math.sin(t)))
-+    }
-+  }
-+
-+  private buildBoard(): void {
-+    const g = this.add.graphics().setDepth(2)
-+    // 2×2 棋盘格，画在渐变之上产生"板面"感
-+    g.fillStyle(COLOR.checker, 0.5)
-+    for (let cy = 0; cy < ROWS; cy += 2) {
-+      for (let cx = 0; cx < COLS; cx += 2) {
-+        if (((cx + cy) / 2) % 2 === 0) {
-+          g.fillRect(cx * GRID, cy * GRID, GRID * 2, GRID * 2)
-+        }
-+      }
-+    }
-+    // 细网格线
-+    g.lineStyle(1, COLOR.grid, 0.5)
-+    for (let c = 1; c < COLS; c += 1) {
-+      g.lineBetween(c * GRID, 0, c * GRID, GAME_H)
-+    }
-+    for (let r = 1; r < ROWS; r += 1) {
-+      g.lineBetween(0, r * GRID, GAME_W, r * GRID)
-+    }
-+    // 外框：内层微光 + 实线
-+    g.lineStyle(1, COLOR.head, 0.18)
-+    g.strokeRect(3, 3, GAME_W - 6, GAME_H - 6)
-+    g.lineStyle(2, COLOR.frame, 1)
-+    g.strokeRect(1, 1, GAME_W - 2, GAME_H - 2)
-+  }
-+
-+  private buildSnake(): void {
-+    this.snakeGfx = this.add.graphics().setDepth(8)
-+  }
-+
-+  private buildFood(): void {
-+    // 发光宝珠：光晕 + 半透明环 + 主体 + 高光 + 旋转星芒
-+    this.foodContainer = this.add.container(0, 0).setDepth(6).setVisible(false)
-+    const glow = this.add.circle(0, 0, GRID * 0.78, COLOR.foodGlow, 0.15)
-+    const halo = this.add.circle(0, 0, FOOD_R + 6, COLOR.food, 0.2)
-+    const orb = this.add.circle(0, 0, FOOD_R, COLOR.food, 1)
-+    const core = this.add.circle(-FOOD_R * 0.36, -FOOD_R * 0.4, FOOD_R * 0.34, 0xffffff, 0.9)
-+    this.foodStar = this.add.graphics()
-+    this.foodStar.lineStyle(2, 0xffffff, 0.38)
-+    this.foodStar.lineBetween(-18, 0, -12, 0)
-+    this.foodStar.lineBetween(12, 0, 18, 0)
-+    this.foodStar.lineBetween(0, -18, 0, -12)
-+    this.foodStar.lineBetween(0, 12, 0, 18)
-+    this.foodContainer.add([glow, halo, orb, core, this.foodStar])
-+  }
-+
-+  private buildHud(): void {
-+    this.scoreText = this.add
-+      .text(30, 22, '0', { fontFamily: FONT, fontSize: '42px', color: '#e9edf6' })
-+      .setDepth(20)
-+    this.bestText = this.add
-+      .text(GAME_W - 30, 34, `BEST ${this.best}`, {
-+        fontFamily: FONT,
-+        fontSize: '16px',
-+        color: '#8b95ab',
-+      })
-+      .setOrigin(1, 0)
-+      .setDepth(20)
-+  }
-+
-+  private buildOverlay(): void {
-+    this.overlay = this.add.container(0, 0).setDepth(50)
-+
-+    this.overlayTitle = this.add
-+      .text(GAME_W / 2, 186, '', { fontFamily: FONT, fontSize: '54px', color: '#e9edf6' })
-+      .setOrigin(0.5)
-+    this.overlayDetail = this.add
-+      .text(GAME_W / 2, 256, '', { fontFamily: FONT, fontSize: '18px', color: '#8b95ab' })
-+      .setOrigin(0.5)
-+    this.overlayHint = this.add
-+      .text(GAME_W / 2, 312, '', { fontFamily: FONT, fontSize: '16px', color: '#4cc9f0' })
-+      .setOrigin(0.5)
-+
-+    this.overlay.add([this.overlayTitle, this.overlayDetail, this.overlayHint])
-+  }
-+
-+  private showIdle(): void {
-+    this.overlayTitle.setText('NEON SNAKE')
-+    this.overlayDetail.setText('无墙模式：穿墙从对面出来，吃光点变长')
-+    this.overlayHint.setText('方向键 / WASD 控制，点击屏幕开始')
-+    this.overlay.setVisible(true)
-+  }
-+
-+  private showOver(reason: 'self' | 'win'): void {
-+    const title = reason === 'win' ? '通关了！' : '咬到自己了'
-+    this.overlayTitle.setText(title)
-+    this.overlayDetail.setText(`本次得分 ${this.score}　·　最高分 ${this.best}`)
-+    this.overlayHint.setText('点击屏幕 / 空格 再来一次')
-+    this.overlay.setVisible(true)
-+  }
-+
-+  private onAction(): void {
-+    if (this.phase === 'idle') {
-+      this.startRun()
-+      return
-+    }
-+    if (this.phase === 'over') {
-+      if (this.time.now - this.overAt < RESTART_LOCK_MS) return
-+      this.startRun()
-+    }
-+  }
-+
-+  private onPointerDown(pointer: Phaser.Input.Pointer): void {
-+    if (this.phase === 'idle' || this.phase === 'over') {
-+      this.onAction()
-+      return
-+    }
-+    if (this.paused) {
-+      this.togglePause()
-+      return
-+    }
-+    this.swipeStart = { x: pointer.x, y: pointer.y }
-+  }
-+
-+  private onPointerUp(pointer: Phaser.Input.Pointer): void {
-+    if (this.phase !== 'playing' || !this.swipeStart) return
-+    const dx = pointer.x - this.swipeStart.x
-+    const dy = pointer.y - this.swipeStart.y
-+    this.swipeStart = null
-+    if (Math.abs(dx) < SWIPE_THRESHOLD && Math.abs(dy) < SWIPE_THRESHOLD) return
-+    if (Math.abs(dx) > Math.abs(dy)) {
-+      this.queueDir(dx > 0 ? 'right' : 'left')
-+    } else {
-+      this.queueDir(dy > 0 ? 'down' : 'up')
-+    }
-+  }
-+
-+  private togglePause(): void {
-+    if (this.phase !== 'playing') return
-+    this.paused = !this.paused
-+    this.overlayTitle.setText(this.paused ? '已暂停' : '')
-+    this.overlayDetail.setText(this.paused ? '按 P 或点击屏幕继续' : '')
-+    this.overlayHint.setText('')
-+    this.overlay.setVisible(this.paused)
-+  }
-+
-+  private queueDir(dir: Dir): void {
-+    if (this.phase !== 'playing' || this.paused) return
-+    const last = this.dirQueue.length > 0 ? (this.dirQueue[this.dirQueue.length - 1] as Dir) : this.dir
-+    if (dir === last || dir === OPPOSITE[last]) return
-+    if (this.dirQueue.length >= 3) return
-+    this.dirQueue.push(dir)
-+  }
-+
-+  private startRun(): void {
-+    this.clearDebris()
-+    this.sfx.warm()
-+
-+    this.snake = []
-+    const startX = Math.floor(COLS / 2) - 2
-+    const startY = Math.floor(ROWS / 2)
-+    // 头在最前（初始朝右），身体依次排在身后
-+    for (let i = 0; i < START_LEN; i += 1) {
-+      this.snake.push({ x: startX - i, y: startY })
-+    }
-+    this.dir = 'right'
-+    this.dirQueue = []
-+
-+    this.score = 0
-+    this.tickMs = TICK_MS_START
-+    this.accum = 0
-+    this.scorePulse = 0
-+    this.paused = false
-+
-+    this.renderSnake()
-+    this.spawnFood()
-+    this.scoreText.setText('0').setScale(1)
-+    this.snakeGfx.setAlpha(1)
-+
-+    this.overlay.setVisible(false)
-+    this.phase = 'playing'
-+  }
-+
-+  private playerAlpha(alpha: number): void {
-+    this.snakeGfx.setAlpha(alpha)
-+  }
-+
-+  private tick(): void {
-+    const next = this.dirQueue.shift()
-+    if (next) this.dir = next
-+
-+    const head = this.snake[0] as Cell
-+    // 无墙模式：出界从另一侧穿回
-+    const nx = (head.x + DIR_VEC[this.dir].x + COLS) % COLS
-+    const ny = (head.y + DIR_VEC[this.dir].y + ROWS) % ROWS
-+
-+    // 撞自己：尾部本 tick 会让位，故只查 [0, len-2]；吃到食物时尾部不动，查全
-+    const eating = nx === this.food.x && ny === this.food.y
-+    const bodyLen = eating ? this.snake.length : this.snake.length - 1
-+    for (let i = 0; i < bodyLen; i += 1) {
-+      const part = this.snake[i] as Cell
-+      if (part.x === nx && part.y === ny) {
-+        this.endRun('self')
-+        return
-+      }
-+    }
-+
-+    this.snake.unshift({ x: nx, y: ny })
-+    if (eating) {
-+      this.onEat()
-+    } else {
-+      this.snake.pop()
-+    }
-+    this.renderSnake()
-+  }
-+
-+  private onEat(): void {
-+    this.score += 1
-+    this.scoreText.setText(String(this.score))
-+    this.scorePulse = 1
-+    this.tickMs = Math.max(TICK_MS_MIN, this.tickMs - TICK_MS_STEP)
-+    this.sfx.eat()
-+    this.spawnFood()
-+  }
-+
-+  private spawnFood(): void {
-+    // 拒绝采样，命中太差时全盘扫描兜底
-+    let x = 0
-+    let y = 0
-+    let found = false
-+    for (let i = 0; i < 512 && !found; i += 1) {
-+      x = randInt(0, COLS - 1)
-+      y = randInt(0, ROWS - 1)
-+      found = !this.isOnSnake(x, y)
-+    }
-+    if (!found) {
-+      const free: Cell[] = []
-+      for (let cy = 0; cy < ROWS; cy += 1) {
-+        for (let cx = 0; cx < COLS; cx += 1) {
-+          if (!this.isOnSnake(cx, cy)) free.push({ x: cx, y: cy })
-+        }
-+      }
-+      if (free.length === 0) {
-+        this.endRun('win')
-+        return
-+      }
-+      const cell = free[Math.floor(Math.random() * free.length)]
-+      x = cell!.x
-+      y = cell!.y
-+    }
-+    this.food = { x, y }
-+    this.setFoodPosition()
-+  }
-+
-+  private setFoodPosition(): void {
-+    const px = (this.food.x + 0.5) * GRID
-+    const py = (this.food.y + 0.5) * GRID
-+    this.foodContainer.setPosition(px, py).setScale(1).setAlpha(1).setVisible(true)
-+  }
-+
-+  // 呼吸 + 星芒旋转，由 update 驱动（与暂停状态无关，纯视觉）
-+  private updateFoodFx(time: number): void {
-+    if (!this.foodContainer.visible) return
-+    this.foodContainer.setScale(1 + Math.sin(time / 200) * 0.08)
-+    this.foodStar.rotation = (time / 2600) * Math.PI * 2
-+  }
-+
-+  private isOnSnake(x: number, y: number): boolean {
-+    return this.snake.some((s) => s.x === x && s.y === y)
-+  }
-+
-+  private segmentColor(index: number, len: number): number {
-+    if (index === 0) return COLOR.head
-+    const c = Phaser.Display.Color.Interpolate.ColorWithColor(
-+      Phaser.Display.Color.ValueToColor(COLOR.head),
-+      Phaser.Display.Color.ValueToColor(COLOR.tail),
-+      Math.max(1, len - 1),
-+      index,
-+    )
-+    return Phaser.Display.Color.GetColor(c.r, c.g, c.b)
-+  }
-+
-+  private renderSnake(): void {
-+    const g = this.snakeGfx
-+    g.clear()
-+
-+    // 环绕展开：从头出发按相邻单元格差计算屏幕坐标，穿墙时蛇身保持连续不撕裂
-+    const len = this.snake.length
-+    const pts: { x: number; y: number }[] = []
-+    let sx = 0
-+    let sy = 0
-+    this.snake.forEach((cell, i) => {
-+      if (i === 0) {
-+        sx = (cell.x + 0.5) * GRID
-+        sy = (cell.y + 0.5) * GRID
-+      } else {
-+        const prev = this.snake[i - 1] as Cell
-+        let offX = cell.x - prev.x
-+        let offY = cell.y - prev.y
-+        if (offX > 1) offX -= COLS
-+        if (offX < -1) offX += COLS
-+        if (offY > 1) offY -= ROWS
-+        if (offY < -1) offY += ROWS
-+        sx += offX * GRID
-+        sy += offY * GRID
-+      }
-+      pts.push({ x: sx, y: sy })
-+    })
-+
-+    // 身体：从尾画到第二节，圆角矩形 + 深色描边，尾部渐细
-+    for (let i = len - 1; i >= 1; i -= 1) {
-+      const p = pts[i] as { x: number; y: number }
-+      const taper = Math.max(0, i - (len - 4)) * 2.5
-+      const size = GRID - 5 - taper
-+      const color = this.segmentColor(i, len)
-+      g.fillStyle(color, 1)
-+      g.fillRoundedRect(p.x - size / 2, p.y - size / 2, size, size, 8)
-+      g.lineStyle(1.5, COLOR.outline, 0.3)
-+      g.strokeRoundedRect(p.x - size / 2, p.y - size / 2, size, size, 8)
-+    }
-+
-+    // 头部：光晕 + 圆头 + 高光 + 朝移动方向的眼睛
-+    const head = pts[0] as { x: number; y: number }
-+    g.fillStyle(COLOR.head, 0.1)
-+    g.fillCircle(head.x, head.y, GRID * 0.95)
-+    g.fillStyle(COLOR.head, 1)
-+    g.fillCircle(head.x, head.y, GRID / 2 - 3)
-+    g.fillStyle(0xffffff, 0.26)
-+    g.fillCircle(head.x - 4, head.y - 4.5, 4.5)
-+
-+    const dv = DIR_VEC[this.dir]
-+    const px = -dv.y
-+    const py = dv.x
-+    for (const side of [-1, 1] as const) {
-+      const ex = head.x + dv.x * 6 + px * 7.5 * side
-+      const ey = head.y + dv.y * 6 + py * 7.5 * side
-+      g.fillStyle(0xffffff, 1)
-+      g.fillCircle(ex, ey, 4.6)
-+      g.fillStyle(COLOR.outline, 1)
-+      g.fillCircle(ex + dv.x * 1.8, ey + dv.y * 1.8, 2.3)
-+    }
-+  }
-+
-+  private updateScorePulse(delta: number): void {
-+    const dt = Math.min(delta, 50) / 1000
-+    if (this.scorePulse <= 0) return
-+    this.scorePulse = Math.max(0, this.scorePulse - dt * 6)
-+    this.scoreText.setScale(1 + this.scorePulse * 0.18)
-+  }
-+
-+  private updateDebris(delta: number): void {
-+    const dt = Math.min(delta, 50) / 1000
-+    for (let i = this.debris.length - 1; i >= 0; i -= 1) {
-+      const d = this.debris[i] as Debris
-+      d.life += dt
-+      d.vy += 900 * dt
-+      d.node.x += d.vx * dt
-+      d.node.y += d.vy * dt
-+      d.node.setAlpha(Math.max(0, 1 - d.life / d.maxLife))
-+      if (d.life >= d.maxLife) {
-+        d.node.destroy()
-+        this.debris.splice(i, 1)
-+      }
-+    }
-+  }
-+
-+  private burstDebris(
-+    x: number,
-+    y: number,
-+    color: number,
-+    count: number,
-+    speedMin: number,
-+    speedMax: number,
-+  ): void {
-+    for (let i = 0; i < count; i += 1) {
-+      const size = randInt(2, 5)
-+      const node = this.add.rectangle(x, y, size, size, color).setDepth(8)
-+      const angle = Math.random() * Math.PI * 2
-+      const speed = speedMin + Math.random() * (speedMax - speedMin)
-+      this.debris.push({
-+        node,
-+        vx: Math.cos(angle) * speed,
-+        vy: Math.sin(angle) * speed - 60,
-+        life: 0,
-+        maxLife: 0.25 + Math.random() * 0.3,
-+      })
-+    }
-+  }
-+
-+  private clearDebris(): void {
-+    for (const d of this.debris) {
-+      d.node.destroy()
-+    }
-+    this.debris.length = 0
-+  }
-+
-+  private endRun(reason: 'self' | 'win'): void {
-+    this.phase = 'over'
-+    this.overAt = this.time.now
-+    this.paused = false
-+
-+    if (this.score > this.best) {
-+      this.best = this.score
-+      this.writeBest(this.best)
-+    }
-+    this.bestText.setText(`BEST ${this.best}`)
-+
-+    const head = this.snake[0] as Cell
-+    const px = (head.x + 0.5) * GRID
-+    const py = (head.y + 0.5) * GRID
-+    this.burstDebris(px, py, COLOR.head, 10, 100, 340)
-+    this.burstDebris(px, py, 0xffffff, 4, 60, 200)
-+    this.cameras.main.shake(140, 0.008)
-+    if (reason === 'win') {
-+      this.sfx.win()
-+    } else {
-+      this.sfx.hit()
-+    }
-+
-+    this.playerAlpha(0.3)
-+    this.showOver(reason)
-+  }
-+
-+  private readBest(): number {
-+    try {
-+      const raw = localStorage.getItem(BEST_KEY)
-+      if (!raw) return 0
-+      const value = Number.parseInt(raw, 10)
-+      return Number.isFinite(value) && value > 0 ? value : 0
-+    } catch {
-+      return 0
-+    }
-+  }
-+
-+  private writeBest(value: number): void {
-+    try {
-+      localStorage.setItem(BEST_KEY, String(value))
-+    } catch {
-+      return
-+    }
-+  }
++export type EnemyDef = {
++  kind: EnemyKind
++  hp: number
++  score: number
 +}
 +
-+new Phaser.Game({
-+  type: Phaser.AUTO,
++export const ENEMY_DEFS: Record<Exclude<EnemyKind, 'boss'>, EnemyDef> = {
++  asteroidL: { kind: 'asteroidL', hp: 2, score: 20 },
++  asteroidS: { kind: 'asteroidS', hp: 1, score: 10 },
++  ufo: { kind: 'ufo', hp: 3, score: 40 },
++  dart: { kind: 'dart', hp: 1, score: 30 },
++}
++
++// ── 波次（2.5）───────────────────────────────────────────────
++export const WAVE = {
++  spawnIntervalBase: 1900,
++  spawnIntervalMin: 800,
++  spawnIntervalStep: 120,
++  minionsBase: 4,
++  minionsMax: 10, // 4 + min(n, 6)
++  bossEvery: 3, // n % 3 === 0 为 Boss 波
++  clearDelayMs: 1500, // 清场后进下一波提示
++  maxAlive: 24, // 同屏上限
++  bossWaveMinions: 2, // Boss 波的少量杂兵
++} as const
++
++// ── 道具（2.7）───────────────────────────────────────────────
++export const POWER = {
++  dropChance: 0.12, // 敌机掉落概率
++  fallSpeed: 120,
++  pickupRadius: 22,
++  fullLifeBonus: 50, // 满血拾取生命 +50 分
++} as const
++
++export type PowerKind = 'life' | 'double' | 'shield' | 'rapid'
++
++// ── 表现（2.10）──────────────────────────────────────────────
++export const FX = {
++  starLayers: [
++    { speed: 20, count: 26, sizeMin: 1, sizeMax: 2, alpha: 0.35 },
++    { speed: 60, count: 20, sizeMin: 1.5, sizeMax: 2.5, alpha: 0.55 },
++    { speed: 134, count: 14, sizeMin: 2, sizeMax: 3.5, alpha: 0.9 },
++  ],
++  lowFpsThreshold: 30, // E7：低于该帧率进入降级
++  warnFlashes: 3,
++  warnMs: 2000,
++  menuDebounceMs: 300, // E9
++} as const
++
++export const COLOR = {
++  bg: 0x0b0d12,
++  player: 0x4cc9f0,
++  playerDark: 0x2a9fd4,
++  bullet: 0x9ff3ff,
++  enemyBullet: 0xff4f9a,
++  asteroid: 0x8b7d6b,
++  asteroidDark: 0x5a4f44,
++  ufo: 0x7b61ff,
++  ufoDome: 0x9fe8ff,
++  dart: 0xff9f43,
++  boss: 0xff3d6e,
++  bossDark: 0x8f1e3f,
++  power: 0x7dff8f,
++  text: 0xe9edf6,
++  textDim: 0x8b95ab,
++} as const
++
++// ── 工具函数（与项目其他游戏一致）──────────────────────────────
++export const rand = (min: number, max: number): number => min + Math.random() * (max - min)
++export const randInt = (min: number, max: number): number => Math.floor(rand(min, max + 1))
++export const pick = <T,>(list: readonly T[]): T => list[Math.floor(Math.random() * list.length)] as T
++export const clamp = (v: number, min: number, max: number): number => Math.min(max, Math.max(min, v))
+\ No newline at end of file
+diff --git a/games/star-vanguard/index.html b/games/star-vanguard/index.html
+index e69de29..d09e7fc 100644
+--- a/games/star-vanguard/index.html
++++ b/games/star-vanguard/index.html
+@@ -0,0 +1,69 @@
++<!doctype html>
++<html lang="zh-CN">
++  <head>
++    <meta charset="UTF-8" />
++    <meta
++      name="viewport"
++      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
++    />
++    <title>星穹守卫 — 在线玩，无需下载 | Neon Arcade</title>
++    <meta
++      name="description"
++      content="星穹守卫 Star Vanguard 是一款在浏览器里直接玩的太空射击小游戏：操控飞船抵御一波波小行星与敌机，击败 Boss 刷新最高分。无需下载、无需注册，打开即玩。"
++    />
++    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
++    <link rel="canonical" href="https://example.com/games/star-vanguard/" />
++    <meta property="og:type" content="website" />
++    <meta property="og:title" content="星穹守卫 — 在线玩，无需下载" />
++    <meta
++      property="og:description"
++      content="操控飞船抵御小行星与敌机，击败 Boss 刷新最高分。打开即玩。"
++    />
++    <style>
++      html,
++      body {
++        margin: 0;
++        padding: 0;
++        height: 100%;
++        background: #0b0d12;
++        overflow: hidden;
++        font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
++      }
++      #stage {
++        width: 100vw;
++        height: 100vh;
++        display: flex;
++        align-items: center;
++        justify-content: center;
++      }
++      #stage canvas {
++        display: block;
++        touch-action: none;
++        cursor: crosshair;
++      }
++      .back-link {
++        position: fixed;
++        right: 18px;
++        bottom: 16px;
++        z-index: 20;
++        font-size: 13px;
++        color: #8b95ab;
++        text-decoration: none;
++        padding: 7px 13px;
++        border-radius: 999px;
++        background: rgba(20, 24, 33, 0.82);
++        border: 1px solid #252c3d;
++        transition: color 0.15s, border-color 0.15s;
++      }
++      .back-link:hover {
++        color: #e9edf6;
++        border-color: #3a4359;
++      }
++    </style>
++  </head>
++  <body>
++    <div id="stage"></div>
++    <a class="back-link" href="/">← 全部游戏</a>
++    <script type="module" src="/games/star-vanguard/main.ts"></script>
++  </body>
++</html>
+\ No newline at end of file
+diff --git a/games/star-vanguard/main.ts b/games/star-vanguard/main.ts
+index e69de29..09548c0 100644
+--- a/games/star-vanguard/main.ts
++++ b/games/star-vanguard/main.ts
+@@ -0,0 +1,37 @@
++// 星穹守卫 Star Vanguard —— 入口：创建 Phaser.Game 并注册全部场景
++// 场景：boot（生成纹理）→ menu（主菜单）→ game（游戏）→ gameover（结算）
++
++import Phaser from 'phaser'
++import { GAME_W, GAME_H } from './config'
++import { BootScene } from './BootScene'
++import { MenuScene } from './MenuScene'
++import { GameScene } from './GameScene'
++import { GameOverScene } from './GameOverScene'
++
++const game = new Phaser.Game({
++  type: Phaser.AUTO, // E10：WebGL 不可用时自动回退 Canvas
 +  parent: 'stage',
 +  width: GAME_W,
 +  height: GAME_H,
 +  backgroundColor: '#0b0d12',
-+  pixelArt: true,
 +  scale: {
 +    mode: Phaser.Scale.FIT,
 +    autoCenter: Phaser.Scale.CENTER_BOTH,
 +  },
-+  scene: [SnakeScene],
++  scene: [BootScene, MenuScene, GameScene, GameOverScene],
++})
++
++// 调试句柄：控制台可访问游戏实例（`window.__svGame.scene.getScene('game')`）
++;(window as unknown as { __svGame?: Phaser.Game }).__svGame = game
++
++// E10：引擎初始化失败（连 Canvas 都不可用）时显示友好提示
++game.events.once(Phaser.Core.Events.READY, () => {
++  const canvas = document.querySelector('#stage canvas')
++  if (!canvas) {
++    const el = document.createElement('div')
++    el.style.cssText =
++      'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;color:#e9edf6;font-size:18px;font-family:system-ui;'
++    el.textContent = '当前浏览器无法初始化游戏渲染器，请升级浏览器后重试。'
++    document.body.appendChild(el)
++  }
 +})
 \ No newline at end of file
+diff --git a/games/star-vanguard/textures.ts b/games/star-vanguard/textures.ts
+index e69de29..bb05516 100644
+--- a/games/star-vanguard/textures.ts
++++ b/games/star-vanguard/textures.ts
+@@ -0,0 +1,219 @@
++// 星穹守卫 —— 程序化纹理生成（零外部素材，PRD 1.3 / A16）
++// 全部纹理在 BootScene.create 中调用 createTextures 生成一次
++
++import Phaser from 'phaser'
++import { COLOR } from './config'
++
++// 确定性扰动（无随机，保证每次生成形状一致）
++const wob = (i: number, seed: number): number => Math.sin(i * 2.7 + seed) * 0.5 + 0.5
++
++const vec = (x: number, y: number): Phaser.Math.Vector2 => new Phaser.Math.Vector2(x, y)
++
++/** 绘制一颗小行星：n 个顶点的粗糙多边形 + 暗色描边 */
++function drawAsteroid(g: Phaser.GameObjects.Graphics, size: number, seed: number): void {
++  const r = size / 2
++  const points: Phaser.Math.Vector2[] = []
++  const n = 12
++  for (let i = 0; i < n; i += 1) {
++    const a = (i / n) * Math.PI * 2
++    const rad = r * (0.72 + 0.28 * wob(i, seed))
++    points.push(vec(r + Math.cos(a) * rad, r + Math.sin(a) * rad))
++  }
++  g.fillStyle(COLOR.asteroid, 1)
++  g.fillPoints(points, true)
++  g.lineStyle(3, COLOR.asteroidDark, 1)
++  g.strokePoints(points, true, true)
++  // 陨石坑
++  g.fillStyle(COLOR.asteroidDark, 0.55)
++  g.fillCircle(r * 0.7, size * 0.42, size * 0.1)
++  g.fillCircle(r * 1.2, size * 0.68, size * 0.07)
++}
++
++/** 绘制道具图标：圆底 + 符号 */
++function drawPower(
++  g: Phaser.GameObjects.Graphics,
++  kind: 'life' | 'double' | 'shield' | 'rapid',
++): void {
++  const c = 22
++  const colors = { life: 0x7dff8f, double: 0x4cc9f0, shield: 0x6fa8ff, rapid: 0xff9f43 } as const
++  const main = colors[kind]
++  g.fillStyle(0x0b0d12, 0.92)
++  g.fillCircle(c, c, 19)
++  g.lineStyle(3, main, 1)
++  g.strokeCircle(c, c, 19)
++  g.fillStyle(main, 1)
++  if (kind === 'life') {
++    g.fillRect(c - 3, c - 11, 6, 22)
++    g.fillRect(c - 11, c - 3, 22, 6)
++  } else if (kind === 'double') {
++    g.fillRoundedRect(11, 8, 6, 28, 3)
++    g.fillRoundedRect(27, 8, 6, 28, 3)
++  } else if (kind === 'shield') {
++    g.fillPoints([
++      vec(c, 7),
++      vec(35, c),
++      vec(c, 37),
++      vec(9, c),
++    ])
++  } else {
++    g.fillTriangle(12, 8, 12, 36, 24, 22)
++    g.fillTriangle(24, 8, 24, 36, 36, 22)
++  }
++}
++
++/**
++ * 生成游戏全部纹理（幂等：已存在则跳过）
++ * 纹理 key 汇总：player / asteroidL / asteroidS / ufo / dart / boss /
++ *               bullet / ebullet / power-life / power-double / power-shield /
++ *               power-rapid / glow
++ */
++export function createTextures(scene: Phaser.Scene): void {
++  const t = scene.textures
++
++  if (!t.exists('player')) {
++    const g = scene.add.graphics()
++    // 蓝色战机：机身 + 双翼 + 座舱 + 引擎口
++    g.fillStyle(COLOR.playerDark, 1)
++    g.fillPoints([
++      vec(2, 46),
++      vec(14, 52),
++      vec(15, 30),
++    ])
++    g.fillPoints([
++      vec(50, 46),
++      vec(38, 52),
++      vec(37, 30),
++    ])
++    g.fillStyle(COLOR.player, 1)
++    g.fillPoints([
++      vec(26, 2),
++      vec(39, 30),
++      vec(35, 48),
++      vec(17, 48),
++      vec(13, 30),
++    ])
++    g.fillStyle(0x1a2d3a, 1)
++    g.fillRect(20, 44, 12, 7)
++    g.fillStyle(0x9ff3ff, 1)
++    g.fillCircle(26, 20, 5)
++    g.generateTexture('player', 52, 56)
++    g.destroy()
++  }
++
++  if (!t.exists('asteroidL')) {
++    const g = scene.add.graphics()
++    drawAsteroid(g, 64, 1.7)
++    g.generateTexture('asteroidL', 64, 64)
++    g.destroy()
++  }
++
++  if (!t.exists('asteroidS')) {
++    const g = scene.add.graphics()
++    drawAsteroid(g, 36, 4.2)
++    g.generateTexture('asteroidS', 36, 36)
++    g.destroy()
++  }
++
++  if (!t.exists('ufo')) {
++    const g = scene.add.graphics()
++    // 圆顶
++    g.fillStyle(COLOR.ufoDome, 1)
++    g.fillEllipse(32, 15, 26, 20)
++    g.fillStyle(0xffffff, 0.4)
++    g.fillEllipse(28, 12, 7, 6)
++    // 机身
++    g.fillStyle(COLOR.ufo, 1)
++    g.fillEllipse(32, 24, 54, 22)
++    // 底部灯光
++    g.fillStyle(0xffffff, 0.9)
++    g.fillCircle(16, 34, 3)
++    g.fillCircle(32, 35, 3)
++    g.fillCircle(48, 34, 3)
++    g.generateTexture('ufo', 64, 40)
++    g.destroy()
++  }
++
++  if (!t.exists('dart')) {
++    const g = scene.add.graphics()
++    // 橙色俯冲三角（尖朝下）
++    g.fillStyle(COLOR.dart, 1)
++    g.fillTriangle(22, 2, 41, 40, 3, 38)
++    g.fillStyle(0xffe3c2, 1)
++    g.fillTriangle(22, 14, 30, 30, 14, 29)
++    g.generateTexture('dart', 44, 44)
++    g.destroy()
++  }
++
++  if (!t.exists('boss')) {
++    const g = scene.add.graphics()
++    // 双翼
++    g.fillStyle(COLOR.bossDark, 1)
++    g.fillPoints([
++      vec(4, 42),
++      vec(52, 54),
++      vec(40, 66),
++    ])
++    g.fillPoints([
++      vec(164, 42),
++      vec(116, 54),
++      vec(128, 66),
++    ])
++    // 机身
++    g.fillStyle(COLOR.boss, 1)
++    g.fillEllipse(84, 46, 122, 62)
++    // 座舱
++    g.fillStyle(0xffd9e2, 1)
++    g.fillEllipse(84, 30, 42, 24)
++    // 底部炮口灯
++    g.fillStyle(0xffffff, 0.9)
++    g.fillCircle(56, 72, 4)
++    g.fillCircle(84, 74, 4)
++    g.fillCircle(112, 72, 4)
++    g.generateTexture('boss', 168, 80)
++    g.destroy()
++  }
++
++  if (!t.exists('bullet')) {
++    const g = scene.add.graphics()
++    g.fillStyle(COLOR.bullet, 1)
++    g.fillRoundedRect(0, 0, 6, 16, 3)
++    g.fillStyle(0xffffff, 1)
++    g.fillRoundedRect(1.5, 1.5, 3, 8, 1.5)
++    g.generateTexture('bullet', 6, 16)
++    g.destroy()
++  }
++
++  if (!t.exists('ebullet')) {
++    const g = scene.add.graphics()
++    g.fillStyle(COLOR.enemyBullet, 1)
++    g.fillCircle(6, 6, 5)
++    g.fillStyle(0xffffff, 0.9)
++    g.fillCircle(6, 6, 2.2)
++    g.generateTexture('ebullet', 12, 12)
++    g.destroy()
++  }
++
++  for (const kind of ['life', 'double', 'shield', 'rapid'] as const) {
++    if (!t.exists(`power-${kind}`)) {
++      const g = scene.add.graphics()
++      drawPower(g, kind)
++      g.generateTexture(`power-${kind}`, 44, 44)
++      g.destroy()
++    }
++  }
++
++  // 径向光晕（canvas 渐变），用于粒子/发光效果
++  if (!t.exists('glow')) {
++    const canvas = t.createCanvas('glow', 64, 64)
++    if (canvas) {
++      const ctx = canvas.context
++      const grad = ctx.createRadialGradient(32, 32, 2, 32, 32, 32)
++      grad.addColorStop(0, 'rgba(255,255,255,1)')
++      grad.addColorStop(0.35, 'rgba(255,255,255,0.5)')
++      grad.addColorStop(1, 'rgba(255,255,255,0)')
++      ctx.fillStyle = grad
++      ctx.fillRect(0, 0, 64, 64)
++      canvas.refresh()
++    }
++  }
++}
+\ No newline at end of file
 diff --git a/index.html b/index.html
-index d22870c..f164f2b 100644
+index f164f2b..e8e2e74 100644
 --- a/index.html
 +++ b/index.html
-@@ -48,20 +48,35 @@
-               <h3>Neon Dash</h3>
-               <p>一根手指就能玩。跳过一个个障碍和坑洞，速度只会越来越快。</p>
-               <p class="game-best" data-best-key="neon-dash:best"></p>
+@@ -63,20 +63,35 @@
+               <h3>Neon Snake</h3>
+               <p>经典贪吃蛇。吃光点不断变长，别撞墙也别咬到自己。</p>
+               <p class="game-best" data-best-key="neon-snake:best"></p>
                <div class="game-tags">
-                 <span class="tag">反应</span>
+                 <span class="tag">经典</span>
                  <span class="tag">休闲</span>
-                 <span class="tag">无限</span>
+                 <span class="tag">竞技</span>
                </div>
              </div>
            </a>
-+          <a class="game-card" href="/games/snake/">
-+            <div class="game-thumb" data-thumb="snake" aria-hidden="true">
-+              <span class="thumb-glyph thumb-glyph--snake"></span>
++          <a class="game-card" href="/games/star-vanguard/">
++            <div class="game-thumb" data-thumb="star-vanguard" aria-hidden="true">
++              <span class="thumb-glyph thumb-glyph--star"></span>
 +            </div>
 +            <div class="game-body">
-+              <h3>Neon Snake</h3>
-+              <p>经典贪吃蛇。吃光点不断变长，别撞墙也别咬到自己。</p>
-+              <p class="game-best" data-best-key="neon-snake:best"></p>
++              <h3>星穹守卫 Star Vanguard</h3>
++              <p>太空射击。抵御小行星与敌机波次，击败 Boss 刷新最高分。</p>
++              <p class="game-best" data-best-key="star-vanguard:best"></p>
 +              <div class="game-tags">
-+                <span class="tag">经典</span>
-+                <span class="tag">休闲</span>
-+                <span class="tag">竞技</span>
++                <span class="tag">射击</span>
++                <span class="tag">波次</span>
++                <span class="tag">Boss</span>
 +              </div>
 +            </div>
 +          </a>
@@ -831,55 +2029,54 @@ index d22870c..f164f2b 100644
  
      <script type="module" src="/src/home.ts"></script>
 diff --git a/src/style.css b/src/style.css
-index 2294dd0..26c44d2 100644
+index 26c44d2..6fa92c9 100644
 --- a/src/style.css
 +++ b/src/style.css
-@@ -160,20 +160,57 @@ main {
+@@ -197,20 +197,56 @@ main {
    position: absolute;
-   left: 92px;
-   top: 12px;
-   width: 12px;
-   height: 20px;
-   border-radius: 4px;
-   background: var(--accent-2);
-   opacity: 0.5;
+   right: -30px;
+   top: -2px;
+   width: 10px;
+   height: 10px;
+   border-radius: 50%;
+   background: #ff4f9a;
+   box-shadow: 0 0 12px rgba(255, 79, 154, 0.85);
  }
  
-+/* Neon Snake：L 形蛇身 + 粉色光点 */
-+.thumb-glyph--snake {
++/* Star Vanguard：飞船剪影 + 尾焰 + 光点 */
++.thumb-glyph--star {
 +  position: absolute;
-+  left: 20%;
-+  bottom: 34%;
-+  width: 54px;
++  left: 34%;
++  bottom: 26%;
++  width: 38px;
++  height: 42px;
++  background: linear-gradient(180deg, var(--accent), #2a9fd4);
++  clip-path: polygon(50% 0, 100% 62%, 74% 62%, 74% 100%, 26% 100%, 26% 62%, 0 62%);
++  box-shadow: 0 0 24px rgba(76, 201, 240, 0.6);
++}
++
++.thumb-glyph--star::before {
++  content: "";
++  position: absolute;
++  left: 32%;
++  bottom: -10px;
++  width: 14px;
 +  height: 12px;
-+  border-radius: 7px;
-+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
-+  box-shadow: 0 0 22px rgba(76, 201, 240, 0.5);
-+}
-+
-+.thumb-glyph--snake::after {
-+  content: "";
-+  position: absolute;
-+  left: 40px;
-+  top: 6px;
-+  width: 12px;
-+  height: 26px;
-+  border-radius: 6px;
-+  background: var(--accent-2);
++  background: #ff9f43;
++  clip-path: polygon(0 0, 100% 0, 50% 100%);
 +  opacity: 0.9;
-+  box-shadow: 0 0 14px rgba(123, 97, 255, 0.45);
 +}
 +
-+.thumb-glyph--snake::before {
++.thumb-glyph--star::after {
 +  content: "";
 +  position: absolute;
-+  right: -30px;
-+  top: -2px;
-+  width: 10px;
-+  height: 10px;
++  left: 64px;
++  top: 4px;
++  width: 11px;
++  height: 11px;
 +  border-radius: 50%;
 +  background: #ff4f9a;
-+  box-shadow: 0 0 12px rgba(255, 79, 154, 0.85);
++  box-shadow: 0 0 14px rgba(255, 79, 154, 0.9);
 +}
 +
  .game-body {
@@ -893,11 +2090,10 @@ index 2294dd0..26c44d2 100644
  }
  
 diff --git a/vite.config.ts b/vite.config.ts
-index 48b51ac..ffb84aa 100644
+index ffb84aa..527541f 100644
 --- a/vite.config.ts
 +++ b/vite.config.ts
-@@ -5,14 +5,15 @@ export default defineConfig({
-     port: 5173,
+@@ -6,14 +6,15 @@ export default defineConfig({
      open: false,
    },
    build: {
@@ -907,7 +2103,8 @@ index 48b51ac..ffb84aa 100644
        input: {
          home: 'index.html',
          'neon-dash': 'games/neon-dash/index.html',
-+        snake: 'games/snake/index.html',
+         snake: 'games/snake/index.html',
++        'star-vanguard': 'games/star-vanguard/index.html',
        },
      },
    },

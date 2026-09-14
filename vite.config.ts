@@ -13,6 +13,7 @@ export default defineConfig({
         home: 'index.html',
         'neon-dash': 'games/neon-dash/index.html',
         snake: 'games/snake/index.html',
+        'star-vanguard': 'games/star-vanguard/index.html',
       },
     },
   },

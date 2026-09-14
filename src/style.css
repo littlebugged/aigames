@@ -204,6 +204,42 @@ main {
   box-shadow: 0 0 12px rgba(255, 79, 154, 0.85);
 }
 
+/* Star Vanguard：飞船剪影 + 尾焰 + 光点 */
+.thumb-glyph--star {
+  position: absolute;
+  left: 34%;
+  bottom: 26%;
+  width: 38px;
+  height: 42px;
+  background: linear-gradient(180deg, var(--accent), #2a9fd4);
+  clip-path: polygon(50% 0, 100% 62%, 74% 62%, 74% 100%, 26% 100%, 26% 62%, 0 62%);
+  box-shadow: 0 0 24px rgba(76, 201, 240, 0.6);
+}
+
+.thumb-glyph--star::before {
+  content: "";
+  position: absolute;
+  left: 32%;
+  bottom: -10px;
+  width: 14px;
+  height: 12px;
+  background: #ff9f43;
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  opacity: 0.9;
+}
+
+.thumb-glyph--star::after {
+  content: "";
+  position: absolute;
+  left: 64px;
+  top: 4px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #ff4f9a;
+  box-shadow: 0 0 14px rgba(255, 79, 154, 0.9);
+}
+
 .game-body {
   padding: 16px 18px 18px;
 }

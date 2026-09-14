@@ -1,10 +1,18 @@
 [
   {
     "file": "src/style.css",
-    "context": "203",
-    "scope_code": ".thumb-glyph--snake::before {\n  content: \"\";\n  position: absolute;\n  right: -30px;\n  top: -2px;\n  width: 10px;\n  height: 10px;\n  border-radius: 50%;\n  background: #ff4f9a;\n  box-shadow: 0 0 12px rgba(255, 79, 154, 0.85);\n}",
-    "comment": "粉色光点使用了硬编码颜色值 `#ff4f9a`，而整个样式文件其他所有颜色均通过 CSS 自定义属性（CSS variables）管理。硬编码颜色值会导致主题/色彩统一维护困难，后续若需全局调整色板时该处容易被遗漏。",
+    "context": "219-229",
+    "scope_code": ".thumb-glyph--star::before {\n  content: \"\";\n  position: absolute;\n  left: 32%;\n  bottom: -10px;\n  width: 14px;\n  height: 12px;\n  background: #ff9f43;\n  clip-path: polygon(0 0, 100% 0, 50% 100%);\n  opacity: 0.9;\n}",
+    "comment": "::before 伪元素声明了 `position: absolute`，但父元素 `.thumb-glyph--star` 本身也是 `position: absolute` 而非 `position: relative`，导致 `::before` 的定位基准会向上追溯到最近的 positioned 祖先，而不是飞船元素自身。尾焰三角形将脱离飞船位置，出现在错误的位置。应将父元素改为 `position: relative`，或确认定位上下文符合预期。",
+    "severity": "warn",
+    "advice_code": ".thumb-glyph--star {\n  position: relative;\n  left: 34%;\n  bottom: 26%;\n  width: 38px;\n  height: 42px;\n  background: linear-gradient(180deg, var(--accent), #2a9fd4);\n  clip-path: polygon(50% 0, 100% 62%, 74% 62%, 74% 100%, 26% 100%, 26% 62%, 0 62%);\n  box-shadow: 0 0 24px rgba(76, 201, 240, 0.6);\n}"
+  },
+  {
+    "file": "src/style.css",
+    "context": "231-241",
+    "scope_code": ".thumb-glyph--star::after {\n  content: \"\";\n  position: absolute;\n  left: 64px;\n  top: 4px;\n  width: 11px;\n  height: 11px;\n  border-radius: 50%;\n  background: #ff4f9a;\n  box-shadow: 0 0 14px rgba(255, 79, 154, 0.9);\n}",
+    "comment": "`left: 64px` 超出父元素宽度（38px），光点将完全渲染在飞船右侧 26px 之外，无法呈现预期的装饰效果。对比同类 `.thumb-glyph--snake::before` 使用的 `right: -30px` 写法，此处应使用相对于父元素宽度的合理值（如百分比或较小的 px）。",
     "severity": "style",
-    "advice_code": ":root {\n  --accent-pink: #ff4f9a;\n}\n\n.thumb-glyph--snake::before {\n  content: \"\";\n  position: absolute;\n  right: -30px;\n  top: -2px;\n  width: 10px;\n  height: 10px;\n  border-radius: 50%;\n  background: var(--accent-pink);\n  box-shadow: 0 0 12px rgba(255, 79, 154, 0.85);\n}"
+    "advice_code": ".thumb-glyph--star::after {\n  content: \"\";\n  position: absolute;\n  left: 26px;\n  top: 4px;\n  width: 11px;\n  height: 11px;\n  border-radius: 50%;\n  background: #ff4f9a;\n  box-shadow: 0 0 14px rgba(255, 79, 154, 0.9);\n}"
   }
 ]

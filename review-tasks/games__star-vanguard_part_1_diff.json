@@ -1,0 +1,5381 @@
+{
+  "chunkId": "games__star-vanguard_part_1",
+  "module": "games/star-vanguard",
+  "files": [
+    {
+      "path": "games/star-vanguard/GameScene.ts",
+      "sourceLines": 1073,
+      "diff": {
+        "oldFileName": "games/star-vanguard/GameScene.ts",
+        "newFileName": "games/star-vanguard/GameScene.ts",
+        "changes": [
+          {
+            "type": "add",
+            "content": "// 星穹守卫 —— 主游戏场景",
+            "line": 1
+          },
+          {
+            "type": "add",
+            "content": "// 自定义更新循环（与项目其他游戏一致，不依赖 Phaser 物理/粒子引擎）：",
+            "line": 2
+          },
+          {
+            "type": "add",
+            "content": "// 所有实体（玩家/敌人/子弹/道具/粒子）为数组 + AABB 碰撞，暂停/结束由 phase 统一控制",
+            "line": 3
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 4
+          },
+          {
+            "type": "add",
+            "content": "import Phaser from 'phaser'",
+            "line": 5
+          },
+          {
+            "type": "add",
+            "content": "import {",
+            "line": 6
+          },
+          {
+            "type": "add",
+            "content": "  GAME_W,",
+            "line": 7
+          },
+          {
+            "type": "add",
+            "content": "  GAME_H,",
+            "line": 8
+          },
+          {
+            "type": "add",
+            "content": "  FONT,",
+            "line": 9
+          },
+          {
+            "type": "add",
+            "content": "  BEST_KEY,",
+            "line": 10
+          },
+          {
+            "type": "add",
+            "content": "  PLAYER,",
+            "line": 11
+          },
+          {
+            "type": "add",
+            "content": "  ENEMY,",
+            "line": 12
+          },
+          {
+            "type": "add",
+            "content": "  ENEMY_DEFS,",
+            "line": 13
+          },
+          {
+            "type": "add",
+            "content": "  WAVE,",
+            "line": 14
+          },
+          {
+            "type": "add",
+            "content": "  POWER,",
+            "line": 15
+          },
+          {
+            "type": "add",
+            "content": "  FX,",
+            "line": 16
+          },
+          {
+            "type": "add",
+            "content": "  COLOR,",
+            "line": 17
+          },
+          {
+            "type": "add",
+            "content": "  rand,",
+            "line": 18
+          },
+          {
+            "type": "add",
+            "content": "  randInt,",
+            "line": 19
+          },
+          {
+            "type": "add",
+            "content": "  pick,",
+            "line": 20
+          },
+          {
+            "type": "add",
+            "content": "  clamp,",
+            "line": 21
+          },
+          {
+            "type": "add",
+            "content": "} from './config'",
+            "line": 22
+          },
+          {
+            "type": "add",
+            "content": "import type { EnemyKind, PowerKind } from './config'",
+            "line": 23
+          },
+          {
+            "type": "add",
+            "content": "import { sfx } from './Sfx'",
+            "line": 24
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 25
+          },
+          {
+            "type": "add",
+            "content": "const HALF_W = GAME_W / 2",
+            "line": 26
+          },
+          {
+            "type": "add",
+            "content": "const PLAYER_BOTTOM = GAME_H - 54 // 玩家固定 y",
+            "line": 27
+          },
+          {
+            "type": "add",
+            "content": "const PLAYER_HIT_W = 34 // 玩家碰撞盒（比纹理小，鼓励精准）",
+            "line": 28
+          },
+          {
+            "type": "add",
+            "content": "const PLAYER_HIT_H = 48",
+            "line": 29
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 30
+          },
+          {
+            "type": "add",
+            "content": "type Phase = 'playing' | 'paused' | 'dying'",
+            "line": 31
+          },
+          {
+            "type": "add",
+            "content": "type WaveState = 'warn' | 'spawning' | 'clearing' | 'intermission'",
+            "line": 32
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 33
+          },
+          {
+            "type": "add",
+            "content": "type Bullet = {",
+            "line": 34
+          },
+          {
+            "type": "add",
+            "content": "  node: Phaser.GameObjects.Image",
+            "line": 35
+          },
+          {
+            "type": "add",
+            "content": "  vx: number",
+            "line": 36
+          },
+          {
+            "type": "add",
+            "content": "  vy: number",
+            "line": 37
+          },
+          {
+            "type": "add",
+            "content": "  hostile: boolean",
+            "line": 38
+          },
+          {
+            "type": "add",
+            "content": "}",
+            "line": 39
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 40
+          },
+          {
+            "type": "add",
+            "content": "type Enemy = {",
+            "line": 41
+          },
+          {
+            "type": "add",
+            "content": "  kind: EnemyKind",
+            "line": 42
+          },
+          {
+            "type": "add",
+            "content": "  node: Phaser.GameObjects.Image",
+            "line": 43
+          },
+          {
+            "type": "add",
+            "content": "  hp: number",
+            "line": 44
+          },
+          {
+            "type": "add",
+            "content": "  maxHp: number",
+            "line": 45
+          },
+          {
+            "type": "add",
+            "content": "  score: number",
+            "line": 46
+          },
+          {
+            "type": "add",
+            "content": "  vx: number",
+            "line": 47
+          },
+          {
+            "type": "add",
+            "content": "  vy: number",
+            "line": 48
+          },
+          {
+            "type": "add",
+            "content": "  spin: number",
+            "line": 49
+          },
+          {
+            "type": "add",
+            "content": "  t: number // ufo 正弦相位 / boss 移动相位",
+            "line": 50
+          },
+          {
+            "type": "add",
+            "content": "  baseY: number // ufo 悬浮高度 / boss 高度",
+            "line": 51
+          },
+          {
+            "type": "add",
+            "content": "  fireAcc: number // ufo 射击 / boss 环形弹幕计时",
+            "line": 52
+          },
+          {
+            "type": "add",
+            "content": "  fanAcc: number // boss 扇形齐射启动计时",
+            "line": 53
+          },
+          {
+            "type": "add",
+            "content": "  fanRemain: number // boss 扇形齐射剩余连发数",
+            "line": 54
+          },
+          {
+            "type": "add",
+            "content": "  fanGapAcc: number",
+            "line": 55
+          },
+          {
+            "type": "add",
+            "content": "  entered: boolean",
+            "line": 56
+          },
+          {
+            "type": "add",
+            "content": "  hpBar?: Phaser.GameObjects.Rectangle",
+            "line": 57
+          },
+          {
+            "type": "add",
+            "content": "  hpBarBg?: Phaser.GameObjects.Rectangle",
+            "line": 58
+          },
+          {
+            "type": "add",
+            "content": "}",
+            "line": 59
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 60
+          },
+          {
+            "type": "add",
+            "content": "type PowerDrop = {",
+            "line": 61
+          },
+          {
+            "type": "add",
+            "content": "  node: Phaser.GameObjects.Image",
+            "line": 62
+          },
+          {
+            "type": "add",
+            "content": "  kind: PowerKind",
+            "line": 63
+          },
+          {
+            "type": "add",
+            "content": "}",
+            "line": 64
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 65
+          },
+          {
+            "type": "add",
+            "content": "type Particle = {",
+            "line": 66
+          },
+          {
+            "type": "add",
+            "content": "  node: Phaser.GameObjects.Rectangle",
+            "line": 67
+          },
+          {
+            "type": "add",
+            "content": "  vx: number",
+            "line": 68
+          },
+          {
+            "type": "add",
+            "content": "  vy: number",
+            "line": 69
+          },
+          {
+            "type": "add",
+            "content": "  life: number",
+            "line": 70
+          },
+          {
+            "type": "add",
+            "content": "  maxLife: number",
+            "line": 71
+          },
+          {
+            "type": "add",
+            "content": "}",
+            "line": 72
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 73
+          },
+          {
+            "type": "add",
+            "content": "export class GameScene extends Phaser.Scene {",
+            "line": 74
+          },
+          {
+            "type": "add",
+            "content": "  // 玩家状态",
+            "line": 75
+          },
+          {
+            "type": "add",
+            "content": "  private px = HALF_W",
+            "line": 76
+          },
+          {
+            "type": "add",
+            "content": "  private lives = PLAYER.startLives",
+            "line": 77
+          },
+          {
+            "type": "add",
+            "content": "  private shields = 0",
+            "line": 78
+          },
+          {
+            "type": "add",
+            "content": "  private invincibleUntil = 0",
+            "line": 79
+          },
+          {
+            "type": "add",
+            "content": "  private doubleUntil = 0",
+            "line": 80
+          },
+          {
+            "type": "add",
+            "content": "  private rapidUntil = 0",
+            "line": 81
+          },
+          {
+            "type": "add",
+            "content": "  private fireAcc = 0",
+            "line": 82
+          },
+          {
+            "type": "add",
+            "content": "  private exhaustAcc = 0",
+            "line": 83
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 84
+          },
+          {
+            "type": "add",
+            "content": "  private playerNode!: Phaser.GameObjects.Image",
+            "line": 85
+          },
+          {
+            "type": "add",
+            "content": "  private playerGlow!: Phaser.GameObjects.Image",
+            "line": 86
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 87
+          },
+          {
+            "type": "add",
+            "content": "  // 实体",
+            "line": 88
+          },
+          {
+            "type": "add",
+            "content": "  private readonly playerBullets: Bullet[] = []",
+            "line": 89
+          },
+          {
+            "type": "add",
+            "content": "  private readonly enemyBullets: Bullet[] = []",
+            "line": 90
+          },
+          {
+            "type": "add",
+            "content": "  private readonly enemies: Enemy[] = []",
+            "line": 91
+          },
+          {
+            "type": "add",
+            "content": "  private readonly drops: PowerDrop[] = []",
+            "line": 92
+          },
+          {
+            "type": "add",
+            "content": "  private readonly particles: Particle[] = []",
+            "line": 93
+          },
+          {
+            "type": "add",
+            "content": "  private readonly stars: { node: Phaser.GameObjects.Rectangle; layer: number; y: number }[] = []",
+            "line": 94
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 95
+          },
+          {
+            "type": "add",
+            "content": "  // 波次",
+            "line": 96
+          },
+          {
+            "type": "add",
+            "content": "  private wave = 0",
+            "line": 97
+          },
+          {
+            "type": "add",
+            "content": "  private waveState: WaveState = 'intermission'",
+            "line": 98
+          },
+          {
+            "type": "add",
+            "content": "  private spawnQueue = 0",
+            "line": 99
+          },
+          {
+            "type": "add",
+            "content": "  private spawnAcc = 0",
+            "line": 100
+          },
+          {
+            "type": "add",
+            "content": "  private spawnInterval = 0",
+            "line": 101
+          },
+          {
+            "type": "add",
+            "content": "  private stateTimer = 0 // warn / intermission 计时",
+            "line": 102
+          },
+          {
+            "type": "add",
+            "content": "  private warnFlashAcc = 0",
+            "line": 103
+          },
+          {
+            "type": "add",
+            "content": "  private warnFlashCount = 0",
+            "line": 104
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 105
+          },
+          {
+            "type": "add",
+            "content": "  // 分数 / HUD",
+            "line": 106
+          },
+          {
+            "type": "add",
+            "content": "  private score = 0",
+            "line": 107
+          },
+          {
+            "type": "add",
+            "content": "  private best = 0",
+            "line": 108
+          },
+          {
+            "type": "add",
+            "content": "  private scorePulse = 0",
+            "line": 109
+          },
+          {
+            "type": "add",
+            "content": "  private scoreText!: Phaser.GameObjects.Text",
+            "line": 110
+          },
+          {
+            "type": "add",
+            "content": "  private bestText!: Phaser.GameObjects.Text",
+            "line": 111
+          },
+          {
+            "type": "add",
+            "content": "  private livesText!: Phaser.GameObjects.Text",
+            "line": 112
+          },
+          {
+            "type": "add",
+            "content": "  private buffText!: Phaser.GameObjects.Text",
+            "line": 113
+          },
+          {
+            "type": "add",
+            "content": "  private waveText!: Phaser.GameObjects.Text",
+            "line": 114
+          },
+          {
+            "type": "add",
+            "content": "  private bannerText!: Phaser.GameObjects.Text",
+            "line": 115
+          },
+          {
+            "type": "add",
+            "content": "  private warnText!: Phaser.GameObjects.Text",
+            "line": 116
+          },
+          {
+            "type": "add",
+            "content": "  private pauseOverlay!: Phaser.GameObjects.Container",
+            "line": 117
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 118
+          },
+          {
+            "type": "add",
+            "content": "  private phase: Phase = 'playing'",
+            "line": 119
+          },
+          {
+            "type": "add",
+            "content": "  private lowFx = false",
+            "line": 120
+          },
+          {
+            "type": "add",
+            "content": "  private lastFpsCheck = 0",
+            "line": 121
+          },
+          {
+            "type": "add",
+            "content": "  private dieAt = 0",
+            "line": 122
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 123
+          },
+          {
+            "type": "add",
+            "content": "  private keys!: {",
+            "line": 124
+          },
+          {
+            "type": "add",
+            "content": "    left: Phaser.Input.Keyboard.Key",
+            "line": 125
+          },
+          {
+            "type": "add",
+            "content": "    right: Phaser.Input.Keyboard.Key",
+            "line": 126
+          },
+          {
+            "type": "add",
+            "content": "    a: Phaser.Input.Keyboard.Key",
+            "line": 127
+          },
+          {
+            "type": "add",
+            "content": "    d: Phaser.Input.Keyboard.Key",
+            "line": 128
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 129
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 130
+          },
+          {
+            "type": "add",
+            "content": "  constructor() {",
+            "line": 131
+          },
+          {
+            "type": "add",
+            "content": "    super('game')",
+            "line": 132
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 133
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 134
+          },
+          {
+            "type": "add",
+            "content": "  create(): void {",
+            "line": 135
+          },
+          {
+            "type": "add",
+            "content": "    // 每局完整重置：场景实例会被复用（scene.start 只重跑 create），",
+            "line": 136
+          },
+          {
+            "type": "add",
+            "content": "    // 必须清空实体数组并复位全部状态",
+            "line": 137
+          },
+          {
+            "type": "add",
+            "content": "    this.playerBullets.length = 0",
+            "line": 138
+          },
+          {
+            "type": "add",
+            "content": "    this.enemyBullets.length = 0",
+            "line": 139
+          },
+          {
+            "type": "add",
+            "content": "    this.enemies.length = 0",
+            "line": 140
+          },
+          {
+            "type": "add",
+            "content": "    this.drops.length = 0",
+            "line": 141
+          },
+          {
+            "type": "add",
+            "content": "    this.particles.length = 0",
+            "line": 142
+          },
+          {
+            "type": "add",
+            "content": "    this.stars.length = 0",
+            "line": 143
+          },
+          {
+            "type": "add",
+            "content": "    this.lives = PLAYER.startLives",
+            "line": 144
+          },
+          {
+            "type": "add",
+            "content": "    this.shields = 0",
+            "line": 145
+          },
+          {
+            "type": "add",
+            "content": "    this.score = 0",
+            "line": 146
+          },
+          {
+            "type": "add",
+            "content": "    this.px = HALF_W",
+            "line": 147
+          },
+          {
+            "type": "add",
+            "content": "    this.invincibleUntil = 0",
+            "line": 148
+          },
+          {
+            "type": "add",
+            "content": "    this.doubleUntil = 0",
+            "line": 149
+          },
+          {
+            "type": "add",
+            "content": "    this.rapidUntil = 0",
+            "line": 150
+          },
+          {
+            "type": "add",
+            "content": "    this.fireAcc = 0",
+            "line": 151
+          },
+          {
+            "type": "add",
+            "content": "    this.exhaustAcc = 0",
+            "line": 152
+          },
+          {
+            "type": "add",
+            "content": "    this.wave = 0",
+            "line": 153
+          },
+          {
+            "type": "add",
+            "content": "    this.waveState = 'intermission'",
+            "line": 154
+          },
+          {
+            "type": "add",
+            "content": "    this.spawnQueue = 0",
+            "line": 155
+          },
+          {
+            "type": "add",
+            "content": "    this.spawnAcc = 0",
+            "line": 156
+          },
+          {
+            "type": "add",
+            "content": "    this.scorePulse = 0",
+            "line": 157
+          },
+          {
+            "type": "add",
+            "content": "    this.phase = 'playing'",
+            "line": 158
+          },
+          {
+            "type": "add",
+            "content": "    this.lowFx = false",
+            "line": 159
+          },
+          {
+            "type": "add",
+            "content": "    this.lastFpsCheck = this.time.now",
+            "line": 160
+          },
+          {
+            "type": "add",
+            "content": "    this.best = this.readBest()",
+            "line": 161
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 162
+          },
+          {
+            "type": "add",
+            "content": "    this.buildBackdrop()",
+            "line": 163
+          },
+          {
+            "type": "add",
+            "content": "    this.buildPlayer()",
+            "line": 164
+          },
+          {
+            "type": "add",
+            "content": "    this.buildHud()",
+            "line": 165
+          },
+          {
+            "type": "add",
+            "content": "    this.buildPauseOverlay()",
+            "line": 166
+          },
+          {
+            "type": "add",
+            "content": "    this.bindInput()",
+            "line": 167
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 168
+          },
+          {
+            "type": "add",
+            "content": "    this.startWave(1)",
+            "line": 169
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 170
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 171
+          },
+          {
+            "type": "add",
+            "content": "  // ── 构建 ────────────────────────────────────────────────────",
+            "line": 172
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 173
+          },
+          {
+            "type": "add",
+            "content": "  private buildBackdrop(): void {",
+            "line": 174
+          },
+          {
+            "type": "add",
+            "content": "    this.cameras.main.setBackgroundColor(COLOR.bg)",
+            "line": 175
+          },
+          {
+            "type": "add",
+            "content": "    // 3 层视差星空（FX.starLayers：[速度, 数量, 尺寸, 透明度]）",
+            "line": 176
+          },
+          {
+            "type": "add",
+            "content": "    for (let layer = 0; layer < FX.starLayers.length; layer += 1) {",
+            "line": 177
+          },
+          {
+            "type": "add",
+            "content": "      const cfg = FX.starLayers[layer]",
+            "line": 178
+          },
+          {
+            "type": "add",
+            "content": "      for (let i = 0; i < cfg.count; i += 1) {",
+            "line": 179
+          },
+          {
+            "type": "add",
+            "content": "        const size = rand(cfg.sizeMin, cfg.sizeMax)",
+            "line": 180
+          },
+          {
+            "type": "add",
+            "content": "        const node = this.add",
+            "line": 181
+          },
+          {
+            "type": "add",
+            "content": "          .rectangle(rand(0, GAME_W), rand(0, GAME_H), size, size, 0xffffff, cfg.alpha)",
+            "line": 182
+          },
+          {
+            "type": "add",
+            "content": "          .setDepth(1)",
+            "line": 183
+          },
+          {
+            "type": "add",
+            "content": "        this.stars.push({ node, layer, y: node.y })",
+            "line": 184
+          },
+          {
+            "type": "add",
+            "content": "      }",
+            "line": 185
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 186
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 187
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 188
+          },
+          {
+            "type": "add",
+            "content": "  private buildPlayer(): void {",
+            "line": 189
+          },
+          {
+            "type": "add",
+            "content": "    this.playerGlow = this.add",
+            "line": 190
+          },
+          {
+            "type": "add",
+            "content": "      .image(this.px, PLAYER_BOTTOM, 'glow')",
+            "line": 191
+          },
+          {
+            "type": "add",
+            "content": "      .setDepth(9)",
+            "line": 192
+          },
+          {
+            "type": "add",
+            "content": "      .setTint(COLOR.player)",
+            "line": 193
+          },
+          {
+            "type": "add",
+            "content": "      .setScale(1.5, 1.8)",
+            "line": 194
+          },
+          {
+            "type": "add",
+            "content": "      .setAlpha(0.5)",
+            "line": 195
+          },
+          {
+            "type": "add",
+            "content": "    this.playerNode = this.add",
+            "line": 196
+          },
+          {
+            "type": "add",
+            "content": "      .image(this.px, PLAYER_BOTTOM, 'player')",
+            "line": 197
+          },
+          {
+            "type": "add",
+            "content": "      .setDepth(10)",
+            "line": 198
+          },
+          {
+            "type": "add",
+            "content": "      .setData('w', PLAYER_HIT_W)",
+            "line": 199
+          },
+          {
+            "type": "add",
+            "content": "      .setData('h', PLAYER_HIT_H)",
+            "line": 200
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 201
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 202
+          },
+          {
+            "type": "add",
+            "content": "  private buildHud(): void {",
+            "line": 203
+          },
+          {
+            "type": "add",
+            "content": "    this.scoreText = this.add",
+            "line": 204
+          },
+          {
+            "type": "add",
+            "content": "      .text(26, 18, '0', { fontFamily: FONT, fontSize: '38px', color: '#e9edf6' })",
+            "line": 205
+          },
+          {
+            "type": "add",
+            "content": "      .setDepth(30)",
+            "line": 206
+          },
+          {
+            "type": "add",
+            "content": "    this.bestText = this.add",
+            "line": 207
+          },
+          {
+            "type": "add",
+            "content": "      .text(GAME_W - 26, 26, `BEST ${this.best}`, {",
+            "line": 208
+          },
+          {
+            "type": "add",
+            "content": "        fontFamily: FONT,",
+            "line": 209
+          },
+          {
+            "type": "add",
+            "content": "        fontSize: '16px',",
+            "line": 210
+          },
+          {
+            "type": "add",
+            "content": "        color: '#8b95ab',",
+            "line": 211
+          },
+          {
+            "type": "add",
+            "content": "      })",
+            "line": 212
+          },
+          {
+            "type": "add",
+            "content": "      .setOrigin(1, 0)",
+            "line": 213
+          },
+          {
+            "type": "add",
+            "content": "      .setDepth(30)",
+            "line": 214
+          },
+          {
+            "type": "add",
+            "content": "    this.waveText = this.add",
+            "line": 215
+          },
+          {
+            "type": "add",
+            "content": "      .text(HALF_W, 24, '', { fontFamily: FONT, fontSize: '18px', color: '#7b85a0' })",
+            "line": 216
+          },
+          {
+            "type": "add",
+            "content": "      .setOrigin(0.5, 0)",
+            "line": 217
+          },
+          {
+            "type": "add",
+            "content": "      .setDepth(30)",
+            "line": 218
+          },
+          {
+            "type": "add",
+            "content": "    this.livesText = this.add",
+            "line": 219
+          },
+          {
+            "type": "add",
+            "content": "      .text(26, 64, '', { fontFamily: FONT, fontSize: '20px', color: '#ff5d7e' })",
+            "line": 220
+          },
+          {
+            "type": "add",
+            "content": "      .setDepth(30)",
+            "line": 221
+          },
+          {
+            "type": "add",
+            "content": "    this.buffText = this.add",
+            "line": 222
+          },
+          {
+            "type": "add",
+            "content": "      .text(26, 92, '', { fontFamily: FONT, fontSize: '13px', color: '#4cc9f0' })",
+            "line": 223
+          },
+          {
+            "type": "add",
+            "content": "      .setDepth(30)",
+            "line": 224
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 225
+          },
+          {
+            "type": "add",
+            "content": "    this.bannerText = this.add",
+            "line": 226
+          },
+          {
+            "type": "add",
+            "content": "      .text(HALF_W, GAME_H * 0.36, '', {",
+            "line": 227
+          },
+          {
+            "type": "add",
+            "content": "        fontFamily: FONT,",
+            "line": 228
+          },
+          {
+            "type": "add",
+            "content": "        fontSize: '30px',",
+            "line": 229
+          },
+          {
+            "type": "add",
+            "content": "        color: '#e9edf6',",
+            "line": 230
+          },
+          {
+            "type": "add",
+            "content": "        fontStyle: 'bold',",
+            "line": 231
+          },
+          {
+            "type": "add",
+            "content": "        align: 'center',",
+            "line": 232
+          },
+          {
+            "type": "add",
+            "content": "        lineSpacing: 8,",
+            "line": 233
+          },
+          {
+            "type": "add",
+            "content": "      })",
+            "line": 234
+          },
+          {
+            "type": "add",
+            "content": "      .setOrigin(0.5)",
+            "line": 235
+          },
+          {
+            "type": "add",
+            "content": "      .setDepth(40)",
+            "line": 236
+          },
+          {
+            "type": "add",
+            "content": "      .setAlpha(0)",
+            "line": 237
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 238
+          },
+          {
+            "type": "add",
+            "content": "    this.warnText = this.add",
+            "line": 239
+          },
+          {
+            "type": "add",
+            "content": "      .text(HALF_W, GAME_H * 0.4, '', {",
+            "line": 240
+          },
+          {
+            "type": "add",
+            "content": "        fontFamily: FONT,",
+            "line": 241
+          },
+          {
+            "type": "add",
+            "content": "        fontSize: '64px',",
+            "line": 242
+          },
+          {
+            "type": "add",
+            "content": "        color: '#ff3d6e',",
+            "line": 243
+          },
+          {
+            "type": "add",
+            "content": "        fontStyle: 'bold',",
+            "line": 244
+          },
+          {
+            "type": "add",
+            "content": "      })",
+            "line": 245
+          },
+          {
+            "type": "add",
+            "content": "      .setOrigin(0.5)",
+            "line": 246
+          },
+          {
+            "type": "add",
+            "content": "      .setDepth(41)",
+            "line": 247
+          },
+          {
+            "type": "add",
+            "content": "      .setVisible(false)",
+            "line": 248
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 249
+          },
+          {
+            "type": "add",
+            "content": "    this.refreshHud()",
+            "line": 250
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 251
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 252
+          },
+          {
+            "type": "add",
+            "content": "  private buildPauseOverlay(): void {",
+            "line": 253
+          },
+          {
+            "type": "add",
+            "content": "    this.pauseOverlay = this.add.container(0, 0).setDepth(60).setVisible(false)",
+            "line": 254
+          },
+          {
+            "type": "add",
+            "content": "    const dim = this.add.rectangle(HALF_W, GAME_H / 2, GAME_W, GAME_H, 0x000000, 0.62)",
+            "line": 255
+          },
+          {
+            "type": "add",
+            "content": "    const title = this.add",
+            "line": 256
+          },
+          {
+            "type": "add",
+            "content": "      .text(HALF_W, GAME_H / 2 - 24, '已暂停', {",
+            "line": 257
+          },
+          {
+            "type": "add",
+            "content": "        fontFamily: FONT,",
+            "line": 258
+          },
+          {
+            "type": "add",
+            "content": "        fontSize: '52px',",
+            "line": 259
+          },
+          {
+            "type": "add",
+            "content": "        color: '#e9edf6',",
+            "line": 260
+          },
+          {
+            "type": "add",
+            "content": "        fontStyle: 'bold',",
+            "line": 261
+          },
+          {
+            "type": "add",
+            "content": "      })",
+            "line": 262
+          },
+          {
+            "type": "add",
+            "content": "      .setOrigin(0.5)",
+            "line": 263
+          },
+          {
+            "type": "add",
+            "content": "    const hint = this.add",
+            "line": 264
+          },
+          {
+            "type": "add",
+            "content": "      .text(HALF_W, GAME_H / 2 + 34, '按 P 继续', { fontFamily: FONT, fontSize: '18px', color: '#8b95ab' })",
+            "line": 265
+          },
+          {
+            "type": "add",
+            "content": "      .setOrigin(0.5)",
+            "line": 266
+          },
+          {
+            "type": "add",
+            "content": "    this.pauseOverlay.add([dim, title, hint])",
+            "line": 267
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 268
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 269
+          },
+          {
+            "type": "add",
+            "content": "  private bindInput(): void {",
+            "line": 270
+          },
+          {
+            "type": "add",
+            "content": "    this.input.keyboard?.addCapture('SPACE,LEFT,RIGHT,UP,DOWN,A,D,P,M,ENTER,ESC')",
+            "line": 271
+          },
+          {
+            "type": "add",
+            "content": "    this.input.keyboard?.on('keydown-P', () => this.togglePause())",
+            "line": 272
+          },
+          {
+            "type": "add",
+            "content": "    this.input.keyboard?.on('keydown-M', () => sfx.setMuted(!sfx.isMuted()))",
+            "line": 273
+          },
+          {
+            "type": "add",
+            "content": "    const kc = Phaser.Input.Keyboard.KeyCodes",
+            "line": 274
+          },
+          {
+            "type": "add",
+            "content": "    this.keys = this.input.keyboard!.addKeys('left,right,a,d') as GameScene['keys']",
+            "line": 275
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 276
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 277
+          },
+          {
+            "type": "add",
+            "content": "  // ── 主循环 ──────────────────────────────────────────────────",
+            "line": 278
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 279
+          },
+          {
+            "type": "add",
+            "content": "  update(time: number, delta: number): void {",
+            "line": 280
+          },
+          {
+            "type": "add",
+            "content": "    const dt = Math.min(delta, 50) / 1000",
+            "line": 281
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 282
+          },
+          {
+            "type": "add",
+            "content": "    this.updateBackdrop(dt)",
+            "line": 283
+          },
+          {
+            "type": "add",
+            "content": "    this.updateParticles(dt)",
+            "line": 284
+          },
+          {
+            "type": "add",
+            "content": "    this.updateFpsGuard(time)",
+            "line": 285
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 286
+          },
+          {
+            "type": "add",
+            "content": "    if (this.phase === 'paused') return",
+            "line": 287
+          },
+          {
+            "type": "add",
+            "content": "    if (this.phase === 'dying') {",
+            "line": 288
+          },
+          {
+            "type": "add",
+            "content": "      this.updateEnemies(dt, time)",
+            "line": 289
+          },
+          {
+            "type": "add",
+            "content": "      this.updateBullets(dt)",
+            "line": 290
+          },
+          {
+            "type": "add",
+            "content": "      if (time >= this.dieAt) this.goGameOver()",
+            "line": 291
+          },
+          {
+            "type": "add",
+            "content": "      return",
+            "line": 292
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 293
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 294
+          },
+          {
+            "type": "add",
+            "content": "    this.updateWave(dt, time)",
+            "line": 295
+          },
+          {
+            "type": "add",
+            "content": "    this.updatePlayer(dt, time)",
+            "line": 296
+          },
+          {
+            "type": "add",
+            "content": "    this.updateBullets(dt)",
+            "line": 297
+          },
+          {
+            "type": "add",
+            "content": "    this.updateEnemies(dt, time)",
+            "line": 298
+          },
+          {
+            "type": "add",
+            "content": "    this.updateDrops(dt)",
+            "line": 299
+          },
+          {
+            "type": "add",
+            "content": "    this.collide()",
+            "line": 300
+          },
+          {
+            "type": "add",
+            "content": "    this.updateHud()",
+            "line": 301
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 302
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 303
+          },
+          {
+            "type": "add",
+            "content": "  // ── 玩家 ────────────────────────────────────────────────────",
+            "line": 304
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 305
+          },
+          {
+            "type": "add",
+            "content": "  private updatePlayer(dt: number, time: number): void {",
+            "line": 306
+          },
+          {
+            "type": "add",
+            "content": "    const k = this.keys",
+            "line": 307
+          },
+          {
+            "type": "add",
+            "content": "    const left = k.left.isDown || k.a.isDown",
+            "line": 308
+          },
+          {
+            "type": "add",
+            "content": "    const right = k.right.isDown || k.d.isDown",
+            "line": 309
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 310
+          },
+          {
+            "type": "add",
+            "content": "    const dir = (right ? 1 : 0) - (left ? 1 : 0)",
+            "line": 311
+          },
+          {
+            "type": "add",
+            "content": "    if (dir !== 0) {",
+            "line": 312
+          },
+          {
+            "type": "add",
+            "content": "      this.px = clamp(this.px + dir * PLAYER.speed * dt, 30, GAME_W - 30)",
+            "line": 313
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 314
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 315
+          },
+          {
+            "type": "add",
+            "content": "    // 尾焰粒子",
+            "line": 316
+          },
+          {
+            "type": "add",
+            "content": "    this.exhaustAcc += dt",
+            "line": 317
+          },
+          {
+            "type": "add",
+            "content": "    if (this.exhaustAcc > 0.03) {",
+            "line": 318
+          },
+          {
+            "type": "add",
+            "content": "      this.exhaustAcc = 0",
+            "line": 319
+          },
+          {
+            "type": "add",
+            "content": "      const count = this.lowFx ? 1 : 2",
+            "line": 320
+          },
+          {
+            "type": "add",
+            "content": "      for (let i = 0; i < count; i += 1) {",
+            "line": 321
+          },
+          {
+            "type": "add",
+            "content": "        this.spawnParticle(",
+            "line": 322
+          },
+          {
+            "type": "add",
+            "content": "          this.px + rand(-6, 6),",
+            "line": 323
+          },
+          {
+            "type": "add",
+            "content": "          PLAYER_BOTTOM + 26,",
+            "line": 324
+          },
+          {
+            "type": "add",
+            "content": "          rand(-18, 18),",
+            "line": 325
+          },
+          {
+            "type": "add",
+            "content": "          rand(120, 190),",
+            "line": 326
+          },
+          {
+            "type": "add",
+            "content": "          rand(0.2, 0.35),",
+            "line": 327
+          },
+          {
+            "type": "add",
+            "content": "          COLOR.player,",
+            "line": 328
+          },
+          {
+            "type": "add",
+            "content": "        )",
+            "line": 329
+          },
+          {
+            "type": "add",
+            "content": "      }",
+            "line": 330
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 331
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 332
+          },
+          {
+            "type": "add",
+            "content": "    // 无敌帧闪烁",
+            "line": 333
+          },
+          {
+            "type": "add",
+            "content": "    const invincible = time < this.invincibleUntil",
+            "line": 334
+          },
+          {
+            "type": "add",
+            "content": "    const targetAlpha = invincible ? (Math.sin(time / 45) > 0 ? 0.25 : 1) : 1",
+            "line": 335
+          },
+          {
+            "type": "add",
+            "content": "    if (this.playerNode.alpha !== targetAlpha) {",
+            "line": 336
+          },
+          {
+            "type": "add",
+            "content": "      this.playerNode.setAlpha(targetAlpha)",
+            "line": 337
+          },
+          {
+            "type": "add",
+            "content": "      this.playerGlow.setAlpha(invincible ? 0.15 : 0.5)",
+            "line": 338
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 339
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 340
+          },
+          {
+            "type": "add",
+            "content": "    // 自动射击（1 秒 3 发；rapid 道具期间加速）",
+            "line": 341
+          },
+          {
+            "type": "add",
+            "content": "    const cooldown = time < this.rapidUntil ? PLAYER.rapidCooldown : PLAYER.fireCooldown",
+            "line": 342
+          },
+          {
+            "type": "add",
+            "content": "    this.fireAcc += dt * 1000",
+            "line": 343
+          },
+          {
+            "type": "add",
+            "content": "    if (this.fireAcc >= cooldown) {",
+            "line": 344
+          },
+          {
+            "type": "add",
+            "content": "      this.fireAcc = 0",
+            "line": 345
+          },
+          {
+            "type": "add",
+            "content": "      this.fire()",
+            "line": 346
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 347
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 348
+          },
+          {
+            "type": "add",
+            "content": "    this.playerNode.setPosition(this.px, PLAYER_BOTTOM)",
+            "line": 349
+          },
+          {
+            "type": "add",
+            "content": "    this.playerGlow.setPosition(this.px, PLAYER_BOTTOM + 6)",
+            "line": 350
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 351
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 352
+          },
+          {
+            "type": "add",
+            "content": "  private fire(): void {",
+            "line": 353
+          },
+          {
+            "type": "add",
+            "content": "    const double = this.time.now < this.doubleUntil",
+            "line": 354
+          },
+          {
+            "type": "add",
+            "content": "    const xs = double ? [this.px - 9, this.px + 9] : [this.px]",
+            "line": 355
+          },
+          {
+            "type": "add",
+            "content": "    for (const x of xs) {",
+            "line": 356
+          },
+          {
+            "type": "add",
+            "content": "      const node = this.add.image(x, PLAYER_BOTTOM - 30, 'bullet').setDepth(15)",
+            "line": 357
+          },
+          {
+            "type": "add",
+            "content": "      node.setData('w', 6)",
+            "line": 358
+          },
+          {
+            "type": "add",
+            "content": "      node.setData('h', 16)",
+            "line": 359
+          },
+          {
+            "type": "add",
+            "content": "      this.playerBullets.push({ node, vx: 0, vy: -PLAYER.bulletSpeed, hostile: false })",
+            "line": 360
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 361
+          },
+          {
+            "type": "add",
+            "content": "    sfx.shoot()",
+            "line": 362
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 363
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 364
+          },
+          {
+            "type": "add",
+            "content": "  // ── 子弹 ────────────────────────────────────────────────────",
+            "line": 365
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 366
+          },
+          {
+            "type": "add",
+            "content": "  private updateBullets(dt: number): void {",
+            "line": 367
+          },
+          {
+            "type": "add",
+            "content": "    for (let i = this.playerBullets.length - 1; i >= 0; i -= 1) {",
+            "line": 368
+          },
+          {
+            "type": "add",
+            "content": "      const b = this.playerBullets[i] as Bullet",
+            "line": 369
+          },
+          {
+            "type": "add",
+            "content": "      b.node.x += b.vx * dt",
+            "line": 370
+          },
+          {
+            "type": "add",
+            "content": "      b.node.y += b.vy * dt",
+            "line": 371
+          },
+          {
+            "type": "add",
+            "content": "      if (b.node.y < -24) {",
+            "line": 372
+          },
+          {
+            "type": "add",
+            "content": "        b.node.destroy()",
+            "line": 373
+          },
+          {
+            "type": "add",
+            "content": "        this.playerBullets.splice(i, 1)",
+            "line": 374
+          },
+          {
+            "type": "add",
+            "content": "      }",
+            "line": 375
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 376
+          },
+          {
+            "type": "add",
+            "content": "    for (let i = this.enemyBullets.length - 1; i >= 0; i -= 1) {",
+            "line": 377
+          },
+          {
+            "type": "add",
+            "content": "      const b = this.enemyBullets[i] as Bullet",
+            "line": 378
+          },
+          {
+            "type": "add",
+            "content": "      b.node.x += b.vx * dt",
+            "line": 379
+          },
+          {
+            "type": "add",
+            "content": "      b.node.y += b.vy * dt",
+            "line": 380
+          },
+          {
+            "type": "add",
+            "content": "      if (b.node.y > GAME_H + 24 || b.node.x < -24 || b.node.x > GAME_W + 24) {",
+            "line": 381
+          },
+          {
+            "type": "add",
+            "content": "        b.node.destroy()",
+            "line": 382
+          },
+          {
+            "type": "add",
+            "content": "        this.enemyBullets.splice(i, 1)",
+            "line": 383
+          },
+          {
+            "type": "add",
+            "content": "      }",
+            "line": 384
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 385
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 386
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 387
+          },
+          {
+            "type": "add",
+            "content": "  private spawnEnemyBullet(x: number, y: number, vx: number, vy: number): void {",
+            "line": 388
+          },
+          {
+            "type": "add",
+            "content": "    const node = this.add.image(x, y, 'ebullet').setDepth(15)",
+            "line": 389
+          },
+          {
+            "type": "add",
+            "content": "    this.enemyBullets.push({ node, vx, vy, hostile: true })",
+            "line": 390
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 391
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 392
+          },
+          {
+            "type": "add",
+            "content": "  // ── 敌人 ────────────────────────────────────────────────────",
+            "line": 393
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 394
+          },
+          {
+            "type": "add",
+            "content": "  private spawnMinion(): void {",
+            "line": 395
+          },
+          {
+            "type": "add",
+            "content": "    const roll = Math.random()",
+            "line": 396
+          },
+          {
+            "type": "add",
+            "content": "    let kind: EnemyKind",
+            "line": 397
+          },
+          {
+            "type": "add",
+            "content": "    if (this.wave === 1) {",
+            "line": 398
+          },
+          {
+            "type": "add",
+            "content": "      kind = Math.random() < 0.6 ? 'asteroidL' : 'asteroidS'",
+            "line": 399
+          },
+          {
+            "type": "add",
+            "content": "    } else if (this.wave === 2) {",
+            "line": 400
+          },
+          {
+            "type": "add",
+            "content": "      kind = roll < 0.4 ? 'asteroidL' : roll < 0.75 ? 'asteroidS' : 'dart'",
+            "line": 401
+          },
+          {
+            "type": "add",
+            "content": "    } else {",
+            "line": 402
+          },
+          {
+            "type": "add",
+            "content": "      kind = roll < 0.3 ? 'asteroidL' : roll < 0.55 ? 'asteroidS' : roll < 0.8 ? 'dart' : 'ufo'",
+            "line": 403
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 404
+          },
+          {
+            "type": "add",
+            "content": "    this.spawnEnemy(kind)",
+            "line": 405
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 406
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 407
+          },
+          {
+            "type": "add",
+            "content": "  private spawnEnemy(kind: EnemyKind): void {",
+            "line": 408
+          },
+          {
+            "type": "add",
+            "content": "    const def = ENEMY_DEFS[kind as Exclude<EnemyKind, 'boss'>]",
+            "line": 409
+          },
+          {
+            "type": "add",
+            "content": "    const x = rand(50, GAME_W - 50)",
+            "line": 410
+          },
+          {
+            "type": "add",
+            "content": "    const node = this.add.image(x, -40, kind).setDepth(12)",
+            "line": 411
+          },
+          {
+            "type": "add",
+            "content": "    node.setData('w', kind === 'asteroidL' ? 60 : kind === 'ufo' ? 60 : kind === 'asteroidS' ? 34 : 42)",
+            "line": 412
+          },
+          {
+            "type": "add",
+            "content": "    node.setData('h', kind === 'asteroidL' ? 60 : kind === 'ufo' ? 38 : kind === 'asteroidS' ? 34 : 42)",
+            "line": 413
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 414
+          },
+          {
+            "type": "add",
+            "content": "    const e: Enemy = {",
+            "line": 415
+          },
+          {
+            "type": "add",
+            "content": "      kind,",
+            "line": 416
+          },
+          {
+            "type": "add",
+            "content": "      node,",
+            "line": 417
+          },
+          {
+            "type": "add",
+            "content": "      hp: def.hp,",
+            "line": 418
+          },
+          {
+            "type": "add",
+            "content": "      maxHp: def.hp,",
+            "line": 419
+          },
+          {
+            "type": "add",
+            "content": "      score: def.score,",
+            "line": 420
+          },
+          {
+            "type": "add",
+            "content": "      vx: 0,",
+            "line": 421
+          },
+          {
+            "type": "add",
+            "content": "      vy: 0,",
+            "line": 422
+          },
+          {
+            "type": "add",
+            "content": "      spin: rand(-1.4, 1.4),",
+            "line": 423
+          },
+          {
+            "type": "add",
+            "content": "      t: 0,",
+            "line": 424
+          },
+          {
+            "type": "add",
+            "content": "      baseY: 0,",
+            "line": 425
+          },
+          {
+            "type": "add",
+            "content": "      fireAcc: 0,",
+            "line": 426
+          },
+          {
+            "type": "add",
+            "content": "      fanAcc: 0,",
+            "line": 427
+          },
+          {
+            "type": "add",
+            "content": "      fanRemain: 0,",
+            "line": 428
+          },
+          {
+            "type": "add",
+            "content": "      fanGapAcc: 0,",
+            "line": 429
+          },
+          {
+            "type": "add",
+            "content": "      entered: false,",
+            "line": 430
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 431
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 432
+          },
+          {
+            "type": "add",
+            "content": "    if (kind === 'asteroidL' || kind === 'asteroidS') {",
+            "line": 433
+          },
+          {
+            "type": "add",
+            "content": "      // 自屏幕上方漂移入场、旋转、速度随机",
+            "line": 434
+          },
+          {
+            "type": "add",
+            "content": "      e.vy = (kind === 'asteroidL' ? rand(55, 95) : rand(110, 165)) * (1 + this.wave * 0.03)",
+            "line": 435
+          },
+          {
+            "type": "add",
+            "content": "      e.vx = rand(-22, 22)",
+            "line": 436
+          },
+          {
+            "type": "add",
+            "content": "    } else if (kind === 'dart') {",
+            "line": 437
+          },
+          {
+            "type": "add",
+            "content": "      // 高速斜向俯冲，带小角度随机",
+            "line": 438
+          },
+          {
+            "type": "add",
+            "content": "      e.vy = rand(230, 300)",
+            "line": 439
+          },
+          {
+            "type": "add",
+            "content": "      const dir = Math.random() < 0.5 ? -1 : 1",
+            "line": 440
+          },
+          {
+            "type": "add",
+            "content": "      e.vx = dir * rand(70, 150) * (1 + this.wave * 0.04)",
+            "line": 441
+          },
+          {
+            "type": "add",
+            "content": "      e.spin = 0",
+            "line": 442
+          },
+          {
+            "type": "add",
+            "content": "    } else if (kind === 'ufo') {",
+            "line": 443
+          },
+          {
+            "type": "add",
+            "content": "      // 入场后正弦横向移动：相位取当前 x 对应的值，避免入场瞬间横跳",
+            "line": 444
+          },
+          {
+            "type": "add",
+            "content": "      e.baseY = rand(110, 200)",
+            "line": 445
+          },
+          {
+            "type": "add",
+            "content": "      e.vy = 120",
+            "line": 446
+          },
+          {
+            "type": "add",
+            "content": "      e.vx = 0",
+            "line": 447
+          },
+          {
+            "type": "add",
+            "content": "      e.spin = 0",
+            "line": 448
+          },
+          {
+            "type": "add",
+            "content": "      e.fireAcc = 1400",
+            "line": 449
+          },
+          {
+            "type": "add",
+            "content": "      const amp = HALF_W - 120",
+            "line": 450
+          },
+          {
+            "type": "add",
+            "content": "      const phase = Math.asin(clamp((x - HALF_W) / amp, -1, 1))",
+            "line": 451
+          },
+          {
+            "type": "add",
+            "content": "      e.t = phase / 0.85",
+            "line": 452
+          },
+          {
+            "type": "add",
+            "content": "    } else {",
+            "line": 453
+          },
+          {
+            "type": "add",
+            "content": "      // boss：由 spawnBoss 处理，此处兜底",
+            "line": 454
+          },
+          {
+            "type": "add",
+            "content": "      node.destroy()",
+            "line": 455
+          },
+          {
+            "type": "add",
+            "content": "      return",
+            "line": 456
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 457
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 458
+          },
+          {
+            "type": "add",
+            "content": "    this.enemies.push(e)",
+            "line": 459
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 460
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 461
+          },
+          {
+            "type": "add",
+            "content": "  private spawnBoss(): void {",
+            "line": 462
+          },
+          {
+            "type": "add",
+            "content": "    const x = HALF_W",
+            "line": 463
+          },
+          {
+            "type": "add",
+            "content": "    const node = this.add.image(x, -100, 'boss').setDepth(12)",
+            "line": 464
+          },
+          {
+            "type": "add",
+            "content": "    node.setData('w', 160)",
+            "line": 465
+          },
+          {
+            "type": "add",
+            "content": "    node.setData('h', 76)",
+            "line": 466
+          },
+          {
+            "type": "add",
+            "content": "    const hpBase =",
+            "line": 467
+          },
+          {
+            "type": "add",
+            "content": "      this.wave < 6 ? ENEMY.bossMaxHpBase : Math.min(ENEMY.bossMaxHpCap, ENEMY.bossMaxHpFrom6 + (this.wave - 6) * ENEMY.bossMaxHpStep)",
+            "line": 468
+          },
+          {
+            "type": "add",
+            "content": "    const e: Enemy = {",
+            "line": 469
+          },
+          {
+            "type": "add",
+            "content": "      kind: 'boss',",
+            "line": 470
+          },
+          {
+            "type": "add",
+            "content": "      node,",
+            "line": 471
+          },
+          {
+            "type": "add",
+            "content": "      hp: hpBase,",
+            "line": 472
+          },
+          {
+            "type": "add",
+            "content": "      maxHp: hpBase,",
+            "line": 473
+          },
+          {
+            "type": "add",
+            "content": "      score: ENEMY.bossScore,",
+            "line": 474
+          },
+          {
+            "type": "add",
+            "content": "      vx: 0,",
+            "line": 475
+          },
+          {
+            "type": "add",
+            "content": "      vy: 130, // 入场下移速度",
+            "line": 476
+          },
+          {
+            "type": "add",
+            "content": "      spin: 0,",
+            "line": 477
+          },
+          {
+            "type": "add",
+            "content": "      t: 0,",
+            "line": 478
+          },
+          {
+            "type": "add",
+            "content": "      baseY: rand(ENEMY.bossTop, ENEMY.bossBottom),",
+            "line": 479
+          },
+          {
+            "type": "add",
+            "content": "      fireAcc: 0,",
+            "line": 480
+          },
+          {
+            "type": "add",
+            "content": "      fanAcc: 0,",
+            "line": 481
+          },
+          {
+            "type": "add",
+            "content": "      fanRemain: 0,",
+            "line": 482
+          },
+          {
+            "type": "add",
+            "content": "      fanGapAcc: 0,",
+            "line": 483
+          },
+          {
+            "type": "add",
+            "content": "      entered: false,",
+            "line": 484
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 485
+          },
+          {
+            "type": "add",
+            "content": "    // 血条",
+            "line": 486
+          },
+          {
+            "type": "add",
+            "content": "    const barW = 150",
+            "line": 487
+          },
+          {
+            "type": "add",
+            "content": "    e.hpBarBg = this.add.rectangle(x, 0, barW + 4, 12, 0x000000, 0.65).setDepth(14)",
+            "line": 488
+          },
+          {
+            "type": "add",
+            "content": "    e.hpBar = this.add.rectangle(x, 0, barW, 8, 0xff3d6e).setDepth(14)",
+            "line": 489
+          },
+          {
+            "type": "add",
+            "content": "    this.enemies.push(e)",
+            "line": 490
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 491
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 492
+          },
+          {
+            "type": "add",
+            "content": "  private updateEnemies(dt: number, time: number): void {",
+            "line": 493
+          },
+          {
+            "type": "add",
+            "content": "    for (let i = this.enemies.length - 1; i >= 0; i -= 1) {",
+            "line": 494
+          },
+          {
+            "type": "add",
+            "content": "      const e = this.enemies[i] as Enemy",
+            "line": 495
+          },
+          {
+            "type": "add",
+            "content": "      const n = e.node",
+            "line": 496
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 497
+          },
+          {
+            "type": "add",
+            "content": "      if (e.kind === 'boss') {",
+            "line": 498
+          },
+          {
+            "type": "add",
+            "content": "        this.updateBoss(e, dt, time)",
+            "line": 499
+          },
+          {
+            "type": "add",
+            "content": "        continue",
+            "line": 500
+          },
+          {
+            "type": "add",
+            "content": "      }",
+            "line": 501
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 502
+          },
+          {
+            "type": "add",
+            "content": "      if (e.kind === 'ufo') {",
+            "line": 503
+          },
+          {
+            "type": "add",
+            "content": "        e.t += dt",
+            "line": 504
+          },
+          {
+            "type": "add",
+            "content": "        if (!e.entered) {",
+            "line": 505
+          },
+          {
+            "type": "add",
+            "content": "          n.y += e.vy * dt",
+            "line": 506
+          },
+          {
+            "type": "add",
+            "content": "          if (n.y >= e.baseY) {",
+            "line": 507
+          },
+          {
+            "type": "add",
+            "content": "            e.entered = true",
+            "line": 508
+          },
+          {
+            "type": "add",
+            "content": "            n.y = e.baseY",
+            "line": 509
+          },
+          {
+            "type": "add",
+            "content": "          }",
+            "line": 510
+          },
+          {
+            "type": "add",
+            "content": "        } else {",
+            "line": 511
+          },
+          {
+            "type": "add",
+            "content": "          n.x = HALF_W + Math.sin(e.t * 0.85) * (HALF_W - 120)",
+            "line": 512
+          },
+          {
+            "type": "add",
+            "content": "          // 朝向玩家发射子弹",
+            "line": 513
+          },
+          {
+            "type": "add",
+            "content": "          e.fireAcc += dt * 1000",
+            "line": 514
+          },
+          {
+            "type": "add",
+            "content": "          if (e.fireAcc >= 1500) {",
+            "line": 515
+          },
+          {
+            "type": "add",
+            "content": "            e.fireAcc = 0",
+            "line": 516
+          },
+          {
+            "type": "add",
+            "content": "            const ux = this.px - n.x",
+            "line": 517
+          },
+          {
+            "type": "add",
+            "content": "            const uy = PLAYER_BOTTOM - n.y",
+            "line": 518
+          },
+          {
+            "type": "add",
+            "content": "            const len = Math.hypot(ux, uy) || 1",
+            "line": 519
+          },
+          {
+            "type": "add",
+            "content": "            this.spawnEnemyBullet(",
+            "line": 520
+          },
+          {
+            "type": "add",
+            "content": "              n.x,",
+            "line": 521
+          },
+          {
+            "type": "add",
+            "content": "              n.y + 18,",
+            "line": 522
+          },
+          {
+            "type": "add",
+            "content": "              (ux / len) * ENEMY.ufoBulletSpeed,",
+            "line": 523
+          },
+          {
+            "type": "add",
+            "content": "              (uy / len) * ENEMY.ufoBulletSpeed,",
+            "line": 524
+          },
+          {
+            "type": "add",
+            "content": "            )",
+            "line": 525
+          },
+          {
+            "type": "add",
+            "content": "            sfx.enemyShoot()",
+            "line": 526
+          },
+          {
+            "type": "add",
+            "content": "          }",
+            "line": 527
+          },
+          {
+            "type": "add",
+            "content": "        }",
+            "line": 528
+          },
+          {
+            "type": "add",
+            "content": "      } else if (e.kind === 'dart') {",
+            "line": 529
+          },
+          {
+            "type": "add",
+            "content": "        // 末段加速",
+            "line": 530
+          },
+          {
+            "type": "add",
+            "content": "        if (n.y > GAME_H * 0.45) e.vy += 620 * dt",
+            "line": 531
+          },
+          {
+            "type": "add",
+            "content": "        n.x += e.vx * dt",
+            "line": 532
+          },
+          {
+            "type": "add",
+            "content": "        n.y += e.vy * dt",
+            "line": 533
+          },
+          {
+            "type": "add",
+            "content": "      } else {",
+            "line": 534
+          },
+          {
+            "type": "add",
+            "content": "        // 小行星",
+            "line": 535
+          },
+          {
+            "type": "add",
+            "content": "        n.x += e.vx * dt",
+            "line": 536
+          },
+          {
+            "type": "add",
+            "content": "        n.y += e.vy * dt",
+            "line": 537
+          },
+          {
+            "type": "add",
+            "content": "        n.rotation += e.spin * dt",
+            "line": 538
+          },
+          {
+            "type": "add",
+            "content": "      }",
+            "line": 539
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 540
+          },
+          {
+            "type": "add",
+            "content": "      if (n.y > GAME_H + 60 || n.x < -70 || n.x > GAME_W + 70) {",
+            "line": 541
+          },
+          {
+            "type": "add",
+            "content": "        e.hpBar?.destroy()",
+            "line": 542
+          },
+          {
+            "type": "add",
+            "content": "        e.hpBarBg?.destroy()",
+            "line": 543
+          },
+          {
+            "type": "add",
+            "content": "        n.destroy()",
+            "line": 544
+          },
+          {
+            "type": "add",
+            "content": "        this.enemies.splice(i, 1)",
+            "line": 545
+          },
+          {
+            "type": "add",
+            "content": "      }",
+            "line": 546
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 547
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 548
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 549
+          },
+          {
+            "type": "add",
+            "content": "  private updateBoss(e: Enemy, dt: number, _time: number): void {",
+            "line": 550
+          },
+          {
+            "type": "add",
+            "content": "    const n = e.node",
+            "line": 551
+          },
+          {
+            "type": "add",
+            "content": "    if (!e.entered) {",
+            "line": 552
+          },
+          {
+            "type": "add",
+            "content": "      // 入场：下移到目标高度，进场 2s 后开炮（fireAcc 预置负值实现延迟）",
+            "line": 553
+          },
+          {
+            "type": "add",
+            "content": "      n.y += e.vy * dt",
+            "line": 554
+          },
+          {
+            "type": "add",
+            "content": "      if (n.y >= e.baseY) {",
+            "line": 555
+          },
+          {
+            "type": "add",
+            "content": "        n.y = e.baseY",
+            "line": 556
+          },
+          {
+            "type": "add",
+            "content": "        e.entered = true",
+            "line": 557
+          },
+          {
+            "type": "add",
+            "content": "        e.fireAcc = -ENEMY.bossFireDelay",
+            "line": 558
+          },
+          {
+            "type": "add",
+            "content": "      }",
+            "line": 559
+          },
+          {
+            "type": "add",
+            "content": "    } else {",
+            "line": 560
+          },
+          {
+            "type": "add",
+            "content": "      // 水平正弦移动（约 60px/s 峰值）",
+            "line": 561
+          },
+          {
+            "type": "add",
+            "content": "      e.t += dt * ENEMY.bossMoveSpeed * 0.02",
+            "line": 562
+          },
+          {
+            "type": "add",
+            "content": "      n.x = HALF_W + Math.sin(e.t * 1.4) * (HALF_W - 200)",
+            "line": 563
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 564
+          },
+          {
+            "type": "add",
+            "content": "      // 弹幕 1：环形散射（每 1.6s，12 向，180px/s）",
+            "line": 565
+          },
+          {
+            "type": "add",
+            "content": "      e.fireAcc += dt * 1000",
+            "line": 566
+          },
+          {
+            "type": "add",
+            "content": "      if (e.fireAcc >= ENEMY.bossRingInterval) {",
+            "line": 567
+          },
+          {
+            "type": "add",
+            "content": "        e.fireAcc = 0",
+            "line": 568
+          },
+          {
+            "type": "add",
+            "content": "        for (let k = 0; k < ENEMY.bossRingCount; k += 1) {",
+            "line": 569
+          },
+          {
+            "type": "add",
+            "content": "          const a = (k / ENEMY.bossRingCount) * Math.PI * 2 + e.t",
+            "line": 570
+          },
+          {
+            "type": "add",
+            "content": "          this.spawnEnemyBullet(",
+            "line": 571
+          },
+          {
+            "type": "add",
+            "content": "            n.x,",
+            "line": 572
+          },
+          {
+            "type": "add",
+            "content": "            n.y + 10,",
+            "line": 573
+          },
+          {
+            "type": "add",
+            "content": "            Math.cos(a) * ENEMY.bossRingSpeed,",
+            "line": 574
+          },
+          {
+            "type": "add",
+            "content": "            Math.sin(a) * ENEMY.bossRingSpeed,",
+            "line": 575
+          },
+          {
+            "type": "add",
+            "content": "          )",
+            "line": 576
+          },
+          {
+            "type": "add",
+            "content": "        }",
+            "line": 577
+          },
+          {
+            "type": "add",
+            "content": "        sfx.enemyShoot()",
+            "line": 578
+          },
+          {
+            "type": "add",
+            "content": "      }",
+            "line": 579
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 580
+          },
+          {
+            "type": "add",
+            "content": "      // 弹幕 2：扇形齐射（每 2.2s 启动一轮 5 连发，90ms 间隔，300px/s，±20°）",
+            "line": 581
+          },
+          {
+            "type": "add",
+            "content": "      if (e.fanRemain > 0) {",
+            "line": 582
+          },
+          {
+            "type": "add",
+            "content": "        // 连发进行中",
+            "line": 583
+          },
+          {
+            "type": "add",
+            "content": "        e.fanGapAcc += dt * 1000",
+            "line": 584
+          },
+          {
+            "type": "add",
+            "content": "        if (e.fanGapAcc >= ENEMY.bossFanGapMs) {",
+            "line": 585
+          },
+          {
+            "type": "add",
+            "content": "          e.fanGapAcc = 0",
+            "line": 586
+          },
+          {
+            "type": "add",
+            "content": "          e.fanRemain -= 1",
+            "line": 587
+          },
+          {
+            "type": "add",
+            "content": "          const shotIndex = ENEMY.bossFanShots - e.fanRemain // 1..5",
+            "line": 588
+          },
+          {
+            "type": "add",
+            "content": "          const center = Math.atan2(PLAYER_BOTTOM - n.y, this.px - n.x)",
+            "line": 589
+          },
+          {
+            "type": "add",
+            "content": "          const a =",
+            "line": 590
+          },
+          {
+            "type": "add",
+            "content": "            center +",
+            "line": 591
+          },
+          {
+            "type": "add",
+            "content": "            Phaser.Math.DegToRad(ENEMY.bossFanArc) -",
+            "line": 592
+          },
+          {
+            "type": "add",
+            "content": "            ((shotIndex - 0.5) / ENEMY.bossFanShots) * 2 * Phaser.Math.DegToRad(ENEMY.bossFanArc)",
+            "line": 593
+          },
+          {
+            "type": "add",
+            "content": "          this.spawnEnemyBullet(",
+            "line": 594
+          },
+          {
+            "type": "add",
+            "content": "            n.x,",
+            "line": 595
+          },
+          {
+            "type": "add",
+            "content": "            n.y + 10,",
+            "line": 596
+          },
+          {
+            "type": "add",
+            "content": "            Math.cos(a) * ENEMY.bossFanSpeed,",
+            "line": 597
+          },
+          {
+            "type": "add",
+            "content": "            Math.sin(a) * ENEMY.bossFanSpeed,",
+            "line": 598
+          },
+          {
+            "type": "add",
+            "content": "          )",
+            "line": 599
+          },
+          {
+            "type": "add",
+            "content": "        }",
+            "line": 600
+          },
+          {
+            "type": "add",
+            "content": "      } else {",
+            "line": 601
+          },
+          {
+            "type": "add",
+            "content": "        e.fanAcc += dt * 1000",
+            "line": 602
+          },
+          {
+            "type": "add",
+            "content": "        if (e.fanAcc >= ENEMY.bossFanInterval) {",
+            "line": 603
+          },
+          {
+            "type": "add",
+            "content": "          e.fanAcc = 0",
+            "line": 604
+          },
+          {
+            "type": "add",
+            "content": "          e.fanRemain = ENEMY.bossFanShots",
+            "line": 605
+          },
+          {
+            "type": "add",
+            "content": "          e.fanGapAcc = 0",
+            "line": 606
+          },
+          {
+            "type": "add",
+            "content": "        }",
+            "line": 607
+          },
+          {
+            "type": "add",
+            "content": "      }",
+            "line": 608
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 609
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 610
+          },
+          {
+            "type": "add",
+            "content": "    // 血条跟随",
+            "line": 611
+          },
+          {
+            "type": "add",
+            "content": "    if (e.hpBar && e.hpBarBg) {",
+            "line": 612
+          },
+          {
+            "type": "add",
+            "content": "      const y = n.y - 62",
+            "line": 613
+          },
+          {
+            "type": "add",
+            "content": "      e.hpBarBg.setPosition(n.x, y)",
+            "line": 614
+          },
+          {
+            "type": "add",
+            "content": "      e.hpBar.setPosition(n.x - (e.hpBar.width / 2) * (1 - e.hp / e.maxHp), y)",
+            "line": 615
+          },
+          {
+            "type": "add",
+            "content": "      e.hpBar.setScale(e.hp / e.maxHp, 1)",
+            "line": 616
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 617
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 618
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 619
+          },
+          {
+            "type": "add",
+            "content": "  private damageEnemy(e: Enemy, dmg: number): void {",
+            "line": 620
+          },
+          {
+            "type": "add",
+            "content": "    e.hp -= dmg",
+            "line": 621
+          },
+          {
+            "type": "add",
+            "content": "    if (e.hp > 0) return",
+            "line": 622
+          },
+          {
+            "type": "add",
+            "content": "    this.killEnemy(e)",
+            "line": 623
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 624
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 625
+          },
+          {
+            "type": "add",
+            "content": "  private killEnemy(e: Enemy): void {",
+            "line": 626
+          },
+          {
+            "type": "add",
+            "content": "    const { node } = e",
+            "line": 627
+          },
+          {
+            "type": "add",
+            "content": "    const idx = this.enemies.indexOf(e)",
+            "line": 628
+          },
+          {
+            "type": "add",
+            "content": "    if (idx >= 0) this.enemies.splice(idx, 1)",
+            "line": 629
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 630
+          },
+          {
+            "type": "add",
+            "content": "    if (e.kind === 'asteroidL') {",
+            "line": 631
+          },
+          {
+            "type": "add",
+            "content": "      // 分裂为 2 颗小行星",
+            "line": 632
+          },
+          {
+            "type": "add",
+            "content": "      this.burst(node.x, node.y, COLOR.asteroid, this.lowFx ? 6 : 12)",
+            "line": 633
+          },
+          {
+            "type": "add",
+            "content": "      sfx.boomSmall()",
+            "line": 634
+          },
+          {
+            "type": "add",
+            "content": "      this.spawnAsteroidChild(node.x - 16, node.y, -1)",
+            "line": 635
+          },
+          {
+            "type": "add",
+            "content": "      this.spawnAsteroidChild(node.x + 16, node.y, 1)",
+            "line": 636
+          },
+          {
+            "type": "add",
+            "content": "    } else if (e.kind === 'asteroidS') {",
+            "line": 637
+          },
+          {
+            "type": "add",
+            "content": "      this.burst(node.x, node.y, COLOR.asteroid, this.lowFx ? 5 : 9)",
+            "line": 638
+          },
+          {
+            "type": "add",
+            "content": "      sfx.boomSmall()",
+            "line": 639
+          },
+          {
+            "type": "add",
+            "content": "    } else if (e.kind === 'dart') {",
+            "line": 640
+          },
+          {
+            "type": "add",
+            "content": "      this.burst(node.x, node.y, COLOR.dart, this.lowFx ? 5 : 9)",
+            "line": 641
+          },
+          {
+            "type": "add",
+            "content": "      sfx.boomSmall()",
+            "line": 642
+          },
+          {
+            "type": "add",
+            "content": "    } else if (e.kind === 'ufo') {",
+            "line": 643
+          },
+          {
+            "type": "add",
+            "content": "      this.burst(node.x, node.y, COLOR.ufo, this.lowFx ? 8 : 14)",
+            "line": 644
+          },
+          {
+            "type": "add",
+            "content": "      sfx.boomSmall()",
+            "line": 645
+          },
+          {
+            "type": "add",
+            "content": "    } else {",
+            "line": 646
+          },
+          {
+            "type": "add",
+            "content": "      // Boss：大爆炸 + 震屏 + 掉落 2 道具（必含 1 生命）+ 500 分",
+            "line": 647
+          },
+          {
+            "type": "add",
+            "content": "      this.burst(node.x, node.y, COLOR.boss, this.lowFx ? 30 : 55)",
+            "line": 648
+          },
+          {
+            "type": "add",
+            "content": "      this.burst(node.x, node.y, 0xffffff, this.lowFx ? 8 : 16)",
+            "line": 649
+          },
+          {
+            "type": "add",
+            "content": "      this.cameras.main.shake(320, 0.014)",
+            "line": 650
+          },
+          {
+            "type": "add",
+            "content": "      sfx.boomBig()",
+            "line": 651
+          },
+          {
+            "type": "add",
+            "content": "      this.spawnDrop(node.x, node.y, 'life')",
+            "line": 652
+          },
+          {
+            "type": "add",
+            "content": "      this.spawnDrop(node.x + 40, node.y, pick(['double', 'shield', 'rapid', 'life'] as const))",
+            "line": 653
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 654
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 655
+          },
+          {
+            "type": "add",
+            "content": "    // 掉落（Boss 已单独处理）",
+            "line": 656
+          },
+          {
+            "type": "add",
+            "content": "    if (e.kind !== 'boss') {",
+            "line": 657
+          },
+          {
+            "type": "add",
+            "content": "      this.rollDrop(node.x, node.y)",
+            "line": 658
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 659
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 660
+          },
+          {
+            "type": "add",
+            "content": "    e.hpBar?.destroy()",
+            "line": 661
+          },
+          {
+            "type": "add",
+            "content": "    e.hpBarBg?.destroy()",
+            "line": 662
+          },
+          {
+            "type": "add",
+            "content": "    node.destroy()",
+            "line": 663
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 664
+          },
+          {
+            "type": "add",
+            "content": "    this.addScore(e.score)",
+            "line": 665
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 666
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 667
+          },
+          {
+            "type": "add",
+            "content": "  private spawnAsteroidChild(x: number, y: number, dir: number): void {",
+            "line": 668
+          },
+          {
+            "type": "add",
+            "content": "    const node = this.add.image(x, y, 'asteroidS').setDepth(12)",
+            "line": 669
+          },
+          {
+            "type": "add",
+            "content": "    node.setData('w', 34)",
+            "line": 670
+          },
+          {
+            "type": "add",
+            "content": "    node.setData('h', 34)",
+            "line": 671
+          },
+          {
+            "type": "add",
+            "content": "    this.enemies.push({",
+            "line": 672
+          },
+          {
+            "type": "add",
+            "content": "      kind: 'asteroidS',",
+            "line": 673
+          },
+          {
+            "type": "add",
+            "content": "      node,",
+            "line": 674
+          },
+          {
+            "type": "add",
+            "content": "      hp: ENEMY_DEFS.asteroidS.hp,",
+            "line": 675
+          },
+          {
+            "type": "add",
+            "content": "      maxHp: ENEMY_DEFS.asteroidS.hp,",
+            "line": 676
+          },
+          {
+            "type": "add",
+            "content": "      score: ENEMY_DEFS.asteroidS.score,",
+            "line": 677
+          },
+          {
+            "type": "add",
+            "content": "      vx: dir * rand(40, 80),",
+            "line": 678
+          },
+          {
+            "type": "add",
+            "content": "      vy: rand(40, 80),",
+            "line": 679
+          },
+          {
+            "type": "add",
+            "content": "      spin: rand(-2, 2),",
+            "line": 680
+          },
+          {
+            "type": "add",
+            "content": "      t: 0,",
+            "line": 681
+          },
+          {
+            "type": "add",
+            "content": "      baseY: 0,",
+            "line": 682
+          },
+          {
+            "type": "add",
+            "content": "      fireAcc: 0,",
+            "line": 683
+          },
+          {
+            "type": "add",
+            "content": "      fanAcc: 0,",
+            "line": 684
+          },
+          {
+            "type": "add",
+            "content": "      fanRemain: 0,",
+            "line": 685
+          },
+          {
+            "type": "add",
+            "content": "      fanGapAcc: 0,",
+            "line": 686
+          },
+          {
+            "type": "add",
+            "content": "      entered: true,",
+            "line": 687
+          },
+          {
+            "type": "add",
+            "content": "    })",
+            "line": 688
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 689
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 690
+          },
+          {
+            "type": "add",
+            "content": "  // Boss 的扇形齐射独立于环形节奏（环形满足时也尝试启动扇形）",
+            "line": 691
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 692
+          },
+          {
+            "type": "add",
+            "content": "  // ── 波次 ────────────────────────────────────────────────────",
+            "line": 693
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 694
+          },
+          {
+            "type": "add",
+            "content": "  private startWave(n: number): void {",
+            "line": 695
+          },
+          {
+            "type": "add",
+            "content": "    this.wave = n",
+            "line": 696
+          },
+          {
+            "type": "add",
+            "content": "    this.spawnQueue = 0",
+            "line": 697
+          },
+          {
+            "type": "add",
+            "content": "    this.spawnAcc = 0",
+            "line": 698
+          },
+          {
+            "type": "add",
+            "content": "    const isBossWave = n % WAVE.bossEvery === 0",
+            "line": 699
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 700
+          },
+          {
+            "type": "add",
+            "content": "    if (isBossWave) {",
+            "line": 701
+          },
+          {
+            "type": "add",
+            "content": "      // E：Boss 警告（红闪 3 次 + WARNING 2s），结束后生成",
+            "line": 702
+          },
+          {
+            "type": "add",
+            "content": "      this.waveState = 'warn'",
+            "line": 703
+          },
+          {
+            "type": "add",
+            "content": "      this.stateTimer = 0",
+            "line": 704
+          },
+          {
+            "type": "add",
+            "content": "      this.warnFlashCount = 0",
+            "line": 705
+          },
+          {
+            "type": "add",
+            "content": "      this.warnFlashAcc = 0",
+            "line": 706
+          },
+          {
+            "type": "add",
+            "content": "      this.warnText.setText('WARNING').setVisible(true)",
+            "line": 707
+          },
+          {
+            "type": "add",
+            "content": "      this.warnText.setAlpha(0)",
+            "line": 708
+          },
+          {
+            "type": "add",
+            "content": "      sfx.bossWarn()",
+            "line": 709
+          },
+          {
+            "type": "add",
+            "content": "    } else {",
+            "line": 710
+          },
+          {
+            "type": "add",
+            "content": "      this.waveState = 'spawning'",
+            "line": 711
+          },
+          {
+            "type": "add",
+            "content": "      this.spawnQueue = WAVE.minionsBase + Math.min(n, 6)",
+            "line": 712
+          },
+          {
+            "type": "add",
+            "content": "      this.spawnInterval = Math.max(WAVE.spawnIntervalMin, WAVE.spawnIntervalBase - n * WAVE.spawnIntervalStep)",
+            "line": 713
+          },
+          {
+            "type": "add",
+            "content": "      this.showBanner(`WAVE ${n}`)",
+            "line": 714
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 715
+          },
+          {
+            "type": "add",
+            "content": "    this.waveText.setText(`WAVE ${n}`)",
+            "line": 716
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 717
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 718
+          },
+          {
+            "type": "add",
+            "content": "  private updateWave(dt: number, time: number): void {",
+            "line": 719
+          },
+          {
+            "type": "add",
+            "content": "    if (this.waveState === 'warn') {",
+            "line": 720
+          },
+          {
+            "type": "add",
+            "content": "      this.stateTimer += dt * 1000",
+            "line": 721
+          },
+          {
+            "type": "add",
+            "content": "      // 红闪 3 次（每 400ms 闪一次，持续 120ms）",
+            "line": 722
+          },
+          {
+            "type": "add",
+            "content": "      this.warnFlashAcc += dt * 1000",
+            "line": 723
+          },
+          {
+            "type": "add",
+            "content": "      if (this.warnFlashAcc >= 400 && this.warnFlashCount < FX.warnFlashes * 2) {",
+            "line": 724
+          },
+          {
+            "type": "add",
+            "content": "        this.warnFlashAcc = 0",
+            "line": 725
+          },
+          {
+            "type": "add",
+            "content": "        this.warnFlashCount += 1",
+            "line": 726
+          },
+          {
+            "type": "add",
+            "content": "        const on = this.warnFlashCount % 2 === 1",
+            "line": 727
+          },
+          {
+            "type": "add",
+            "content": "        this.cameras.main.flash(110, 255, 40, 70)",
+            "line": 728
+          },
+          {
+            "type": "add",
+            "content": "        this.warnText.setAlpha(on ? 1 : 0.25)",
+            "line": 729
+          },
+          {
+            "type": "add",
+            "content": "      }",
+            "line": 730
+          },
+          {
+            "type": "add",
+            "content": "      if (this.stateTimer >= FX.warnMs) {",
+            "line": 731
+          },
+          {
+            "type": "add",
+            "content": "        this.warnText.setVisible(false)",
+            "line": 732
+          },
+          {
+            "type": "add",
+            "content": "        this.waveState = 'spawning'",
+            "line": 733
+          },
+          {
+            "type": "add",
+            "content": "        this.spawnQueue = WAVE.bossWaveMinions",
+            "line": 734
+          },
+          {
+            "type": "add",
+            "content": "        this.spawnInterval = 900",
+            "line": 735
+          },
+          {
+            "type": "add",
+            "content": "        this.spawnAcc = 0",
+            "line": 736
+          },
+          {
+            "type": "add",
+            "content": "        this.spawnBoss()",
+            "line": 737
+          },
+          {
+            "type": "add",
+            "content": "        this.showBanner(`WAVE ${this.wave}`)",
+            "line": 738
+          },
+          {
+            "type": "add",
+            "content": "      }",
+            "line": 739
+          },
+          {
+            "type": "add",
+            "content": "      return",
+            "line": 740
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 741
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 742
+          },
+          {
+            "type": "add",
+            "content": "    if (this.waveState === 'spawning') {",
+            "line": 743
+          },
+          {
+            "type": "add",
+            "content": "      if (this.spawnQueue > 0 && this.enemies.length < WAVE.maxAlive) {",
+            "line": 744
+          },
+          {
+            "type": "add",
+            "content": "        this.spawnAcc += dt * 1000",
+            "line": 745
+          },
+          {
+            "type": "add",
+            "content": "        if (this.spawnAcc >= this.spawnInterval) {",
+            "line": 746
+          },
+          {
+            "type": "add",
+            "content": "          this.spawnAcc = 0",
+            "line": 747
+          },
+          {
+            "type": "add",
+            "content": "          this.spawnQueue -= 1",
+            "line": 748
+          },
+          {
+            "type": "add",
+            "content": "          this.spawnMinion()",
+            "line": 749
+          },
+          {
+            "type": "add",
+            "content": "        }",
+            "line": 750
+          },
+          {
+            "type": "add",
+            "content": "      } else if (this.spawnQueue <= 0) {",
+            "line": 751
+          },
+          {
+            "type": "add",
+            "content": "        this.waveState = 'clearing'",
+            "line": 752
+          },
+          {
+            "type": "add",
+            "content": "      }",
+            "line": 753
+          },
+          {
+            "type": "add",
+            "content": "      return",
+            "line": 754
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 755
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 756
+          },
+          {
+            "type": "add",
+            "content": "    if (this.waveState === 'clearing') {",
+            "line": 757
+          },
+          {
+            "type": "add",
+            "content": "      if (this.enemies.length === 0) {",
+            "line": 758
+          },
+          {
+            "type": "add",
+            "content": "        this.waveState = 'intermission'",
+            "line": 759
+          },
+          {
+            "type": "add",
+            "content": "        this.stateTimer = 0",
+            "line": 760
+          },
+          {
+            "type": "add",
+            "content": "        this.showBanner('WAVE CLEAR')",
+            "line": 761
+          },
+          {
+            "type": "add",
+            "content": "        sfx.wave()",
+            "line": 762
+          },
+          {
+            "type": "add",
+            "content": "      }",
+            "line": 763
+          },
+          {
+            "type": "add",
+            "content": "      return",
+            "line": 764
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 765
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 766
+          },
+          {
+            "type": "add",
+            "content": "    if (this.waveState === 'intermission') {",
+            "line": 767
+          },
+          {
+            "type": "add",
+            "content": "      this.stateTimer += dt * 1000",
+            "line": 768
+          },
+          {
+            "type": "add",
+            "content": "      if (this.stateTimer >= WAVE.clearDelayMs) {",
+            "line": 769
+          },
+          {
+            "type": "add",
+            "content": "        this.startWave(this.wave + 1)",
+            "line": 770
+          },
+          {
+            "type": "add",
+            "content": "      }",
+            "line": 771
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 772
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 773
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 774
+          },
+          {
+            "type": "add",
+            "content": "  private showBanner(text: string): void {",
+            "line": 775
+          },
+          {
+            "type": "add",
+            "content": "    this.bannerText.setText(text).setAlpha(0)",
+            "line": 776
+          },
+          {
+            "type": "add",
+            "content": "    this.tweens.killTweensOf(this.bannerText)",
+            "line": 777
+          },
+          {
+            "type": "add",
+            "content": "    this.tweens.add({",
+            "line": 778
+          },
+          {
+            "type": "add",
+            "content": "      targets: this.bannerText,",
+            "line": 779
+          },
+          {
+            "type": "add",
+            "content": "      alpha: 1,",
+            "line": 780
+          },
+          {
+            "type": "add",
+            "content": "      duration: 240,",
+            "line": 781
+          },
+          {
+            "type": "add",
+            "content": "      yoyo: true,",
+            "line": 782
+          },
+          {
+            "type": "add",
+            "content": "      hold: 900,",
+            "line": 783
+          },
+          {
+            "type": "add",
+            "content": "      onComplete: () => this.bannerText.setAlpha(0),",
+            "line": 784
+          },
+          {
+            "type": "add",
+            "content": "    })",
+            "line": 785
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 786
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 787
+          },
+          {
+            "type": "add",
+            "content": "  // ── 道具 ────────────────────────────────────────────────────",
+            "line": 788
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 789
+          },
+          {
+            "type": "add",
+            "content": "  private rollDrop(x: number, y: number): void {",
+            "line": 790
+          },
+          {
+            "type": "add",
+            "content": "    if (Math.random() > POWER.dropChance) return",
+            "line": 791
+          },
+          {
+            "type": "add",
+            "content": "    this.spawnDrop(x, y, pick(['life', 'double', 'shield', 'rapid'] as const))",
+            "line": 792
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 793
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 794
+          },
+          {
+            "type": "add",
+            "content": "  private spawnDrop(x: number, y: number, kind: PowerKind): void {",
+            "line": 795
+          },
+          {
+            "type": "add",
+            "content": "    const node = this.add.image(x, y, `power-${kind}`).setDepth(16)",
+            "line": 796
+          },
+          {
+            "type": "add",
+            "content": "    this.drops.push({ node, kind })",
+            "line": 797
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 798
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 799
+          },
+          {
+            "type": "add",
+            "content": "  private updateDrops(dt: number): void {",
+            "line": 800
+          },
+          {
+            "type": "add",
+            "content": "    for (let i = this.drops.length - 1; i >= 0; i -= 1) {",
+            "line": 801
+          },
+          {
+            "type": "add",
+            "content": "      const d = this.drops[i] as PowerDrop",
+            "line": 802
+          },
+          {
+            "type": "add",
+            "content": "      d.node.y += POWER.fallSpeed * dt",
+            "line": 803
+          },
+          {
+            "type": "add",
+            "content": "      d.node.rotation += dt * 1.2",
+            "line": 804
+          },
+          {
+            "type": "add",
+            "content": "      if (d.node.y > GAME_H + 30) {",
+            "line": 805
+          },
+          {
+            "type": "add",
+            "content": "        d.node.destroy()",
+            "line": 806
+          },
+          {
+            "type": "add",
+            "content": "        this.drops.splice(i, 1)",
+            "line": 807
+          },
+          {
+            "type": "add",
+            "content": "        continue",
+            "line": 808
+          },
+          {
+            "type": "add",
+            "content": "      }",
+            "line": 809
+          },
+          {
+            "type": "add",
+            "content": "      // 拾取检测（半径）",
+            "line": 810
+          },
+          {
+            "type": "add",
+            "content": "      if (Math.hypot(d.node.x - this.px, d.node.y - PLAYER_BOTTOM) <= POWER.pickupRadius + 14) {",
+            "line": 811
+          },
+          {
+            "type": "add",
+            "content": "        this.applyPower(d.kind)",
+            "line": 812
+          },
+          {
+            "type": "add",
+            "content": "        d.node.destroy()",
+            "line": 813
+          },
+          {
+            "type": "add",
+            "content": "        this.drops.splice(i, 1)",
+            "line": 814
+          },
+          {
+            "type": "add",
+            "content": "      }",
+            "line": 815
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 816
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 817
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 818
+          },
+          {
+            "type": "add",
+            "content": "  private applyPower(kind: PowerKind): void {",
+            "line": 819
+          },
+          {
+            "type": "add",
+            "content": "    const time = this.time.now",
+            "line": 820
+          },
+          {
+            "type": "add",
+            "content": "    if (kind === 'life') {",
+            "line": 821
+          },
+          {
+            "type": "add",
+            "content": "      if (this.lives < PLAYER.maxLives) {",
+            "line": 822
+          },
+          {
+            "type": "add",
+            "content": "        this.lives += 1",
+            "line": 823
+          },
+          {
+            "type": "add",
+            "content": "      } else {",
+            "line": 824
+          },
+          {
+            "type": "add",
+            "content": "        this.addScore(POWER.fullLifeBonus, true)",
+            "line": 825
+          },
+          {
+            "type": "add",
+            "content": "      }",
+            "line": 826
+          },
+          {
+            "type": "add",
+            "content": "    } else if (kind === 'double') {",
+            "line": 827
+          },
+          {
+            "type": "add",
+            "content": "      this.doubleUntil = time + PLAYER.doubleMs",
+            "line": 828
+          },
+          {
+            "type": "add",
+            "content": "    } else if (kind === 'rapid') {",
+            "line": 829
+          },
+          {
+            "type": "add",
+            "content": "      this.rapidUntil = time + PLAYER.rapidMs",
+            "line": 830
+          },
+          {
+            "type": "add",
+            "content": "    } else {",
+            "line": 831
+          },
+          {
+            "type": "add",
+            "content": "      this.shields += 1",
+            "line": 832
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 833
+          },
+          {
+            "type": "add",
+            "content": "    sfx.pickup()",
+            "line": 834
+          },
+          {
+            "type": "add",
+            "content": "    this.cameras.main.flash(80, 80, 200, 120)",
+            "line": 835
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 836
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 837
+          },
+          {
+            "type": "add",
+            "content": "  // ── 碰撞 ────────────────────────────────────────────────────",
+            "line": 838
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 839
+          },
+          {
+            "type": "add",
+            "content": "  private collide(): void {",
+            "line": 840
+          },
+          {
+            "type": "add",
+            "content": "    // 玩家子弹 vs 敌人",
+            "line": 841
+          },
+          {
+            "type": "add",
+            "content": "    for (let bi = this.playerBullets.length - 1; bi >= 0; bi -= 1) {",
+            "line": 842
+          },
+          {
+            "type": "add",
+            "content": "      const b = this.playerBullets[bi] as Bullet",
+            "line": 843
+          },
+          {
+            "type": "add",
+            "content": "      for (let ei = this.enemies.length - 1; ei >= 0; ei -= 1) {",
+            "line": 844
+          },
+          {
+            "type": "add",
+            "content": "        const e = this.enemies[ei] as Enemy",
+            "line": 845
+          },
+          {
+            "type": "add",
+            "content": "        if (this.hit(b.node, e.node)) {",
+            "line": 846
+          },
+          {
+            "type": "add",
+            "content": "          b.node.destroy()",
+            "line": 847
+          },
+          {
+            "type": "add",
+            "content": "          this.playerBullets.splice(bi, 1)",
+            "line": 848
+          },
+          {
+            "type": "add",
+            "content": "          this.damageEnemy(e, 1)",
+            "line": 849
+          },
+          {
+            "type": "add",
+            "content": "          break",
+            "line": 850
+          },
+          {
+            "type": "add",
+            "content": "        }",
+            "line": 851
+          },
+          {
+            "type": "add",
+            "content": "      }",
+            "line": 852
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 853
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 854
+          },
+          {
+            "type": "add",
+            "content": "    // 敌方子弹 vs 玩家",
+            "line": 855
+          },
+          {
+            "type": "add",
+            "content": "    for (let bi = this.enemyBullets.length - 1; bi >= 0; bi -= 1) {",
+            "line": 856
+          },
+          {
+            "type": "add",
+            "content": "      const b = this.enemyBullets[bi] as Bullet",
+            "line": 857
+          },
+          {
+            "type": "add",
+            "content": "      if (this.hit(b.node, this.playerNode)) {",
+            "line": 858
+          },
+          {
+            "type": "add",
+            "content": "        b.node.destroy()",
+            "line": 859
+          },
+          {
+            "type": "add",
+            "content": "        this.enemyBullets.splice(bi, 1)",
+            "line": 860
+          },
+          {
+            "type": "add",
+            "content": "        this.damagePlayer()",
+            "line": 861
+          },
+          {
+            "type": "add",
+            "content": "        if (this.phase === 'dying') return",
+            "line": 862
+          },
+          {
+            "type": "add",
+            "content": "      }",
+            "line": 863
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 864
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 865
+          },
+          {
+            "type": "add",
+            "content": "    // 敌人 vs 玩家（冲撞）",
+            "line": 866
+          },
+          {
+            "type": "add",
+            "content": "    for (let ei = this.enemies.length - 1; ei >= 0; ei -= 1) {",
+            "line": 867
+          },
+          {
+            "type": "add",
+            "content": "      const e = this.enemies[ei] as Enemy",
+            "line": 868
+          },
+          {
+            "type": "add",
+            "content": "      if (e.kind === 'boss') {",
+            "line": 869
+          },
+          {
+            "type": "add",
+            "content": "        // Boss 很少贴玩家，为公平不因贴脸即死，仅当进入下方区域时判定",
+            "line": 870
+          },
+          {
+            "type": "add",
+            "content": "        if (e.node.y > GAME_H * 0.55 && this.hit(e.node, this.playerNode)) {",
+            "line": 871
+          },
+          {
+            "type": "add",
+            "content": "          this.collideEnemyPlayer(e, ei)",
+            "line": 872
+          },
+          {
+            "type": "add",
+            "content": "        }",
+            "line": 873
+          },
+          {
+            "type": "add",
+            "content": "        continue",
+            "line": 874
+          },
+          {
+            "type": "add",
+            "content": "      }",
+            "line": 875
+          },
+          {
+            "type": "add",
+            "content": "      if (this.hit(e.node, this.playerNode)) {",
+            "line": 876
+          },
+          {
+            "type": "add",
+            "content": "        this.collideEnemyPlayer(e, ei)",
+            "line": 877
+          },
+          {
+            "type": "add",
+            "content": "      }",
+            "line": 878
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 879
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 880
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 881
+          },
+          {
+            "type": "add",
+            "content": "  private collideEnemyPlayer(e: Enemy, ei: number): void {",
+            "line": 882
+          },
+          {
+            "type": "add",
+            "content": "    if (this.phase !== 'playing') return",
+            "line": 883
+          },
+          {
+            "type": "add",
+            "content": "    if (this.time.now < this.invincibleUntil) return",
+            "line": 884
+          },
+          {
+            "type": "add",
+            "content": "    // 护盾：抵免 1 次，摧毁撞击来源",
+            "line": 885
+          },
+          {
+            "type": "add",
+            "content": "    if (this.shields > 0) {",
+            "line": 886
+          },
+          {
+            "type": "add",
+            "content": "      this.shields -= 1",
+            "line": 887
+          },
+          {
+            "type": "add",
+            "content": "      this.invincibleUntil = this.time.now + 600",
+            "line": 888
+          },
+          {
+            "type": "add",
+            "content": "      sfx.shieldBreak()",
+            "line": 889
+          },
+          {
+            "type": "add",
+            "content": "      this.burst(e.node.x, e.node.y, COLOR.power, this.lowFx ? 6 : 10)",
+            "line": 890
+          },
+          {
+            "type": "add",
+            "content": "      this.damageEnemy(e, 999)",
+            "line": 891
+          },
+          {
+            "type": "add",
+            "content": "      this.refreshHud()",
+            "line": 892
+          },
+          {
+            "type": "add",
+            "content": "      return",
+            "line": 893
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 894
+          },
+          {
+            "type": "add",
+            "content": "    this.damagePlayer()",
+            "line": 895
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 896
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 897
+          },
+          {
+            "type": "add",
+            "content": "  /** AABB 碰撞（基于纹理尺寸） */",
+            "line": 898
+          },
+          {
+            "type": "add",
+            "content": "  private hit(a: { x: number; y: number; getData?(k: string): unknown }, b: { x: number; y: number; getData?(k: string): unknown }): boolean {",
+            "line": 899
+          },
+          {
+            "type": "add",
+            "content": "    const aw = ((a.getData?.('w') as number) ?? 0) / 2",
+            "line": 900
+          },
+          {
+            "type": "add",
+            "content": "    const ah = ((a.getData?.('h') as number) ?? 0) / 2",
+            "line": 901
+          },
+          {
+            "type": "add",
+            "content": "    const bw = ((b.getData?.('w') as number) ?? 0) / 2",
+            "line": 902
+          },
+          {
+            "type": "add",
+            "content": "    const bh = ((b.getData?.('h') as number) ?? 0) / 2",
+            "line": 903
+          },
+          {
+            "type": "add",
+            "content": "    return Math.abs(a.x - b.x) < aw + bw && Math.abs(a.y - b.y) < ah + bh",
+            "line": 904
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 905
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 906
+          },
+          {
+            "type": "add",
+            "content": "  private damagePlayer(): void {",
+            "line": 907
+          },
+          {
+            "type": "add",
+            "content": "    if (this.phase !== 'playing') return",
+            "line": 908
+          },
+          {
+            "type": "add",
+            "content": "    const time = this.time.now",
+            "line": 909
+          },
+          {
+            "type": "add",
+            "content": "    if (time < this.invincibleUntil) return",
+            "line": 910
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 911
+          },
+          {
+            "type": "add",
+            "content": "    this.lives -= 1",
+            "line": 912
+          },
+          {
+            "type": "add",
+            "content": "    this.invincibleUntil = time + PLAYER.invincibleMs",
+            "line": 913
+          },
+          {
+            "type": "add",
+            "content": "    this.refreshHud()",
+            "line": 914
+          },
+          {
+            "type": "add",
+            "content": "    this.cameras.main.shake(200, 0.01)",
+            "line": 915
+          },
+          {
+            "type": "add",
+            "content": "    sfx.hit()",
+            "line": 916
+          },
+          {
+            "type": "add",
+            "content": "    this.burst(this.px, PLAYER_BOTTOM, COLOR.player, this.lowFx ? 6 : 12)",
+            "line": 917
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 918
+          },
+          {
+            "type": "add",
+            "content": "    if (this.lives <= 0) {",
+            "line": 919
+          },
+          {
+            "type": "add",
+            "content": "      this.die()",
+            "line": 920
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 921
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 922
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 923
+          },
+          {
+            "type": "add",
+            "content": "  private die(): void {",
+            "line": 924
+          },
+          {
+            "type": "add",
+            "content": "    this.phase = 'dying'",
+            "line": 925
+          },
+          {
+            "type": "add",
+            "content": "    this.dieAt = this.time.now + 1000",
+            "line": 926
+          },
+          {
+            "type": "add",
+            "content": "    this.playerNode.setVisible(false)",
+            "line": 927
+          },
+          {
+            "type": "add",
+            "content": "    this.playerGlow.setVisible(false)",
+            "line": 928
+          },
+          {
+            "type": "add",
+            "content": "    this.burst(this.px, PLAYER_BOTTOM, COLOR.player, this.lowFx ? 20 : 36)",
+            "line": 929
+          },
+          {
+            "type": "add",
+            "content": "    this.burst(this.px, PLAYER_BOTTOM, 0xffffff, this.lowFx ? 8 : 14)",
+            "line": 930
+          },
+          {
+            "type": "add",
+            "content": "    this.cameras.main.shake(400, 0.02)",
+            "line": 931
+          },
+          {
+            "type": "add",
+            "content": "    sfx.boomBig()",
+            "line": 932
+          },
+          {
+            "type": "add",
+            "content": "    sfx.gameOver()",
+            "line": 933
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 934
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 935
+          },
+          {
+            "type": "add",
+            "content": "  private goGameOver(): void {",
+            "line": 936
+          },
+          {
+            "type": "add",
+            "content": "    const isNew = this.score > this.best",
+            "line": 937
+          },
+          {
+            "type": "add",
+            "content": "    if (isNew) {",
+            "line": 938
+          },
+          {
+            "type": "add",
+            "content": "      this.best = this.score",
+            "line": 939
+          },
+          {
+            "type": "add",
+            "content": "      this.writeBest(this.best)",
+            "line": 940
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 941
+          },
+          {
+            "type": "add",
+            "content": "    this.scene.start('gameover', { score: this.score, best: this.best, isNew })",
+            "line": 942
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 943
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 944
+          },
+          {
+            "type": "add",
+            "content": "  // ── 粒子 ────────────────────────────────────────────────────",
+            "line": 945
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 946
+          },
+          {
+            "type": "add",
+            "content": "  private spawnParticle(",
+            "line": 947
+          },
+          {
+            "type": "add",
+            "content": "    x: number,",
+            "line": 948
+          },
+          {
+            "type": "add",
+            "content": "    y: number,",
+            "line": 949
+          },
+          {
+            "type": "add",
+            "content": "    vx: number,",
+            "line": 950
+          },
+          {
+            "type": "add",
+            "content": "    vy: number,",
+            "line": 951
+          },
+          {
+            "type": "add",
+            "content": "    life: number,",
+            "line": 952
+          },
+          {
+            "type": "add",
+            "content": "    color: number,",
+            "line": 953
+          },
+          {
+            "type": "add",
+            "content": "  ): void {",
+            "line": 954
+          },
+          {
+            "type": "add",
+            "content": "    const size = rand(2, 4)",
+            "line": 955
+          },
+          {
+            "type": "add",
+            "content": "    const node = this.add.rectangle(x, y, size, size, color, 0.9).setDepth(8)",
+            "line": 956
+          },
+          {
+            "type": "add",
+            "content": "    this.particles.push({ node, vx, vy, life: 0, maxLife: life })",
+            "line": 957
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 958
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 959
+          },
+          {
+            "type": "add",
+            "content": "  private burst(x: number, y: number, color: number, count: number): void {",
+            "line": 960
+          },
+          {
+            "type": "add",
+            "content": "    for (let i = 0; i < count; i += 1) {",
+            "line": 961
+          },
+          {
+            "type": "add",
+            "content": "      const a = rand(0, Math.PI * 2)",
+            "line": 962
+          },
+          {
+            "type": "add",
+            "content": "      const speed = rand(40, 260)",
+            "line": 963
+          },
+          {
+            "type": "add",
+            "content": "      this.spawnParticle(",
+            "line": 964
+          },
+          {
+            "type": "add",
+            "content": "        x,",
+            "line": 965
+          },
+          {
+            "type": "add",
+            "content": "        y,",
+            "line": 966
+          },
+          {
+            "type": "add",
+            "content": "        Math.cos(a) * speed,",
+            "line": 967
+          },
+          {
+            "type": "add",
+            "content": "        Math.sin(a) * speed - 40,",
+            "line": 968
+          },
+          {
+            "type": "add",
+            "content": "        rand(0.3, 0.7),",
+            "line": 969
+          },
+          {
+            "type": "add",
+            "content": "        color,",
+            "line": 970
+          },
+          {
+            "type": "add",
+            "content": "      )",
+            "line": 971
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 972
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 973
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 974
+          },
+          {
+            "type": "add",
+            "content": "  private updateParticles(dt: number): void {",
+            "line": 975
+          },
+          {
+            "type": "add",
+            "content": "    for (let i = this.particles.length - 1; i >= 0; i -= 1) {",
+            "line": 976
+          },
+          {
+            "type": "add",
+            "content": "      const p = this.particles[i] as Particle",
+            "line": 977
+          },
+          {
+            "type": "add",
+            "content": "      p.life += dt",
+            "line": 978
+          },
+          {
+            "type": "add",
+            "content": "      p.vy += 260 * dt",
+            "line": 979
+          },
+          {
+            "type": "add",
+            "content": "      p.node.x += p.vx * dt",
+            "line": 980
+          },
+          {
+            "type": "add",
+            "content": "      p.node.y += p.vy * dt",
+            "line": 981
+          },
+          {
+            "type": "add",
+            "content": "      p.node.setAlpha(Math.max(0, 0.9 * (1 - p.life / p.maxLife)))",
+            "line": 982
+          },
+          {
+            "type": "add",
+            "content": "      if (p.life >= p.maxLife) {",
+            "line": 983
+          },
+          {
+            "type": "add",
+            "content": "        p.node.destroy()",
+            "line": 984
+          },
+          {
+            "type": "add",
+            "content": "        this.particles.splice(i, 1)",
+            "line": 985
+          },
+          {
+            "type": "add",
+            "content": "      }",
+            "line": 986
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 987
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 988
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 989
+          },
+          {
+            "type": "add",
+            "content": "  // ── 星空 / HUD / 降级 ───────────────────────────────────────",
+            "line": 990
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 991
+          },
+          {
+            "type": "add",
+            "content": "  private updateBackdrop(dt: number): void {",
+            "line": 992
+          },
+          {
+            "type": "add",
+            "content": "    for (const s of this.stars) {",
+            "line": 993
+          },
+          {
+            "type": "add",
+            "content": "      s.y += FX.starLayers[s.layer].speed * dt",
+            "line": 994
+          },
+          {
+            "type": "add",
+            "content": "      if (s.y > GAME_H + 4) {",
+            "line": 995
+          },
+          {
+            "type": "add",
+            "content": "        s.y = -4",
+            "line": 996
+          },
+          {
+            "type": "add",
+            "content": "        s.node.x = rand(0, GAME_W)",
+            "line": 997
+          },
+          {
+            "type": "add",
+            "content": "      }",
+            "line": 998
+          },
+          {
+            "type": "add",
+            "content": "      s.node.y = s.y",
+            "line": 999
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 1000
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 1001
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 1002
+          },
+          {
+            "type": "add",
+            "content": "  private addScore(v: number, silent = false): void {",
+            "line": 1003
+          },
+          {
+            "type": "add",
+            "content": "    this.score += v",
+            "line": 1004
+          },
+          {
+            "type": "add",
+            "content": "    this.scorePulse = 1",
+            "line": 1005
+          },
+          {
+            "type": "add",
+            "content": "    if (silent) {",
+            "line": 1006
+          },
+          {
+            "type": "add",
+            "content": "      // 满血生命 +50 的提示",
+            "line": 1007
+          },
+          {
+            "type": "add",
+            "content": "      this.showBanner('+50')",
+            "line": 1008
+          },
+          {
+            "type": "add",
+            "content": "      return",
+            "line": 1009
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 1010
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 1011
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 1012
+          },
+          {
+            "type": "add",
+            "content": "  private updateHud(): void {",
+            "line": 1013
+          },
+          {
+            "type": "add",
+            "content": "    this.scoreText.setText(String(this.score))",
+            "line": 1014
+          },
+          {
+            "type": "add",
+            "content": "    if (this.scorePulse > 0) {",
+            "line": 1015
+          },
+          {
+            "type": "add",
+            "content": "      this.scorePulse = Math.max(0, this.scorePulse - 0.06)",
+            "line": 1016
+          },
+          {
+            "type": "add",
+            "content": "      this.scoreText.setScale(1 + this.scorePulse * 0.2)",
+            "line": 1017
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 1018
+          },
+          {
+            "type": "add",
+            "content": "    this.refreshHud()",
+            "line": 1019
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 1020
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 1021
+          },
+          {
+            "type": "add",
+            "content": "  private refreshHud(): void {",
+            "line": 1022
+          },
+          {
+            "type": "add",
+            "content": "    this.livesText.setText('♥'.repeat(Math.max(0, this.lives)))",
+            "line": 1023
+          },
+          {
+            "type": "add",
+            "content": "    const time = this.time.now",
+            "line": 1024
+          },
+          {
+            "type": "add",
+            "content": "    const buffs: string[] = []",
+            "line": 1025
+          },
+          {
+            "type": "add",
+            "content": "    if (this.shields > 0) buffs.push(`◆护盾×${this.shields}`)",
+            "line": 1026
+          },
+          {
+            "type": "add",
+            "content": "    if (time < this.doubleUntil) buffs.push(`ǁ双发 ${Math.ceil((this.doubleUntil - time) / 1000)}s`)",
+            "line": 1027
+          },
+          {
+            "type": "add",
+            "content": "    if (time < this.rapidUntil) buffs.push(`»速射 ${Math.ceil((this.rapidUntil - time) / 1000)}s`)",
+            "line": 1028
+          },
+          {
+            "type": "add",
+            "content": "    this.buffText.setText(buffs.join('　'))",
+            "line": 1029
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 1030
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 1031
+          },
+          {
+            "type": "add",
+            "content": "  private updateFpsGuard(time: number): void {",
+            "line": 1032
+          },
+          {
+            "type": "add",
+            "content": "    // E7：帧率低于阈值时进入降级（粒子减半）",
+            "line": 1033
+          },
+          {
+            "type": "add",
+            "content": "    if (time - this.lastFpsCheck < 2000) return",
+            "line": 1034
+          },
+          {
+            "type": "add",
+            "content": "    this.lastFpsCheck = time",
+            "line": 1035
+          },
+          {
+            "type": "add",
+            "content": "    const fps = this.game.loop.actualFps",
+            "line": 1036
+          },
+          {
+            "type": "add",
+            "content": "    if (fps > 0 && fps < FX.lowFpsThreshold) {",
+            "line": 1037
+          },
+          {
+            "type": "add",
+            "content": "      this.lowFx = true",
+            "line": 1038
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 1039
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 1040
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 1041
+          },
+          {
+            "type": "add",
+            "content": "  // ── 暂停 / 结束 ─────────────────────────────────────────────",
+            "line": 1042
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 1043
+          },
+          {
+            "type": "add",
+            "content": "  private togglePause(): void {",
+            "line": 1044
+          },
+          {
+            "type": "add",
+            "content": "    if (this.phase === 'paused') {",
+            "line": 1045
+          },
+          {
+            "type": "add",
+            "content": "      this.phase = 'playing'",
+            "line": 1046
+          },
+          {
+            "type": "add",
+            "content": "      this.pauseOverlay.setVisible(false)",
+            "line": 1047
+          },
+          {
+            "type": "add",
+            "content": "      return",
+            "line": 1048
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 1049
+          },
+          {
+            "type": "add",
+            "content": "    if (this.phase !== 'playing') return",
+            "line": 1050
+          },
+          {
+            "type": "add",
+            "content": "    this.phase = 'paused'",
+            "line": 1051
+          },
+          {
+            "type": "add",
+            "content": "    this.pauseOverlay.setVisible(true)",
+            "line": 1052
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 1053
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 1054
+          },
+          {
+            "type": "add",
+            "content": "  private readBest(): number {",
+            "line": 1055
+          },
+          {
+            "type": "add",
+            "content": "    try {",
+            "line": 1056
+          },
+          {
+            "type": "add",
+            "content": "      const raw = localStorage.getItem(BEST_KEY)",
+            "line": 1057
+          },
+          {
+            "type": "add",
+            "content": "      if (!raw) return 0",
+            "line": 1058
+          },
+          {
+            "type": "add",
+            "content": "      const value = Number.parseInt(raw, 10)",
+            "line": 1059
+          },
+          {
+            "type": "add",
+            "content": "      return Number.isFinite(value) && value > 0 ? value : 0",
+            "line": 1060
+          },
+          {
+            "type": "add",
+            "content": "    } catch {",
+            "line": 1061
+          },
+          {
+            "type": "add",
+            "content": "      return 0",
+            "line": 1062
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 1063
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 1064
+          },
+          {
+            "type": "add",
+            "content": "",
+            "line": 1065
+          },
+          {
+            "type": "add",
+            "content": "  private writeBest(value: number): void {",
+            "line": 1066
+          },
+          {
+            "type": "add",
+            "content": "    try {",
+            "line": 1067
+          },
+          {
+            "type": "add",
+            "content": "      localStorage.setItem(BEST_KEY, String(value))",
+            "line": 1068
+          },
+          {
+            "type": "add",
+            "content": "    } catch {",
+            "line": 1069
+          },
+          {
+            "type": "add",
+            "content": "      return",
+            "line": 1070
+          },
+          {
+            "type": "add",
+            "content": "    }",
+            "line": 1071
+          },
+          {
+            "type": "add",
+            "content": "  }",
+            "line": 1072
+          },
+          {
+            "type": "add",
+            "content": "}",
+            "line": 1073
+          }
+        ]
+      }
+    }
+  ]
+}
