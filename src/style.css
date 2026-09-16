@@ -240,6 +240,44 @@ main {
   box-shadow: 0 0 14px rgba(255, 79, 154, 0.9);
 }
 
+/* Stardust Merge：数字方块 + 星尘光点 */
+.thumb-glyph--stardust {
+  position: absolute;
+  left: 26%;
+  bottom: 20%;
+  width: 52px;
+  height: 52px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #3fb1ff, #2fe6c8);
+  box-shadow: 0 0 26px rgba(63, 177, 255, 0.6);
+  transform: rotate(-8deg);
+}
+
+.thumb-glyph--stardust::before {
+  content: "";
+  position: absolute;
+  right: -26px;
+  top: -12px;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: linear-gradient(180deg, #ffe066, #e08a2f);
+  box-shadow: 0 0 16px rgba(255, 209, 102, 0.55);
+  transform: rotate(8deg);
+}
+
+.thumb-glyph--stardust::after {
+  content: "";
+  position: absolute;
+  left: -14px;
+  bottom: -10px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 0 14px rgba(255, 255, 255, 0.9);
+}
+
 .game-body {
   padding: 16px 18px 18px;
 }

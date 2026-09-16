@@ -14,6 +14,7 @@ export default defineConfig({
         'neon-dash': 'games/neon-dash/index.html',
         snake: 'games/snake/index.html',
         'star-vanguard': 'games/star-vanguard/index.html',
+        'stardust-merge': 'games/stardust-merge/index.html',
       },
     },
   },
