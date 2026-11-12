@@ -74,13 +74,13 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
     stats(level, evolved) {
       if (evolved)
         return make({
-          damage: 26,
-          cooldown: 0.46,
+          damage: 34,
+          cooldown: 0.42,
           count: 5,
           pierce: 3,
           speed: 620,
           area: 8,
-          blast: 38,
+          blast: 42,
           range: 620,
         })
       return make({

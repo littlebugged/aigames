@@ -11,5 +11,5 @@
     "allowImportingTsExtensions": true,
     "types": ["node"]
   },
-  "include": ["scripts", "tests", "vite.config.ts", "src/data", "src/game", "src/engine/rng.ts", "src/engine/math.ts"]
+  "include": ["scripts", "tests", "vite.config.ts", "src/data", "src/game", "src/engine/rng.ts", "src/engine/math.ts", "src/engine/grid.ts", "src/engine/pool.ts", "src/i18n"]
 }

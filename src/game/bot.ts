@@ -85,11 +85,11 @@ export class Bot {
     if (p.dashCd <= 0 && p.dashT <= 0) {
       if (hurt || this.crowded(w, 52) >= 4) out.dash = true
       // 敌方冲击环：在它扫到身上前一瞬间冲刺穿过（无敌帧）
-      const window = 18 + 40 * Math.min(1, this.skill)
+      const lead = 18 + 40 * Math.min(1, this.skill)
       for (const rg of w.rings) {
         if (!rg.hostile || rg.hitPlayer) continue
         const gap = Math.hypot(p.x - rg.x, p.y - rg.y) - rg.r
-        if (gap > -4 && gap < window) out.dash = true
+        if (gap > -4 && gap < lead) out.dash = true
       }
     }
   }
