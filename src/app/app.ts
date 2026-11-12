@@ -610,6 +610,9 @@ export class App {
 
   private frame(dt: number, dtMs: number): void {
     try {
+      // 菜单 / 结算：手柄在这里导航。轮询可能触发界面切换（比如按 A 开始出击），
+      // 所以必须先轮询，再按"最新状态"决定画什么。
+      if (this.state !== 'play') this.input.poll(dt)
       if (this.state === 'play' && this.world) this.framePlay(dt)
       else if (this.state === 'results' && this.world) this.renderer.frame(this.world, dt * 0.5)
       else if (this.demo) {

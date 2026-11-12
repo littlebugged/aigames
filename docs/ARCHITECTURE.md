@@ -72,5 +72,5 @@ data ──► game (模拟) ──events──► render / audio / hud
 | 存档与结算 | `tests/progress.test.ts` | 钳制/往返、结算、解锁、成就连锁、机库与飞船购买 |
 | 模拟 | `tests/sim.test.ts` | 确定性、所有飞船×星区稳定（无 NaN）、Boss 按时出现且可被击败、升级/重抽/放逐/复活流程、模拟层不依赖 DOM |
 | 文案 | `tests/i18n.test.ts` | 中英词典键与占位符完全一致、无空字符串、所有内容 id 都有名称与描述 |
-| 浏览器 | `scripts/e2e.mjs` | 冒烟/桌面/手机/PWA/性能/线上巡检；监听 `console.error`、`pageerror`、`requestfailed` |
+| 浏览器 | `scripts/e2e.mjs` | 冒烟/桌面/手机/PWA/关键流程/性能/线上巡检；监听 `console.error`、`pageerror`、`requestfailed` |
 | 平衡 | `scripts/sim.ts` | 机器人整局模拟：存活时间、等级、击杀、进化数、Boss 击杀耗时 |

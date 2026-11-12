@@ -539,9 +539,13 @@ button.card {
 }
 
 .segs {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  display: flex;
+  flex-wrap: wrap;
   gap: 6px;
+}
+
+.segs > .seg {
+  flex: 1 1 auto;
 }
 
 .segs.compact {

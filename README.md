@@ -49,6 +49,7 @@ node scripts/e2e.mjs smoke     # 冒烟：能启动、无控制台错误、能�
 node scripts/e2e.mjs desktop   # 桌面全流程截图：菜单→机库→成就→设置→出击→升级→暂停→Boss→结算
 node scripts/e2e.mjs mobile    # 手机横/竖屏模拟：触屏摇杆、冲刺、升级面板
 node scripts/e2e.mjs pwa       # Service Worker：激活、离线可玩、新版本提示、清单与图标
+node scripts/e2e.mjs flows     # 关键流程：英文界面、失败结算、机库购买与存档、暂停放弃、手柄导航
 node scripts/e2e.mjs perf --q high --dpr 2 --gpu 1   # 性能探针
 node scripts/e2e.mjs live      # 对线上站点做冒烟与可用性检查
 node scripts/gen-assets.mjs    # 重新生成图标与分享图（public/ 下的素材已提交）

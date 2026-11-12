@@ -4,6 +4,7 @@
  *   node scripts/e2e.mjs desktop            # 桌面：菜单 → 出击 → 战斗 → 升级 → Boss → 结算 → 各屏幕截图
  *   node scripts/e2e.mjs mobile             # 手机横屏 + 竖屏模拟：触屏摇杆、冲刺按钮、升级面板
  *   node scripts/e2e.mjs smoke              # 冒烟：能启动、无控制台错误、能开一局并推进、音频有输出且不削波
+ *   node scripts/e2e.mjs flows              # 关键流程：英文界面、失败结算、机库购买、暂停放弃、手柄
  *   node scripts/e2e.mjs pwa                # Service Worker：激活、离线可玩、新版本提示、清单与图标
  *   node scripts/e2e.mjs play [选项]        # 直接开一局并快进截图：--sector --ship --threat --ff --wait --name --q --audio 1
  *   node scripts/e2e.mjs perf [选项]        # 性能探针：--q high|medium|low|auto --dpr 2 --gpu 1 --secs 6
@@ -369,6 +370,162 @@ async function pwa() {
   srv.server.close()
 }
 
+/** 关键用户流程：英文界面、失败结算、机库购买、暂停→放弃、手柄全流程 */
+async function flows(base) {
+  const browser = await launch()
+  const fresh = async (path = '/', { pad = false } = {}) => {
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } })
+    if (pad) {
+      await ctx.addInitScript(() => {
+        window.__padOn = false
+        window.__pad = { connected: true, axes: [0, 0, 0, 0], buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0 })) }
+        navigator.getGamepads = () => (window.__padOn ? [window.__pad] : [])
+      })
+    }
+    const page = await ctx.newPage()
+    watch(page, path)
+    await page.goto(`${base}${path}${path.includes('?') ? '&' : '?'}e2e=1&q=low`, { waitUntil: 'load' })
+    await waitReady(page)
+    await sleep(500)
+    return { ctx, page }
+  }
+  const a = (page) => page.evaluate(() => window.__neon.debug())
+
+  // A) 英文界面：整条主流程
+  {
+    const { ctx, page } = await fresh('/en/')
+    const lang = await page.evaluate(() => document.documentElement.lang)
+    const play = (await page.textContent('.btn.play'))?.trim()
+    console.log('  [en] lang =', lang, '| play button =', JSON.stringify(play))
+    if (!lang.startsWith('en') || play !== 'Deploy') problems.push('[flows/en] 英文界面没有生效')
+    await shot(page, 'f-en-menu')
+    await page.click('.btn.play')
+    await page.waitForSelector('.screen.deploy')
+    await sleep(450)
+    await shot(page, 'f-en-deploy')
+    await page.click('.btn.start')
+    await page.waitForSelector('.hud:not([hidden])')
+    await page.evaluate(() => {
+      const n = window.__neon
+      n.godMode = true
+      n.autoPilot = true
+      n.fastForward(150)
+      n.autoPilot = false
+      n.game.player.xp = n.game.player.xpNext
+    })
+    await page.waitForSelector('.overlay.levelup:not([hidden])', { timeout: 8000 }).catch(() => problems.push('[flows/en] 升级面板没有出现'))
+    await sleep(600)
+    await shot(page, 'f-en-levelup')
+    await ctx.close()
+  }
+
+  // B) 失败 → 结算
+  {
+    const { ctx, page } = await fresh()
+    await page.click('.btn.play')
+    await page.waitForSelector('.screen.deploy')
+    await page.click('.btn.start')
+    await page.waitForSelector('.hud:not([hidden])')
+    await sleep(1500)
+    await page.evaluate(() => {
+      const w = window.__neon.game
+      w.player.invuln = 0
+      w.hurtPlayer(1e6, w.player.x + 1, w.player.y, 'e2e')
+    })
+    await page.waitForSelector('.overlay.results:not([hidden])', { timeout: 12000 }).catch(() => problems.push('[flows/loss] 失败后没有出现结算'))
+    await sleep(1800)
+    const d = await a(page)
+    console.log('  [loss] phase =', d.phase, 'state =', d.state, 'cores =', d.cores)
+    if (d.phase !== 'lost') problems.push(`[flows/loss] 期望 lost，实际 ${d.phase}`)
+    await shot(page, 'f-loss-results')
+    // 再来一局
+    await page.click('.overlay.results .btn.primary')
+    await page.waitForSelector('.hud:not([hidden])', { timeout: 8000 }).catch(() => problems.push('[flows/loss] 再来一局没有进入战斗'))
+    await sleep(800)
+    if ((await a(page)).state !== 'play') problems.push('[flows/loss] 再来一局后不在战斗状态')
+    await ctx.close()
+  }
+
+  // C) 机库购买：扣费、等级、持久化
+  {
+    const { ctx, page } = await fresh()
+    await page.evaluate(() => {
+      const n = window.__neon
+      n.save.cores = 5000
+      n.ctx.persist()
+      n.go('hangar')
+    })
+    await page.waitForSelector('.screen.hangar')
+    await sleep(400)
+    const before = await page.evaluate(() => window.__neon.save.cores)
+    await page.click('.card.meta .btn.buy')
+    await sleep(300)
+    const after = await page.evaluate(() => ({ cores: window.__neon.save.cores, meta: { ...window.__neon.save.meta } }))
+    console.log('  [hangar] cores', before, '→', after.cores, 'meta', JSON.stringify(after.meta))
+    if (!(after.cores < before) || Object.values(after.meta).reduce((s, v) => s + v, 0) !== 1) problems.push('[flows/hangar] 购买没有生效')
+    await page.reload({ waitUntil: 'load' })
+    await waitReady(page)
+    const persisted = await page.evaluate(() => ({ cores: window.__neon.save.cores, meta: { ...window.__neon.save.meta } }))
+    if (persisted.cores !== after.cores) problems.push('[flows/hangar] 刷新后存档没有保留')
+    await shot(page, 'f-hangar-bought')
+    await ctx.close()
+  }
+
+  // D) 暂停 → 放弃本局 → 结算
+  {
+    const { ctx, page } = await fresh()
+    await page.click('.btn.play')
+    await page.waitForSelector('.screen.deploy')
+    await page.click('.btn.start')
+    await page.waitForSelector('.hud:not([hidden])')
+    await sleep(1200)
+    await page.keyboard.press('Escape')
+    await page.waitForSelector('.overlay.pause:not([hidden])')
+    const t1 = (await a(page)).time
+    await sleep(900)
+    const t2 = (await a(page)).time
+    if (Math.abs(t2 - t1) > 0.05) problems.push(`[flows/pause] 暂停期间时间仍在走 (${t1} → ${t2})`)
+    await page.click('.btn.danger-ghost')
+    await page.click('.overlay.pause .btn.danger')
+    await page.waitForSelector('.overlay.results:not([hidden])', { timeout: 12000 }).catch(() => problems.push('[flows/abandon] 放弃后没有出现结算'))
+    await ctx.close()
+  }
+
+  // E) 手柄：菜单确认 → 出击 → 摇杆移动 → 冲刺 → Start 暂停
+  {
+    const { ctx, page } = await fresh('/', { pad: true })
+    const press = async (i, ms = 140) => {
+      await page.evaluate((i) => (window.__pad.buttons[i].pressed = true), i)
+      await sleep(ms)
+      await page.evaluate((i) => (window.__pad.buttons[i].pressed = false), i)
+      await sleep(120)
+    }
+    await page.evaluate(() => (window.__padOn = true))
+    await press(0) // A：菜单上的"出击"
+    await page.waitForSelector('.screen.deploy', { timeout: 5000 }).catch(() => problems.push('[flows/pad] 手柄 A 没能进入出击准备'))
+    await sleep(500)
+    await press(0) // A：开始出击
+    await page.waitForSelector('.hud:not([hidden])', { timeout: 5000 }).catch(() => problems.push('[flows/pad] 手柄 A 没能开始战斗'))
+    await sleep(800)
+    const x0 = await page.evaluate(() => window.__neon.game.player.x)
+    await page.evaluate(() => (window.__pad.axes[0] = 1))
+    await sleep(1200)
+    await page.evaluate(() => (window.__pad.axes[0] = 0))
+    const x1 = await page.evaluate(() => window.__neon.game.player.x)
+    console.log('  [pad] 摇杆右推 1.2s：x', Math.round(x0), '→', Math.round(x1))
+    if (!(x1 - x0 > 80)) problems.push('[flows/pad] 摇杆没有驱动飞船移动')
+    const dashes0 = await page.evaluate(() => window.__neon.game.stats.dashes)
+    await press(5)
+    const dashes1 = await page.evaluate(() => window.__neon.game.stats.dashes)
+    if (!(dashes1 > dashes0)) problems.push('[flows/pad] 手柄冲刺没有触发')
+    await press(9) // Start：暂停
+    await page.waitForSelector('.overlay.pause:not([hidden])', { timeout: 3000 }).catch(() => problems.push('[flows/pad] Start 没有暂停'))
+    await ctx.close()
+  }
+
+  await browser.close()
+}
+
 async function smoke(base) {
   const browser = await launch()
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } })
@@ -458,6 +615,7 @@ try {
   else if (mode === 'perf') await perf(base)
   else if (mode === 'live') await live()
   else if (mode === 'pwa') await pwa()
+  else if (mode === 'flows') await flows(base)
   else throw new Error(`未知模式 ${mode}`)
 } finally {
   srv?.server.close()

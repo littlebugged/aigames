@@ -23,7 +23,8 @@ export function createMenu(ctx: UiCtx): Screen {
       'header',
       { class: 'logo' },
       h('div', { class: 'logo-en', role: 'img', 'aria-label': t('app.titleEn') }, h('span', { class: 'l1' }, 'NEON'), h('span', { class: 'l2' }, 'SURGE')),
-      h('div', { class: 'logo-zh' }, t('app.title')),
+      // 英文界面里中文名和 logo 是同一个词，不重复显示
+      t('app.title') === t('app.titleEn') ? null : h('div', { class: 'logo-zh' }, t('app.title')),
       h('p', { class: 'tagline' }, t('app.tagline')),
     )
 
