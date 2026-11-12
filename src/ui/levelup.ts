@@ -1,5 +1,5 @@
 import { PASSIVES, formatPassiveValue } from '../data/passives'
-import { WEAPON_IDS, WEAPON_MAX_LEVEL, type PassiveId, type WeaponId } from '../data/ids'
+import { MAX_PASSIVES, MAX_WEAPONS, WEAPON_IDS, WEAPON_MAX_LEVEL, type PassiveId, type WeaponId } from '../data/ids'
 import { WEAPONS, type WStats } from '../data/weapons'
 import type { Offer } from '../game/offers'
 import { resolveWeaponStats } from '../game/stats'
@@ -35,11 +35,36 @@ function fmtStat(key: keyof WStats, v: number): string {
 /** 数值越小越好的项 */
 const LOWER_BETTER: Partial<Record<keyof WStats, true>> = { cooldown: true, tick: true }
 
+/**
+ * 卡面上的"等级行"：Lv.7 → Lv.8 + 等级点（已有的点 + 本次新增的高亮点）。
+ * 升到顶时额外标出"升至满级"，避免把"升级后满格"误读成"已经满级"。
+ */
+function levelLine(from: number, to: number, max: number, color: string): HTMLElement {
+  return h(
+    'div',
+    { class: 'lv-line' },
+    h('span', null, from > 0 ? `${t('lv.toLevel', { n: from })} → ` : '', h('b', null, t('lv.toLevel', { n: to }))),
+    pips(to, max, color, from),
+    to >= max ? h('span', { class: 'lv-maxtag' }, t('lv.toMax')) : null,
+  )
+}
+
+/** 当前构筑的一个小图标（等级角标；满级金边；进化 ★；空位虚线框） */
+function chip(icon: string | null, color: string, label: string, kind: '' | 'maxed' | 'evolved' | 'empty', title = ''): HTMLElement {
+  return h(
+    'div',
+    { class: `lv-chip ${kind}`, style: { '--c': color }, title: title || null },
+    icon ? svgEl(icon) : null,
+    label ? h('em', null, label) : null,
+  )
+}
+
 /** 升级 / 补给箱的选卡面板 */
 export class LevelUpOverlay {
   readonly el: HTMLElement
   private readonly title = h('h2', { class: 'lv-title' })
   private readonly cardsEl = h('div', { class: 'lv-cards' })
+  private readonly buildEl = h('div', { class: 'lv-build' })
   private readonly tools = h('div', { class: 'lv-tools' })
   private readonly banishHint = h('p', { class: 'lv-banish-hint', hidden: true }, t('lv.banishHint'))
   private world: World | null = null
@@ -52,7 +77,7 @@ export class LevelUpOverlay {
     private readonly ctx: UiCtx,
     private readonly cb: { choose(i: number): void; reroll(): boolean; banish(i: number): boolean },
   ) {
-    this.el = h('div', { class: 'overlay levelup', hidden: true, role: 'dialog', 'aria-modal': 'true' }, h('div', { class: 'lv-wrap' }, this.title, this.cardsEl, this.banishHint, this.tools))
+    this.el = h('div', { class: 'overlay levelup', hidden: true, role: 'dialog', 'aria-modal': 'true' }, h('div', { class: 'lv-wrap' }, this.title, this.cardsEl, this.buildEl, this.banishHint, this.tools))
   }
 
   show(w: World): void {
@@ -176,6 +201,7 @@ export class LevelUpOverlay {
       else c.classList.add('static')
       this.cardsEl.appendChild(c)
     })
+    this.renderBuild(w)
     clear(this.tools)
     const showTools = w.rerolls > 0 || w.banishes > 0 || this.banishMode
     if (showTools) {
@@ -199,6 +225,40 @@ export class LevelUpOverlay {
     queueMicrotask(() => this.cardsEl.querySelectorAll<HTMLElement>('.lv-card')[this.focusIdx]?.focus({ preventScroll: true }))
   }
 
+  /** 卡片下方的"当前构筑"：让玩家看到栏位上限（6/6）、哪些已经满级——满级的不会再出现在候选里 */
+  private renderBuild(w: World): void {
+    const p = w.player
+    clear(this.buildEl)
+
+    const weaponChips = p.weapons.map((wi) => {
+      const name = t(dyn(wi.evolved ? `weapon.${wi.id}.evoName` : `weapon.${wi.id}.name`))
+      if (wi.evolved) return chip(weaponIcon(wi.id), '#ffd84a', '★', 'evolved', `${name} ★`)
+      const maxed = wi.level >= WEAPON_MAX_LEVEL
+      return chip(weaponIcon(wi.id), WEAPONS[wi.id].color, maxed ? 'MAX' : String(wi.level), maxed ? 'maxed' : '', `${name} Lv.${wi.level}`)
+    })
+    for (let i = p.weapons.length; i < MAX_WEAPONS; i++) weaponChips.push(chip(null, '#8aa0d0', '', 'empty'))
+
+    const gear = (Object.entries(p.passives) as [PassiveId, number][]).filter(([, lv]) => lv > 0)
+    const gearChips = gear.map(([id, lv]) => {
+      const def = PASSIVES[id]
+      const maxed = lv >= def.maxLevel
+      return chip(passiveIcon(id), def.color, maxed ? 'MAX' : String(lv), maxed ? 'maxed' : '', `${t(dyn(`passive.${id}.name`))} Lv.${lv}`)
+    })
+    for (let i = gear.length; i < MAX_PASSIVES; i++) gearChips.push(chip(null, '#8aa0d0', '', 'empty'))
+
+    const group = (label: string, n: number, cap: number, chips: HTMLElement[]): HTMLElement =>
+      h(
+        'div',
+        { class: `lv-grp ${n >= cap ? 'full' : ''}` },
+        h('div', { class: 'lv-grp-h' }, h('span', null, label), h('b', null, `${n}/${cap}`), n >= cap ? h('i', null, t('lv.slotFull')) : null),
+        h('div', { class: 'lv-chips' }, ...chips),
+      )
+    this.buildEl.append(
+      group(t('hud.weapons'), p.weapons.length, MAX_WEAPONS, weaponChips),
+      group(t('hud.passives'), gear.length, MAX_PASSIVES, gearChips),
+    )
+  }
+
   private card(w: World, o: Offer, i: number): HTMLElement {
     const p = w.player
     let badge = ''
@@ -207,7 +267,7 @@ export class LevelUpOverlay {
     let icon = ''
     let color = '#3df2ff'
     let desc = ''
-    let levelLine: HTMLElement | null = null
+    let line: HTMLElement | null = null
     let rows: HTMLElement[] = []
     let hint: HTMLElement | null = null
     let kind = 'weapon'
@@ -227,14 +287,14 @@ export class LevelUpOverlay {
         color = '#ffd84a'
         const fromStats = resolveWeaponStats(o.id, o.to, false, p.st)
         rows = this.diffRows(o.id, fromStats, toStats, true)
-        levelLine = h('div', { class: 'lv-line' }, h('span', { class: 'star' }, '★ MAX'))
+        line = h('div', { class: 'lv-line' }, h('span', { class: 'star' }, t('lv.evoLine')))
       } else if (o.isNew) {
         badge = t('lv.new')
         badgeCls = 'new'
         name = t(dyn(`weapon.${o.id}.name`))
         desc = t(dyn(`weapon.${o.id}.desc`))
         rows = this.diffRows(o.id, null, toStats, false)
-        levelLine = h('div', { class: 'lv-line' }, h('span', null, t('lv.toLevel', { n: 1 })), pips(1, WEAPON_MAX_LEVEL, color))
+        line = levelLine(0, 1, WEAPON_MAX_LEVEL, color)
       } else {
         badge = t('lv.upgrade')
         badgeCls = 'up'
@@ -242,12 +302,7 @@ export class LevelUpOverlay {
         desc = t(dyn(`weapon.${o.id}.desc`))
         const fromStats = resolveWeaponStats(o.id, o.to - 1, false, p.st)
         rows = this.diffRows(o.id, fromStats, toStats, false)
-        levelLine = h(
-          'div',
-          { class: 'lv-line' },
-          h('span', null, `${t('lv.toLevel', { n: o.to - 1 })} → `, h('b', null, t('lv.toLevel', { n: o.to }))),
-          pips(o.to, WEAPON_MAX_LEVEL, color),
-        )
+        line = levelLine(o.to - 1, o.to, WEAPON_MAX_LEVEL, color)
       }
       if (!o.evolve) {
         const partner = def.evolvesWith
@@ -279,7 +334,7 @@ export class LevelUpOverlay {
           h('b', null, prev > 0 ? h('s', null, formatPassiveValue(def, prev)) : null, prev > 0 ? ' → ' : '', h('em', { class: 'up' }, formatPassiveValue(def, o.to))),
         ),
       ]
-      levelLine = h('div', { class: 'lv-line' }, h('span', null, t('lv.level', { n: o.to })), pips(o.to, def.maxLevel, color))
+      line = levelLine(o.to - 1, o.to, def.maxLevel, color)
       const partners = WEAPON_IDS.filter((wid) => WEAPONS[wid].evolvesWith === o.id)
       const owned = partners.find((wid) => p.weapons.some((x) => x.id === wid && !x.evolved))
       const shown = owned ?? partners[0]
@@ -329,7 +384,7 @@ export class LevelUpOverlay {
       h('span', { class: `lv-badge ${badgeCls}` }, badge),
       h('div', { class: 'lv-ico' }, svgEl(icon)),
       h('h3', null, name),
-      levelLine,
+      line,
       h('p', { class: 'lv-desc' }, desc),
       rows.length > 0 ? h('div', { class: 'lv-rows' }, ...rows) : null,
       hint,

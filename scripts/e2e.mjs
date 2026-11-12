@@ -523,6 +523,92 @@ async function flows(base) {
     await ctx.close()
   }
 
+  // F) 升级卡片：等级点区分"已有 / 本次新增"，升到顶标"升至满级"，卡片下方显示栏位（x/6）和满级标记
+  {
+    const { ctx, page } = await fresh()
+    await page.click('.btn.play')
+    await page.waitForSelector('.screen.deploy')
+    await page.click('.btn.start')
+    await page.waitForSelector('.hud:not([hidden])')
+    await sleep(500)
+    const trigger = (fill) =>
+      page.evaluate((fill) => {
+        const n = window.__neon
+        const w = n.game
+        const P = w.player
+        const Inst = P.weapons[0].constructor
+        if (fill) {
+          const have = new Set(P.weapons.map((x) => x.id))
+          for (const id of ['pulse', 'orbit', 'arc', 'missile', 'laser', 'mine', 'nova', 'drone']) {
+            if (P.weapons.length >= 6) break
+            if (!have.has(id)) P.weapons.push(new Inst(id, P.weapons.length))
+          }
+        } else {
+          n.godMode = true
+          n.autoPilot = false
+          P.weapons[0].level = 7
+          for (const [i, [id, lv]] of [['orbit', 8], ['arc', 3]].entries()) {
+            const x = new Inst(id, i + 1)
+            x.level = lv
+            P.weapons.push(x)
+          }
+          P.passives.power = 4
+          P.passives.haste = 5
+        }
+        w.recalc()
+        P.xp = P.xpNext
+        w.addXp(0)
+      }, fill)
+    await trigger(false)
+    await page.waitForSelector('.overlay.levelup:not([hidden])', { timeout: 8000 }).catch(() => problems.push('[flows/cards] 升级面板没有出现'))
+    await sleep(500)
+    // 手工摆出最容易被误读的卡：武器 7→8、被动 4→5、普通升级
+    await page.evaluate(() => {
+      const n = window.__neon
+      n.game.offers = [
+        { kind: 'weapon', id: 'pulse', to: 8, isNew: false, evolve: false },
+        { kind: 'passive', id: 'power', to: 5, isNew: false },
+        { kind: 'weapon', id: 'arc', to: 4, isNew: false, evolve: false },
+      ]
+      n.levelup.refresh()
+    })
+    await sleep(500)
+    const probe = () =>
+      page.evaluate(() => {
+        const q = (sel, root = document) => Array.from(root.querySelectorAll(sel))
+        const cards = q('.lv-card')
+        return {
+          gain: cards.map((c) => q('.pips i.gain', c).length),
+          maxtag: cards.map((c) => q('.lv-maxtag', c).length),
+          groups: q('.lv-grp-h').map((e) => (e.textContent ?? '').replace(/\s+/g, ' ').trim()),
+          maxedChips: q('.lv-chip.maxed').length,
+          emptyChips: q('.lv-chip.empty').length,
+          fullGroups: q('.lv-grp.full').length,
+          kinds: window.__neon.game.offers.map((o) => (o.kind === 'weapon' ? (o.evolve ? 'evolve' : o.isNew ? 'new-weapon' : 'weapon-up') : o.kind)),
+        }
+      })
+    const r1 = await probe()
+    console.log('  [cards]', JSON.stringify(r1))
+    if (r1.gain.join() !== '1,1,1') problems.push(`[flows/cards] 每张升级卡应恰好有 1 个"新增"等级点，实际 ${r1.gain}`)
+    if (r1.maxtag.join() !== '1,1,0') problems.push(`[flows/cards] 只有升到顶的卡才标"升至满级"，实际 ${r1.maxtag}`)
+    if (!r1.groups[0]?.includes('3/6') || !r1.groups[1]?.includes('2/6')) problems.push(`[flows/cards] 栏位计数不对：${r1.groups}`)
+    if (r1.maxedChips !== 2) problems.push(`[flows/cards] 满级图标应为 2 个，实际 ${r1.maxedChips}`)
+    if (r1.emptyChips !== 3 + 4) problems.push(`[flows/cards] 空位应为 7 个，实际 ${r1.emptyChips}`)
+    await shot(page, 'f-levelup-cards')
+    await page.click('.lv-card:nth-child(3)')
+    await page.waitForSelector('.overlay.levelup', { state: 'hidden', timeout: 5000 }).catch(() => problems.push('[flows/cards] 选卡后面板没有关闭'))
+    // 武器栏占满 → 显示"已满"，且真实生成的候选里不会再有新武器
+    await trigger(true)
+    await page.waitForSelector('.overlay.levelup:not([hidden])', { timeout: 8000 }).catch(() => problems.push('[flows/cards] 第二次升级面板没有出现'))
+    await sleep(500)
+    const r2 = await probe()
+    console.log('  [cards/full]', JSON.stringify({ groups: r2.groups, kinds: r2.kinds }))
+    if (r2.fullGroups < 1 || !r2.groups[0]?.includes('6/6')) problems.push(`[flows/cards] 武器栏已满时没有标出：${r2.groups}`)
+    if (r2.kinds.includes('new-weapon')) problems.push('[flows/cards] 武器栏已满，却仍给出新武器')
+    await shot(page, 'f-levelup-full')
+    await ctx.close()
+  }
+
   await browser.close()
 }
 

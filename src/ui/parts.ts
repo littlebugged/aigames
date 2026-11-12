@@ -33,11 +33,16 @@ export function statBar(label: string, v: number, color: string, valueText?: str
   )
 }
 
-/** 等级小点 */
-export function pips(level: number, max: number, color?: string): HTMLElement {
+/**
+ * 等级小点。
+ * 传入 `from`（升级前的等级）时，[from, level) 之间的点会标成"本次新增"（高亮闪烁），
+ * 这样升级卡上 7→8 不会被误读成"已经满了"。
+ */
+export function pips(level: number, max: number, color?: string, from?: number): HTMLElement {
   const wrap = h('span', { class: 'pips' })
   for (let i = 0; i < max; i++) {
-    const p = h('i', { class: i < level ? 'on' : '' })
+    const gained = from !== undefined && i >= from && i < level
+    const p = h('i', { class: i < level ? (gained ? 'on gain' : 'on') : '' })
     if (i < level && color) p.style.background = color
     wrap.appendChild(p)
   }

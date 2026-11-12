@@ -14,7 +14,7 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { ACHIEVEMENTS } from '../src/data/achievements'
 import { ENEMIES } from '../src/data/enemies'
-import { BOSS_IDS, ENEMY_IDS, META_IDS, PASSIVE_IDS, SECTOR_IDS, SHIP_IDS, WEAPON_IDS, WEAPON_MAX_LEVEL } from '../src/data/ids'
+import { BOSS_IDS, ENEMY_IDS, MAX_PASSIVES, MAX_WEAPONS, META_IDS, PASSIVE_IDS, SECTOR_IDS, SHIP_IDS, WEAPON_IDS, WEAPON_MAX_LEVEL } from '../src/data/ids'
 import { METAS, formatMetaValue, metaCost } from '../src/data/meta'
 import { PASSIVES, formatPassiveValue } from '../src/data/passives'
 import { SECTORS, THREAT_LEVELS } from '../src/data/sectors'
@@ -25,6 +25,8 @@ import { enemyIcon, passiveIcon, shipIcon, uiIcon, weaponIcon } from '../src/ui/
 import { PAGE_KEYS, SITE_URL, pageFile, pagePath, type PageKey, type SiteLang } from './site'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+/** 被动道具的最高等级（个别道具更低，以表格里的“最高等级”为准） */
+const PASSIVE_TOP_LEVEL = Math.max(...PASSIVE_IDS.map((id) => PASSIVES[id].maxLevel))
 const YEAR = new Date().getFullYear()
 const TODAY = new Date().toISOString().slice(0, 10)
 
@@ -67,6 +69,7 @@ interface Copy {
     toc: string
     sections: Record<'weapons' | 'passives' | 'enemies' | 'bosses' | 'ships' | 'sectors' | 'meta' | 'threat' | 'ach' | 'evo', string>
     evoText: string
+    capsText: string
     col: Record<string, string>
     bossTips: Record<string, string>
     threatText: string
@@ -126,6 +129,7 @@ const ZH: Copy = {
       { q: '手机上能玩吗？', a: '可以。游戏针对触屏做了浮动摇杆和冲刺按钮，建议横屏体验更好。iPhone 的 Safari 不支持网页全屏，可以把网页「添加到主屏幕」获得更接近全屏的体验。' },
       { q: '存档保存在哪里？换设备怎么办？', a: '存档保存在你浏览器的本地存储里，不会上传到任何服务器。清除浏览器数据会丢失存档。需要换设备时，在「设置 → 导出存档」复制存档文本，到另一台设备的「设置 → 导入存档」粘贴即可。' },
       { q: '武器怎么进化？', a: '把一把武器升到满级（8 级），同时持有它对应的搭档被动道具（任意等级即可），下一次升级或打开补给箱时就会出现进化选项。完整的搭档对照表见游戏指南。' },
+      { q: '武器和被动道具有数量、等级上限吗？', a: `有。一局最多同时携带 ${MAX_WEAPONS} 把武器和 ${MAX_PASSIVES} 件被动道具；武器最高 ${WEAPON_MAX_LEVEL} 级，被动道具最高 ${PASSIVE_TOP_LEVEL} 级。已经满级的不会再出现在升级选项里，栏位占满后也不会再出现新的武器或道具。升级界面下方会显示当前栏位（如 6/6）和各自的等级，满级的标有 MAX。` },
       { q: '游戏有点卡怎么办？', a: '默认开启了自动画质：帧率持续偏低时会自动降低特效。你也可以在「设置 → 画质」里手动改成「中」或「低」，并关闭屏幕震动和伤害数字。' },
       { q: '为什么切到别的标签页游戏会暂停？', a: '为了不让你在看不见画面时被打败，战斗中切走标签页或窗口失去焦点时，游戏会自动暂停。回来后点「继续」即可。' },
       { q: '有没有无尽模式？', a: '有。在某个星区至少通关一次后，出击界面会解锁「无尽模式」开关：击败 Boss 后战斗不会结束，敌人会持续变强，看你能撑多久。' },
@@ -152,6 +156,7 @@ const ZH: Copy = {
       ach: '成就',
     },
     evoText: `任意一把武器升到 ${WEAPON_MAX_LEVEL} 级，并持有表中对应的搭档被动道具（1 级即可），下一次升级或开补给箱时就会出现进化选项。进化后的武器会替换原武器，威力和外观都有明显变化。`,
+    capsText: `一局最多同时携带 ${MAX_WEAPONS} 把武器和 ${MAX_PASSIVES} 件被动道具。武器最高 ${WEAPON_MAX_LEVEL} 级，被动道具最高 ${PASSIVE_TOP_LEVEL} 级（个别道具上限更低，见下表）。已经满级的不会再出现在升级选项里；栏位占满后也不再出现新的武器或道具，选项会变成已有物品的升级、进化，以及回血和晶核补给。`,
     col: {
       name: '名称',
       desc: '说明',
@@ -281,6 +286,7 @@ const EN: Copy = {
       { q: 'Can I play on mobile?', a: 'Yes. The game has a floating joystick and a dash button for touch screens; landscape orientation feels best. iPhone Safari does not support web fullscreen, but you can “Add to Home Screen” for a near-fullscreen experience.' },
       { q: 'Where is my save stored? What about switching devices?', a: 'Your save lives in your browser’s local storage and is never uploaded. Clearing browser data deletes it. To move to another device, use Settings → Export save, then paste the text into Settings → Import save on the other device.' },
       { q: 'How do I evolve a weapon?', a: 'Level a weapon to the maximum (level 8) while owning its partner passive (any level). The evolution is then offered at your next level-up or supply chest. The full partner table is in the guide.' },
+      { q: 'Is there a limit on weapons, passives and their levels?', a: `Yes. You can carry at most ${MAX_WEAPONS} weapons and ${MAX_PASSIVES} passives per run; weapons top out at level ${WEAPON_MAX_LEVEL} and passives at level ${PASSIVE_TOP_LEVEL}. Maxed items are never offered again, and once the slots are full no new weapons or passives show up. The level-up screen shows your current slots (e.g. 6/6) and each item's level, with maxed ones marked MAX.` },
       { q: 'The game feels laggy — what can I do?', a: 'Adaptive quality is on by default and lowers effects when the frame rate stays low. You can also set Settings → Quality to Medium or Low and turn off screen shake and damage numbers.' },
       { q: 'Why does the game pause when I switch tabs?', a: 'So that you are never defeated while the game is out of sight, the game pauses automatically when the tab is hidden or the window loses focus. Just press Resume when you return.' },
       { q: 'Is there an endless mode?', a: 'Yes. After clearing a sector once, an Endless Mode toggle unlocks on the deploy screen: the run continues after the boss falls and enemies keep growing stronger — see how long you can last.' },
@@ -307,6 +313,7 @@ const EN: Copy = {
       ach: 'Achievements',
     },
     evoText: `Level any weapon to ${WEAPON_MAX_LEVEL} and own the partner passive listed in the table (level 1 is enough). The evolution is then offered at your next level-up or supply chest. The evolved weapon replaces the original with a clear boost in power and visuals.`,
+    capsText: `You can carry at most ${MAX_WEAPONS} weapons and ${MAX_PASSIVES} passives at once. Weapons top out at level ${WEAPON_MAX_LEVEL}; passives at level ${PASSIVE_TOP_LEVEL} (a few have a lower cap — see the table below). Maxed items are never offered again, and once a slot group is full no new weapons or passives are offered either — your choices become upgrades or evolutions of what you already own, plus repair and core supplies.`,
     col: {
       name: 'Name',
       desc: 'Description',
@@ -657,6 +664,7 @@ function guidePage(l: SiteLang): string {
 
 <h2 id="evo">${esc(g.sections.evo)}</h2>
 <p>${esc(g.evoText)}</p>
+<p>${esc(g.capsText)}</p>
 ${table([col.name, col.partner, col.evo], evoRows)}
 
 <h2 id="weapons">${esc(g.sections.weapons)}</h2>

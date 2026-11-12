@@ -1,6 +1,6 @@
 import { PASSIVES } from '../data/passives'
 import { WEAPONS } from '../data/weapons'
-import { WEAPON_MAX_LEVEL } from '../data/ids'
+import { MAX_PASSIVES, MAX_WEAPONS, WEAPON_MAX_LEVEL } from '../data/ids'
 import type { World } from '../game/world'
 import { dyn, fmtInt, fmtTime, t } from '../i18n'
 import type { UiCtx } from './ctx'
@@ -70,7 +70,7 @@ export class PauseOverlay {
         { class: `bi ${wi.evolved ? 'evolved' : ''}`, style: { '--c': c } },
         svgEl(weaponIcon(wi.id)),
         h('div', { class: 'bi-main' }, h('b', null, t(dyn(wi.evolved ? `weapon.${wi.id}.evoName` : `weapon.${wi.id}.name`))), pips(wi.evolved ? WEAPON_MAX_LEVEL : wi.level, WEAPON_MAX_LEVEL, c)),
-        h('em', null, wi.evolved ? '★' : `Lv.${wi.level}`),
+        h('em', { class: wi.evolved || wi.level >= WEAPON_MAX_LEVEL ? 'max' : '' }, wi.evolved ? '★' : wi.level >= WEAPON_MAX_LEVEL ? 'MAX' : `Lv.${wi.level}`),
       )
     })
     const passives = Object.entries(p.passives)
@@ -82,7 +82,7 @@ export class PauseOverlay {
           { class: 'bi', style: { '--c': def.color } },
           svgEl(passiveIcon(id as keyof typeof PASSIVES)),
           h('div', { class: 'bi-main' }, h('b', null, t(dyn(`passive.${id}.name`))), pips(lv ?? 0, def.maxLevel, def.color)),
-          h('em', null, `Lv.${lv}`),
+          h('em', { class: (lv ?? 0) >= def.maxLevel ? 'max' : '' }, (lv ?? 0) >= def.maxLevel ? 'MAX' : `Lv.${lv}`),
         )
       })
 
@@ -95,7 +95,12 @@ export class PauseOverlay {
         h('div', null, h('span', { class: 'lvtag' }, t('hud.level', { n: p.level }))),
       ),
       h('h3', null, t('pause.build')),
-      h('div', { class: 'build' }, h('div', { class: 'bcol' }, h('h4', null, t('hud.weapons')), ...weapons), passives.length > 0 ? h('div', { class: 'bcol' }, h('h4', null, t('hud.passives')), ...passives) : null),
+      h(
+        'div',
+        { class: 'build' },
+        h('div', { class: 'bcol' }, h('h4', null, `${t('hud.weapons')} ${weapons.length}/${MAX_WEAPONS}`), ...weapons),
+        passives.length > 0 ? h('div', { class: 'bcol' }, h('h4', null, `${t('hud.passives')} ${passives.length}/${MAX_PASSIVES}`), ...passives) : null,
+      ),
       this.confirming
         ? h(
             'div',

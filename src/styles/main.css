@@ -402,6 +402,20 @@ kbd {
   box-shadow: 0 0 6px currentColor;
 }
 
+/* 升级卡上"本次新增"的那一格：白描边 + 呼吸，和已经拥有的格子区分开 */
+.pips i.gain {
+  outline: 1px solid rgba(255, 255, 255, 0.92);
+  outline-offset: 1px;
+  box-shadow: 0 0 9px currentColor, 0 0 3px #fff;
+  animation: pipGain 1.1s ease-in-out infinite;
+}
+
+@keyframes pipGain {
+  50% {
+    opacity: 0.6;
+  }
+}
+
 .stat {
   display: grid;
   grid-template-columns: 46px 1fr 40px;
@@ -1890,8 +1904,28 @@ body.touch .kbd-only {
   letter-spacing: 0.12em;
 }
 
+.lv-card .pips {
+  gap: 4px;
+}
+
 .lv-card .pips i.on {
   background: var(--c);
+}
+
+.lv-card .pips i.on:not(.gain) {
+  opacity: 0.72;
+}
+
+.lv-maxtag {
+  padding: 1px 8px;
+  border-radius: 99px;
+  border: 1px solid rgba(255, 216, 74, 0.7);
+  background: rgba(255, 216, 74, 0.1);
+  color: var(--gold);
+  font-weight: 800;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
 }
 
 .lv-desc {
@@ -1977,6 +2011,108 @@ body.touch .kbd-only {
   margin: -6px 0 0;
   color: #ff8da0;
   font-weight: 700;
+}
+
+/* 卡片下方的"当前构筑"：栏位上限 + 各自等级，满级的金边标 MAX */
+.lv-build {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px 34px;
+  padding: 10px 18px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(6, 10, 22, 0.55);
+}
+
+.lv-grp {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.lv-grp-h {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  color: var(--dim);
+}
+
+.lv-grp-h b {
+  font-family: var(--display);
+  font-size: 0.82rem;
+  color: var(--text);
+}
+
+.lv-grp-h i {
+  font-style: normal;
+  font-weight: 800;
+  font-size: 0.64rem;
+  letter-spacing: 0.1em;
+  color: var(--gold);
+}
+
+.lv-grp.full .lv-grp-h b {
+  color: var(--gold);
+}
+
+.lv-chips {
+  display: flex;
+  gap: 5px;
+}
+
+.lv-chip {
+  --c: var(--cyan);
+  position: relative;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  color: var(--c);
+  background: rgba(6, 10, 22, 0.78);
+  border: 1px solid color-mix(in srgb, var(--c) 55%, transparent);
+}
+
+.lv-chip .ico {
+  width: 62%;
+  height: 62%;
+  filter: drop-shadow(0 0 3px currentColor);
+}
+
+.lv-chip em {
+  position: absolute;
+  right: 2px;
+  bottom: 0;
+  font-style: normal;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 0.56rem;
+  color: #fff;
+  text-shadow: 0 1px 2px #000, 0 0 3px #000;
+}
+
+.lv-chip.maxed {
+  border-color: var(--gold);
+  box-shadow: 0 0 8px rgba(255, 216, 74, 0.35);
+}
+
+.lv-chip.evolved {
+  border-color: var(--gold);
+  box-shadow: 0 0 10px rgba(255, 216, 74, 0.55);
+}
+
+.lv-chip.maxed em,
+.lv-chip.evolved em {
+  color: var(--gold);
+}
+
+.lv-chip.empty {
+  background: transparent;
+  border: 1px dashed rgba(160, 180, 220, 0.28);
 }
 
 .overlay.levelup.banishing .lv-card {
@@ -2125,6 +2261,10 @@ body.touch .kbd-only {
   font-size: 0.74rem;
   font-weight: 700;
   color: var(--dim);
+}
+
+.bi em.max {
+  color: var(--gold);
 }
 
 .pause-actions,
@@ -2842,6 +2982,17 @@ input[type='range']:focus-visible {
   .lv-key {
     display: none;
   }
+  .lv-build {
+    gap: 8px 22px;
+    padding: 8px 12px 10px;
+  }
+  .lv-chip {
+    width: 30px;
+    height: 30px;
+  }
+  .lv-chips {
+    gap: 4px;
+  }
   .lv-wrap {
     gap: 12px;
   }
@@ -2918,6 +3069,16 @@ input[type='range']:focus-visible {
   .lv-desc,
   .lv-hint {
     display: none;
+  }
+  /* 矮屏放不下图标，只保留"武器 3/6  装备 2/6"这一行 */
+  .lv-chips {
+    display: none;
+  }
+  .lv-build {
+    padding: 4px 14px;
+    gap: 4px 22px;
+    border: none;
+    background: none;
   }
   .lv-rows {
     font-size: 0.74rem;
@@ -2999,6 +3160,7 @@ input[type='range']:focus-visible {
 body.reduce-flash .btn.play,
 body.reduce-flash .slot.evo-ready,
 body.reduce-flash .lv-card.evolve::after,
+body.reduce-flash .pips i.gain,
 body.reduce-flash .hp.low .hp-bar,
 body.reduce-flash .hp.low .hp-ico,
 body.reduce-flash .boss-eta.soon {

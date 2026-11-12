@@ -228,7 +228,7 @@ export class Hud {
           'div',
           { class: 'slot passive', style: { '--c': def.color }, title: `${t(dyn(`passive.${id}.name`))} Lv.${lv}` },
           svgEl(passiveIcon(id as keyof typeof PASSIVES)),
-          h('em', null, String(lv)),
+          h('em', null, lv >= def.maxLevel ? 'MAX' : String(lv)),
         ),
       )
     }
