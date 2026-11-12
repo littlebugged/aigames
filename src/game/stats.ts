@@ -65,6 +65,7 @@ const COUNTABLE: Partial<Record<WeaponId, true>> = {
   laser: true,
   mine: true,
   drone: true,
+  chakram: true,
 }
 
 /** 武器基础数值 × 玩家加成 = 战斗里实际用的数值 */

@@ -5,7 +5,7 @@
 ## 1. 发布流程
 
 ```bash
-npm test                      # 33 项测试
+npm test                      # 51 项测试
 npm run build                 # 生成页面 → tsc（应用与脚本两套配置）→ vite build
 node scripts/e2e.mjs smoke    # 无头浏览器冒烟（含音频电平断言）
 node scripts/e2e.mjs mobile   # 改动了界面/触屏时再跑
@@ -47,7 +47,7 @@ node scripts/e2e.mjs live                           # 线上冒烟 + 关键 URL 
 1. 在 `src/data/ids.ts` 登记新 id → TypeScript 会提示所有需要补齐的地方（数据、图标、词典…）。
 2. 补齐 `src/data/*`、`src/i18n/zh.ts` 与 `en.ts`（`tests/i18n.test.ts` 会拦住漏翻或占位符不一致）。
 3. 需要新行为时改 `src/game/*`（武器/敌人/Boss/升级逻辑），需要新画面时改 `src/render/*`。
-4. `npm test`（数据约束 + 确定性 + 稳定性）→ `npm run sim -- --all`（看机器人存活、击杀、进化、Boss 耗时有没有失衡）。
+4. `npm test`（数据约束 + 确定性 + 稳定性）→ `npm run sim -- --all`（看机器人存活、击杀、进化、Boss 耗时有没有失衡）；新武器 / 改武器数值表时再跑 `npm run bench`，与同档位的老武器对照强度。
 5. `npm run build`：游戏指南页会自动带上新内容，无需手改文档。
 6. 无头截图确认：`node scripts/e2e.mjs play --sector void --ff 400 --wait 4 --name check`，看 `.e2e/check.png`。
 

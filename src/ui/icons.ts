@@ -18,6 +18,8 @@ export const WEAPON_ICON: Record<WeaponId, string> = {
   mine: '<circle cx="12" cy="12" r="5"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="1.3"/>',
   nova: '<circle cx="12" cy="12" r="2"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="10" opacity=".6"/>',
   drone: '<path d="M12 5l5 12-5-3-5 3z"/><circle cx="12" cy="12" r="9" stroke-dasharray="2 4"/>',
+  chakram: '<path d="M12 2.5l2.3 7.2L21.5 12l-7.2 2.3L12 21.5l-2.3-7.2L2.5 12l7.2-2.3z"/><circle cx="12" cy="12" r="1.7"/>',
+  rail: '<path d="M2 7.5h20M2 16.5h20"/><path d="M5 12h13M15 8.8l3.4 3.2-3.4 3.2"/>',
 }
 
 export const PASSIVE_ICON: Record<PassiveId, string> = {

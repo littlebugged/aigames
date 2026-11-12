@@ -226,6 +226,19 @@ export class Renderer {
     switch (e.t) {
       case 'shot':
         if (e.w === 'pulse') P.sparkCone(e.x + Math.cos(e.a) * 12, e.y + Math.sin(e.a) * 12, e.a, 0.5, '#3df2ff', 2, 140, 0.16)
+        else if (e.w === 'chakram') P.sparkCone(e.x, e.y, e.a, 0.9, '#ff7ae0', 4, 170, 0.22)
+        else if (e.w === 'rail') {
+          // 磁轨炮：炮口闪光 + 沿光轨洒一串火花 + 一点后坐力震屏
+          const ca = Math.cos(e.a)
+          const sa = Math.sin(e.a)
+          P.sparkCone(e.x, e.y, e.a, 0.4, '#ff8aa0', 9, 420, 0.3)
+          P.ring(e.x, e.y, 4, 44, '#ff4d6d', 0.26, 3)
+          for (let k = 0; k < 9; k++) {
+            const d = 70 + k * 85
+            P.spark(e.x + ca * d, e.y + sa * d, '#ffb3c1', 2, 110, 0.4, 1.6)
+          }
+          this.cam.addTrauma(0.14)
+        }
         break
       case 'hit': {
         P.spark(e.x, e.y, e.crit ? '#ffe66b' : lighten(e.color, 0.3), e.crit ? 6 : 3, e.crit ? 260 : 150, 0.28, e.crit ? 2.2 : 1.6)
@@ -843,8 +856,13 @@ export class Renderer {
       if (!this.inView(bm.ox, bm.oy, bm.len + 40)) continue
       const age = bm.maxLife - bm.life
       const life = bm.maxLife > 0 ? clamp01(bm.life / bm.maxLife) : 1
-      const env = bm.warn > 0 ? 0.25 : Math.min(1, age / 0.07 + 0.2) * Math.min(1, life / 0.35)
-      const width = bm.width * (0.3 + 0.7 * env)
+      // 重炮光轨：出膛瞬间最亮、最粗，随后快速收细熄灭
+      const env = bm.punch
+        ? Math.pow(life, 1.4)
+        : bm.warn > 0
+          ? 0.25
+          : Math.min(1, age / 0.07 + 0.2) * Math.min(1, life / 0.35)
+      const width = bm.punch ? bm.width * (0.3 + 0.7 * Math.sqrt(life)) : bm.width * (0.3 + 0.7 * env)
       const flick = 0.92 + 0.08 * Math.sin(this.vt * 70 + bm.ang * 9)
       ctx.save()
       ctx.translate(bm.ox, bm.oy)
@@ -1038,6 +1056,39 @@ export class Renderer {
             ctx.stroke()
           }
           ctx.globalCompositeOperation = 'source-over'
+        }
+      } else if (wi.id === 'chakram') {
+        const col = wi.evolved ? '#ffd2f6' : '#ff7ae0'
+        const spr = bank.chakram(col)
+        const gl = bank.glow(col)
+        const p = w.player
+        for (const pt of wi.pts) {
+          // 运动方向：去程是掷出的方向，回程是朝机身
+          let dx = pt.vx
+          let dy = pt.vy
+          if (pt.ph === 1) {
+            dx = p.x - pt.x
+            dy = p.y - pt.y
+            const dl = Math.hypot(dx, dy) || 1
+            dx /= dl
+            dy /= dl
+          }
+          // 拖影：沿来路留三个渐淡的光点
+          ctx.globalCompositeOperation = 'lighter'
+          for (let k = 1; k <= 3; k++) {
+            const gs = pt.r * (3.4 - k * 0.5)
+            ctx.globalAlpha = 0.34 / k
+            ctx.drawImage(gl.c, pt.x - dx * k * 11 - gs / 2, pt.y - dy * k * 11 - gs / 2, gs, gs)
+          }
+          ctx.globalAlpha = 1
+          ctx.globalCompositeOperation = 'source-over'
+          const sc = (pt.r * 1.3) / 14
+          ctx.save()
+          ctx.translate(pt.x, pt.y)
+          ctx.rotate(pt.a)
+          ctx.scale(sc, sc)
+          ctx.drawImage(spr.c, -spr.w / 2, -spr.h / 2, spr.w, spr.h)
+          ctx.restore()
         }
       } else if (wi.id === 'drone') {
         const spr = bank.drone(wi.evolved ? '#c8ffe0' : '#7dffb0')

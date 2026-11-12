@@ -238,6 +238,8 @@ export const en: Record<Key, string> = {
   'stat.laser.area': 'Beam width',
   'stat.nova.area': 'Shock radius',
   'stat.arc.chain': 'Chain jumps',
+  'stat.chakram.range': 'Flight distance',
+  'stat.rail.area': 'Rail width',
   'stat.unit.s': 's',
 
   // ───── Weapons ─────
@@ -273,6 +275,14 @@ export const en: Record<Key, string> = {
   'weapon.drone.desc': 'Little helpers that circle you and fire on their own.',
   'weapon.drone.evoName': 'Drone Legion',
   'weapon.drone.evoDesc': 'Six fast wingmen whose shots pierce through enemies.',
+  'weapon.chakram.name': 'Boomerang Chakram',
+  'weapon.chakram.desc': 'Hurls spinning discs at enemies. They fly out, turn around and come back to you, piercing everything both ways.',
+  'weapon.chakram.evoName': 'Storm Chakram',
+  'weapon.chakram.evoDesc': 'Four huge discs that also burst into a shockwave at the turnaround point.',
+  'weapon.rail.name': 'Railgun',
+  'weapon.rail.desc': 'Fires an instant armor-piercing rail across the whole screen at the toughest enemy. Bosses first, impossible to dodge.',
+  'weapon.rail.evoName': 'Overcharged Rail',
+  'weapon.rail.evoDesc': 'Three overcharged rails, each leaving a burning plasma scar behind.',
 
   // ───── Passives ─────
   'passive.power.name': 'Overload Core',
@@ -298,7 +308,7 @@ export const en: Record<Key, string> = {
   'passive.accel.name': 'Accelerator Coil',
   'passive.accel.desc': 'Projectiles fly faster; missiles and lingering effects last longer.',
   'passive.multi.name': 'Multi-Chamber',
-  'passive.multi.desc': 'Adds extra projectiles (Pulse, Missiles, Arc, Laser, Mines, Drones).',
+  'passive.multi.desc': 'Adds extra projectiles (Pulse, Missiles, Arc, Laser, Mines, Drones, Chakrams).',
 
   // ───── Ships ─────
   'ship.vanguard.name': 'Vanguard',

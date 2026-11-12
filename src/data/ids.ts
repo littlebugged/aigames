@@ -1,6 +1,6 @@
 /** 全部内容 ID 的集中定义。新增内容时先在这里加，TypeScript 会提示所有需要补齐的地方。 */
 
-export const WEAPON_IDS = ['pulse', 'orbit', 'arc', 'missile', 'laser', 'mine', 'nova', 'drone'] as const
+export const WEAPON_IDS = ['pulse', 'orbit', 'arc', 'missile', 'laser', 'mine', 'nova', 'drone', 'chakram', 'rail'] as const
 export type WeaponId = (typeof WEAPON_IDS)[number]
 
 export const PASSIVE_IDS = [

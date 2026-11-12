@@ -293,6 +293,72 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
       })
     },
   },
+
+  /**
+   * 回旋飞轮：朝最近的敌人掷出旋转的光轮，飞到尽头后折返回到机身。
+   * 一去一回各打一遍，穿透一切——敌人排成一线时最划算。
+   */
+  chakram: {
+    id: 'chakram',
+    color: '#ff7ae0',
+    evolvesWith: 'thruster',
+    shown: ['damage', 'count', 'range', 'cooldown'],
+    stats(level, evolved) {
+      if (evolved)
+        return make({
+          damage: 38,
+          cooldown: 1.05,
+          count: 4,
+          speed: 560,
+          area: 22,
+          range: 330,
+          knock: 70,
+          blast: 120, // 进化后：折返点的冲击环半径
+        })
+      return make({
+        damage: at([17, 19, 19, 22, 22, 26, 26, 31], level),
+        cooldown: at([1.9, 1.9, 1.75, 1.75, 1.6, 1.5, 1.4, 1.25], level),
+        count: at([1, 1, 2, 2, 2, 3, 3, 3], level),
+        speed: 500,
+        area: at([14, 14, 15, 15, 16, 16, 17, 18], level),
+        range: at([200, 210, 220, 230, 240, 250, 260, 280], level),
+        knock: 40,
+      })
+    },
+  },
+
+  /**
+   * 磁轨炮：蓄力后瞬发一道贯穿全屏的穿甲光轨，专挑血量最厚的目标。
+   * 单发伤害极高、没有预警也躲不开——专治精英和 Boss。
+   */
+  rail: {
+    id: 'rail',
+    color: '#ff4d6d',
+    evolvesWith: 'luck',
+    shown: ['damage', 'count', 'area', 'cooldown'],
+    stats(level, evolved) {
+      if (evolved)
+        return make({
+          damage: 250,
+          cooldown: 2.2,
+          count: 3,
+          area: 28,
+          duration: 1.5, // 进化后：光轨残留灼痕的持续时间
+          tick: 0.15, // 灼痕每跳间隔
+          range: 980,
+        })
+      return make({
+        damage: at([85, 95, 95, 112, 112, 130, 145, 168], level),
+        cooldown: at([3.3, 3.1, 2.9, 2.7, 2.5, 2.3, 2.1, 1.9], level),
+        count: at([1, 1, 1, 1, 2, 2, 2, 3], level),
+        area: at([14, 14, 15, 16, 16, 17, 18, 20], level),
+        range: 900,
+      })
+    },
+  },
 }
+
+/** 磁轨炮进化后，残留灼痕每跳伤害 = 主炮伤害 × 该比例 */
+export const RAIL_SCAR_RATIO = 0.07
 
 export { WEAPON_MAX_LEVEL }

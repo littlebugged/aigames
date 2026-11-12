@@ -239,6 +239,8 @@ export const zh = {
   'stat.laser.area': '光束宽度',
   'stat.nova.area': '冲击半径',
   'stat.arc.chain': '连跳次数',
+  'stat.chakram.range': '飞行距离',
+  'stat.rail.area': '光轨宽度',
   'stat.unit.s': '秒',
 
   // ───── 武器 ─────
@@ -274,6 +276,14 @@ export const zh = {
   'weapon.drone.desc': '环绕飞行并自动开火的小帮手。',
   'weapon.drone.evoName': '无人机编队',
   'weapon.drone.evoDesc': '六架高速僚机，弹丸可以穿透敌人。',
+  'weapon.chakram.name': '回旋飞轮',
+  'weapon.chakram.desc': '朝敌人掷出旋转的光轮，飞到尽头后折返回到机身，一去一回各打一遍，穿透一切。',
+  'weapon.chakram.evoName': '风暴飞轮',
+  'weapon.chakram.evoDesc': '四枚巨型飞轮，折返的瞬间还会炸开一圈冲击环，来回都是伤害。',
+  'weapon.rail.name': '磁轨炮',
+  'weapon.rail.desc': '瞬发一道贯穿全屏的穿甲光轨，专挑血量最厚的敌人打，Boss 优先，无法躲避。',
+  'weapon.rail.evoName': '超载磁轨',
+  'weapon.rail.evoDesc': '三道超载光轨，每一道都会在原地留下持续灼烧的等离子痕。',
 
   // ───── 被动 ─────
   'passive.power.name': '过载核心',
@@ -299,7 +309,7 @@ export const zh = {
   'passive.accel.name': '加速线圈',
   'passive.accel.desc': '弹体飞得更快，导弹与持续效果更持久。',
   'passive.multi.name': '多重弹仓',
-  'passive.multi.desc': '追加弹体数量（脉冲、导弹、电弧、激光、地雷、无人机）。',
+  'passive.multi.desc': '追加弹体数量（脉冲、导弹、电弧、激光、地雷、无人机、飞轮）。',
 
   // ───── 飞船 ─────
   'ship.vanguard.name': '先锋号',

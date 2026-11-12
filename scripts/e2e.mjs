@@ -539,7 +539,7 @@ async function flows(base) {
         const Inst = P.weapons[0].constructor
         if (fill) {
           const have = new Set(P.weapons.map((x) => x.id))
-          for (const id of ['pulse', 'orbit', 'arc', 'missile', 'laser', 'mine', 'nova', 'drone']) {
+          for (const id of ['pulse', 'orbit', 'arc', 'missile', 'laser', 'mine', 'nova', 'drone', 'chakram', 'rail']) {
             if (P.weapons.length >= 6) break
             if (!have.has(id)) P.weapons.push(new Inst(id, P.weapons.length))
           }

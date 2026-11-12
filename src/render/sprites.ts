@@ -250,6 +250,33 @@ function bladeSprite(color: string, ss: number): Sprite {
   })
 }
 
+/** 回旋飞轮：带四枚尖齿的光环 */
+function chakramSprite(color: string, ss: number): Sprite {
+  const r = 14
+  const size = (r + 18) * 2
+  return make(size, size, ss, (ctx) => {
+    // 四枚尖齿
+    ctx.beginPath()
+    for (let i = 0; i < 4; i++) {
+      const a = (i * TAU) / 4
+      ctx.moveTo(Math.cos(a - 0.55) * r * 0.78, Math.sin(a - 0.55) * r * 0.78)
+      ctx.lineTo(Math.cos(a) * r * 1.42, Math.sin(a) * r * 1.42)
+      ctx.lineTo(Math.cos(a + 0.55) * r * 0.78, Math.sin(a + 0.55) * r * 0.78)
+    }
+    ctx.fillStyle = rgba(color, 0.5)
+    ctx.shadowColor = color
+    ctx.shadowBlur = 12 * ss
+    ctx.fill()
+    neon(ctx, color, ss, 2, 10, 0.9)
+    // 外环 + 中心孔
+    ctx.beginPath()
+    ctx.arc(0, 0, r * 0.86, 0, TAU)
+    ctx.moveTo(r * 0.3, 0)
+    ctx.arc(0, 0, r * 0.3, 0, TAU)
+    neon(ctx, color, ss, 2.2, 10, 0.9)
+  })
+}
+
 /** 僚机：小三角 */
 function droneSprite(color: string, ss: number): Sprite {
   const r = 8
@@ -294,6 +321,7 @@ export class SpriteBank {
   private readonly glows = new Map<string, Sprite>()
   private readonly blades = new Map<string, Sprite>()
   private readonly drones = new Map<string, Sprite>()
+  private readonly chakrams = new Map<string, Sprite>()
 
   constructor(ss: number) {
     this.ss = ss
@@ -329,6 +357,15 @@ export class SpriteBank {
     if (!s) {
       s = droneSprite(color, this.ss)
       this.drones.set(color, s)
+    }
+    return s
+  }
+
+  chakram(color: string): Sprite {
+    let s = this.chakrams.get(color)
+    if (!s) {
+      s = chakramSprite(color, this.ss)
+      this.chakrams.set(color, s)
     }
     return s
   }

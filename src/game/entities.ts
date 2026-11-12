@@ -37,6 +37,22 @@ export interface InputState {
   dash: boolean
 }
 
+/** 武器随身的"小件"：光刃 / 无人机 / 飞轮。字段按武器各取所需。 */
+export interface WeaponPt {
+  x: number
+  y: number
+  a: number
+  r: number
+  cd: number
+  /** 回旋飞轮：飞行方向（单位向量）、已飞距离（回程时为回程用时）、阶段（0 去程 / 1 回程） */
+  vx: number
+  vy: number
+  d: number
+  ph: number
+  /** 回旋飞轮：本阶段（去程 / 回程）已经砍过的敌人 id，每个阶段每个敌人只砍一次 */
+  hit: number[]
+}
+
 export class WeaponInst {
   evolved = false
   level = 1
@@ -44,8 +60,8 @@ export class WeaponInst {
   /** 连发/二段计数等 */
   pending = 0
   angle = 0
-  /** 绘制用：当前位置列表（光刃/无人机） */
-  pts: { x: number; y: number; a: number; r: number; cd: number }[] = []
+  /** 绘制用：当前位置列表（光刃/无人机/飞轮） */
+  pts: WeaponPt[] = []
   s!: WStats
 
   constructor(
@@ -219,6 +235,8 @@ export class Beam {
   oy = 0
   /** true=固定在原点；false=跟随玩家 */
   fixed = false
+  /** true=瞬发"重炮"：起手最亮、随即快速衰减（磁轨炮） */
+  punch = false
 }
 
 export class Ring {

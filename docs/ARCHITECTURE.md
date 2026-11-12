@@ -73,7 +73,21 @@ data ──► game (模拟) ──events──► render / audio / hud
 | 存档与结算 | `tests/progress.test.ts` | 钳制/往返、结算、解锁、成就连锁、机库与飞船购买 |
 | 模拟 | `tests/sim.test.ts` | 确定性、所有飞船×星区稳定（无 NaN）、Boss 按时出现且可被击败、升级/重抽/放逐/复活流程、模拟层不依赖 DOM |
 | 升级候选 | `tests/offers.test.ts` | 随机压测（24 局 × 130 次升级）：武器 ≤ 6、被动 ≤ 6、等级不超上限、满级不再出现、无重复卡；全部满级时只剩进化与保底 |
+| 武器行为 | `tests/weapons.test.ts` | 回旋飞轮：折返、一去一回各打一次、移动中也一定接得回来、同屏上限、进化冲击环、打 Boss 并束；磁轨炮：专挑厚血目标、贯穿整条线、Boss 优先、多道光轨叠在同一目标、进化灼痕；每把武器（含进化）单独整局不出 NaN / 泄漏 |
 | 拾取物 | `tests/pickups.test.ts` | 被吸附的经验石 / 道具在 30 / 60 / 120 fps、各种走位下都会很快被收走，不会绕着飞机转圈，玩家跑得比吸力快也追得上 |
 | 文案 | `tests/i18n.test.ts` | 中英词典键与占位符完全一致、无空字符串、所有内容 id 都有名称与描述 |
 | 浏览器 | `scripts/e2e.mjs` | 冒烟/桌面/手机/PWA/关键流程/性能/线上巡检；监听 `console.error`、`pageerror`、`requestfailed` |
 | 平衡 | `scripts/sim.ts` | 机器人整局模拟：存活时间、等级、击杀、进化数、Boss 击杀耗时 |
+| 武器基准 | `scripts/bench-weapons.ts` | 每把武器单独上场，在"稳定人潮"与"Boss 单挑"里比 Lv1 / Lv4 / Lv8 / 进化后的有效 DPS 与击杀速度；加新武器、改数值表前后各跑一次 |
+
+## 10. 新增一把武器的清单
+
+TypeScript 只会提醒前两项，其余靠这张表（漏了也有测试兜底：`tests/data.test.ts`、`tests/i18n.test.ts`、`tests/weapons.test.ts`）：
+
+1. `src/data/ids.ts`：登记 id（编译器会提示 `WEAPONS` 与 `WEAPON_ICON` 缺项）。
+2. `src/data/weapons.ts`：等级表 + 进化形态 + 搭档被动（搭档不能与已有武器重复）；升级卡片的文案由相邻两级数值自动生成，只需在 `shown` 里列出要展示的项。
+3. `src/game/weapons.ts`：行为（`updateXxx`，在 `updateWeapons` 里分发）；`src/game/stats.ts` 的 `COUNTABLE` 决定它是否吃"多重弹仓"。
+4. `src/render/sprites.ts` + `renderer.ts`：精灵 / 绘制；`engine/audio.ts` 的 `shot()`：开火音效。
+5. `src/i18n/zh.ts` + `en.ts`：`weapon.<id>.name/desc/evoName/evoDesc`，以及需要改名的数值标签 `stat.<id>.<key>`。
+6. 跑 `npx tsx scripts/bench-weapons.ts --only <id>` 与已有武器对照强度（同档位的人潮 DPS / Boss DPS 应处在同一量级）。
+7. 静态指南页、站点地图里的武器数量都是从数据自动生成的，不用改。

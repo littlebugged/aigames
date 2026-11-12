@@ -101,7 +101,7 @@ const ZH: Copy = {
     featuresH: '游戏特色',
     features: [
       { icon: 'swords', color: '#3df2ff', title: '自动开火，专注走位', text: '没有复杂的瞄准，单手也能操作。真正的挑战是在怪潮与弹幕之间找到安全的路线，并利用冲刺的无敌时间反杀。' },
-      { icon: 'dice', color: '#ffd84a', title: '8 种武器 × 12 种被动', text: '脉冲炮、环绕刃、电弧、追踪导弹、棱镜激光、地雷、新星、无人机……每次升级随机给出三选一，组合出完全不同的流派。' },
+      { icon: 'dice', color: '#ffd84a', title: `${WEAPON_IDS.length} 种武器 × ${PASSIVE_IDS.length} 种被动`, text: '脉冲炮、环绕刃、电弧、追踪导弹、棱镜激光、地雷、新星、无人机、回旋飞轮、磁轨炮……每次升级随机给出三选一，组合出完全不同的流派。' },
       { icon: 'play', color: '#ff4fd8', title: '武器进化系统', text: '武器升到满级并携带对应的搭档装备，就能在升级或补给箱里进化成终极形态——特效和威力都会质变。' },
       { icon: 'skull', color: '#ff4a6a', title: '3 个星区，3 个 Boss', text: '霓虹原野的监察者、数据荒原的分形核心、虚空裂隙的虚空之喉。每个 Boss 都有多阶段弹幕和独特机制，打赢才有成就感。' },
       { icon: 'hangar', color: '#a58bff', title: '机库永久成长', text: '每局获得的晶核可在机库购买 13 项永久升级，另有 4 艘风格迥异的飞船、4 档威胁等级，通关后还能开启无尽模式。' },
@@ -139,7 +139,7 @@ const ZH: Copy = {
   },
   guide: {
     title: '游戏指南：武器进化、敌人图鉴、Boss 打法与机库升级 — 霓虹浪涌',
-    desc: '《霓虹浪涌》完整游戏指南：8 种武器的进化条件与搭档、12 种被动、敌人图鉴、3 个 Boss 打法、4 艘飞船、星区与威胁等级、机库升级价格和全部成就。',
+    desc: `《霓虹浪涌》完整游戏指南：${WEAPON_IDS.length} 种武器的进化条件与搭档、${PASSIVE_IDS.length} 种被动、敌人图鉴、3 个 Boss 打法、4 艘飞船、星区与威胁等级、机库升级价格和全部成就。`,
     h1: '霓虹浪涌 游戏指南',
     lead: '这份指南的所有数据都由游戏内的真实配置自动生成，数值与游戏保持一致。第一次玩可以先看「武器与进化」和「Boss 打法」两节。',
     toc: '目录',
@@ -219,7 +219,10 @@ const ZH: Copy = {
       '托管在 Cloudflare Pages；Service Worker 让游戏在首次访问后可以离线运行，并在发布新版本时自动更新。',
     ],
     logH: '更新记录',
-    log: ['<strong>v1.0</strong> — 首个正式版本：3 个星区与 Boss、8 种武器与进化、12 种被动、4 艘飞船、机库、成就、无尽模式、中英双语、触屏与手柄支持。'],
+    log: [
+      '<strong>v1.1</strong> — 新增武器「回旋飞轮」与「磁轨炮」（共 10 种）及各自的进化形态；升级卡片会标出本次新增的等级，并显示武器 / 被动栏位上限；修复手机上经验晶体与道具偶尔绕着飞机打转的问题。',
+      '<strong>v1.0</strong> — 首个正式版本：3 个星区与 Boss、8 种武器与进化、12 种被动、4 艘飞船、机库、成就、无尽模式、中英双语、触屏与手柄支持。',
+    ],
     creditsH: '致谢',
     credits: ['界面字体：Orbitron（SIL Open Font License）。', '图标与全部图形均为程序绘制。'],
   },
@@ -258,7 +261,7 @@ const EN: Copy = {
     featuresH: 'Features',
     features: [
       { icon: 'swords', color: '#3df2ff', title: 'Auto-fire, pure movement', text: 'No aiming — it is playable one-handed. The real challenge is finding a safe path through swarms and bullet patterns, then counter-attacking during your dash invincibility.' },
-      { icon: 'dice', color: '#ffd84a', title: '8 weapons × 12 passives', text: 'Pulse cannon, orbit blades, arc lightning, missiles, prism laser, mines, nova, drones… every level-up offers a random pick of three, so each run becomes a different build.' },
+      { icon: 'dice', color: '#ffd84a', title: `${WEAPON_IDS.length} weapons × ${PASSIVE_IDS.length} passives`, text: 'Pulse cannon, orbit blades, arc lightning, missiles, prism laser, mines, nova, drones, chakram, railgun… every level-up offers a random pick of three, so each run becomes a different build.' },
       { icon: 'play', color: '#ff4fd8', title: 'Weapon evolution', text: 'Max out a weapon and carry its partner passive to evolve it into an ultimate form from a level-up or a supply chest — in both looks and power.' },
       { icon: 'skull', color: '#ff4a6a', title: '3 sectors, 3 bosses', text: 'The Overseer in Neon Fields, the Fractal Core in Data Wasteland, the Maw in Void Rift. Each boss has multi-phase patterns and a unique gimmick.' },
       { icon: 'hangar', color: '#a58bff', title: 'Permanent hangar upgrades', text: 'Spend cores on 13 permanent upgrades, unlock 4 distinct ships, climb 4 threat levels, and open endless mode after your first clear.' },
@@ -296,7 +299,7 @@ const EN: Copy = {
   },
   guide: {
     title: 'Guide: Weapon Evolutions, Enemies, Boss Strategies & Upgrades — NEON SURGE',
-    desc: 'The complete NEON SURGE guide: evolution recipes for all 8 weapons, 12 passives, the enemy bestiary, boss strategies, 4 ships, sectors, threat levels, hangar upgrade prices and every achievement.',
+    desc: `The complete NEON SURGE guide: evolution recipes for all ${WEAPON_IDS.length} weapons, ${PASSIVE_IDS.length} passives, the enemy bestiary, boss strategies, 4 ships, sectors, threat levels, hangar upgrade prices and every achievement.`,
     h1: 'NEON SURGE Guide',
     lead: 'Every number on this page is generated from the game’s real configuration, so it always matches the game. If you are new, start with “Weapons” and “Boss strategies”.',
     toc: 'Contents',
@@ -376,7 +379,10 @@ const EN: Copy = {
       'Hosted on Cloudflare Pages. A service worker makes the game playable offline after the first visit and updates it automatically on new releases.',
     ],
     logH: 'Changelog',
-    log: ['<strong>v1.0</strong> — First release: 3 sectors with bosses, 8 weapons with evolutions, 12 passives, 4 ships, hangar, achievements, endless mode, Chinese/English UI, touch and gamepad support.'],
+    log: [
+      '<strong>v1.1</strong> — Two new weapons, Boomerang Chakram and Railgun (10 in total), each with its own evolution; level-up cards now highlight the newly gained level and show the weapon / passive slot caps; fixed XP gems and pickups sometimes orbiting the ship on phones.',
+      '<strong>v1.0</strong> — First release: 3 sectors with bosses, 8 weapons with evolutions, 12 passives, 4 ships, hangar, achievements, endless mode, Chinese/English UI, touch and gamepad support.',
+    ],
     creditsH: 'Credits',
     credits: ['UI font: Orbitron (SIL Open Font License).', 'All icons and graphics are drawn procedurally.'],
   },

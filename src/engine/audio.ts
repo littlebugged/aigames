@@ -465,6 +465,19 @@ export class AudioEngine {
           this.noise(0.45, { type: 'lowpass', f0: 3000, f1: 200, vol: 0.18 })
         }
         break
+      case 'chakram':
+        if (this.ok('s:chakram', 0.14)) {
+          this.noise(0.24, { type: 'bandpass', f0: 2000, f1: 700, q: 3, vol: 0.1, pan })
+          this.tone(560, 0.22, { type: 'triangle', f1: 240, vol: 0.07, pan })
+        }
+        break
+      case 'rail':
+        if (this.ok('s:rail', 0.1)) {
+          this.tone(2200, 0.2, { type: 'sawtooth', f1: 90, vol: 0.13, lp: 5200, pan })
+          this.noise(0.28, { type: 'highpass', f0: 3200, vol: 0.14, pan })
+          this.tone(74, 0.4, { type: 'sine', f1: 38, vol: 0.28, pan })
+        }
+        break
       default:
         break
     }

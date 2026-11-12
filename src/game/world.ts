@@ -566,6 +566,7 @@ export class World {
     b.hostile = false
     b.warn = 0
     b.fixed = false
+    b.punch = false
     b.tickT = 0
     b.slot = 0
     this.beams.push(b)

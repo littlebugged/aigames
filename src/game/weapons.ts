@@ -1,3 +1,4 @@
+import { RAIL_SCAR_RATIO } from '../data/weapons'
 import { TAU, angleTo } from '../engine/math'
 import type { Enemy, Target, WeaponInst } from './entities'
 import type { World } from './world'
@@ -32,6 +33,12 @@ export function updateWeapons(w: World, dt: number): void {
       case 'drone':
         updateDrone(w, wi, dt)
         break
+      case 'chakram':
+        updateChakram(w, wi, dt)
+        break
+      case 'rail':
+        updateRail(w, wi, dt)
+        break
     }
   }
 }
@@ -39,7 +46,7 @@ export function updateWeapons(w: World, dt: number): void {
 /** 复用 wi.pts 里的对象，避免每帧分配 */
 function ensurePts(wi: WeaponInst, n: number): void {
   const pts = wi.pts
-  while (pts.length < n) pts.push({ x: 0, y: 0, a: 0, r: 0, cd: 0 })
+  while (pts.length < n) pts.push({ x: 0, y: 0, a: 0, r: 0, cd: 0, vx: 0, vy: 0, d: 0, ph: 0, hit: [] })
   pts.length = n
 }
 
@@ -351,4 +358,206 @@ function updateDrone(w: World, wi: WeaponInst, dt: number): void {
     })
     pt.cd = s.cooldown * (1 + (i % 3) * 0.08)
   }
+}
+
+// ───────────────────────── 回旋飞轮 ─────────────────────────
+
+/** 同时在外的飞轮上限（极限攻速下也不会无限堆积） */
+const CHAKRAM_MAX_LIVE = 14
+
+function updateChakram(w: World, wi: WeaponInst, dt: number): void {
+  const p = w.player
+  const s = wi.s
+  const pts = wi.pts
+
+  // 1) 掷出：朝最近的目标扇形甩出 count 枚
+  wi.timer -= dt
+  if (wi.timer <= 0) {
+    const n = Math.max(1, Math.round(s.count))
+    // 只在"够得着"时才出手：Boss 优先，但它离得太远就别白扔了，先清近处的小怪
+    const t = pts.length + n <= CHAKRAM_MAX_LIVE ? w.nearestTarget(p.x, p.y, s.range + 40) : undefined
+    if (!t) {
+      wi.timer = 0.1
+    } else {
+      const base = angleTo(p.x, p.y, t.x, t.y)
+      // 打 Boss 时并成一束（间距≈Boss 半径的 0.6），保证每一枚都打得中；打杂兵时展开成宽扇面
+      const fan = t.isBoss ? Math.atan2(t.r * 0.6, Math.hypot(t.x - p.x, t.y - p.y) || 1) : wi.evolved ? 0.4 : 0.46
+      const flip = w.rng.next() < 0.5 ? 1 : -1
+      for (let i = 0; i < n; i++) {
+        // 第一枚正对目标，其余依次交替排在两侧：0, +1, -1, +2, -2 …（偶数枚也不会错过最近的敌人）
+        const k = i === 0 ? 0 : (i % 2 === 1 ? 1 : -1) * Math.ceil(i / 2)
+        const a = base + k * fan * flip
+        pts.push({ x: p.x, y: p.y, a: w.rng.angle(), r: s.area, cd: 0, vx: Math.cos(a), vy: Math.sin(a), d: 0, ph: 0, hit: [] })
+      }
+      w.emit({ t: 'shot', w: 'chakram', x: p.x, y: p.y, a: base })
+      wi.timer = s.cooldown
+    }
+  }
+
+  // 2) 飞行 + 命中。倒序遍历，飞回机身的就地换尾删除。
+  const out = w.tmpW
+  const boss = w.boss
+  const spin = wi.evolved ? 20 : 15
+  for (let i = pts.length - 1; i >= 0; i--) {
+    const pt = pts[i]
+    pt.a += spin * dt
+    pt.r = s.area
+    let home = false
+    if (pt.ph === 0) {
+      // 去程：越接近尽头越慢，像回旋镖那样"减速—掉头"
+      const rem = Math.max(0, 1 - pt.d / s.range)
+      const step = s.speed * (0.32 + 0.68 * Math.sqrt(rem)) * dt
+      pt.x += pt.vx * step
+      pt.y += pt.vy * step
+      pt.d += step
+      if (pt.d >= s.range) {
+        pt.ph = 1
+        pt.d = 0
+        pt.hit.length = 0 // 回程重新算：每个敌人去程砍一次、回程再砍一次
+        if (wi.evolved && s.blast > 0) {
+          const r = w.addRing()
+          r.x = pt.x
+          r.y = pt.y
+          r.r = 8
+          r.maxR = s.blast
+          r.speed = 460
+          r.dmg = s.damage * 0.8
+          r.knock = 110
+          r.color = '#ffd2f6'
+        }
+      }
+    } else {
+      // 回程：朝机身越飞越快，所以一定会回来
+      pt.d += dt
+      const dx = p.x - pt.x
+      const dy = p.y - pt.y
+      const dist = Math.hypot(dx, dy) || 1
+      const step = Math.min(s.speed * 2.1, s.speed * 0.5 + pt.d * s.speed * 3.2) * dt
+      if (dist <= step + 16) {
+        home = true
+      } else {
+        pt.x += (dx / dist) * step
+        pt.y += (dy / dist) * step
+      }
+    }
+
+    // 命中：每枚飞轮每个阶段（去程 / 回程）对每个敌人只结算一次，枚数多了就是实打实的多次命中
+    out.length = 0
+    w.grid.query(pt.x, pt.y, pt.r, out)
+    for (let j = 0; j < out.length; j++) {
+      const e = out[j]
+      if (!e.alive || e.spawnT > 0 || pt.hit.includes(e.id)) continue
+      pt.hit.push(e.id)
+      const dx = e.x - pt.x
+      const dy = e.y - pt.y
+      const d = Math.hypot(dx, dy) || 1
+      w.damageEnemy(e, s.damage, (dx / d) * s.knock, (dy / d) * s.knock)
+    }
+    if (boss && boss.alive && !pt.hit.includes(-2) && Math.hypot(boss.x - pt.x, boss.y - pt.y) < boss.r + pt.r) {
+      pt.hit.push(-2)
+      w.damageBoss(boss, s.damage)
+    }
+
+    if (home) {
+      pts[i] = pts[pts.length - 1]
+      pts.pop()
+    }
+  }
+}
+
+// ───────────────────────── 磁轨炮 ─────────────────────────
+
+/** 取射程内血量最厚的 k 个目标；Boss 在射程内时永远排第一。 */
+function heaviest(w: World, x: number, y: number, range: number, k: number): Target[] {
+  const res: Target[] = []
+  const b = w.boss
+  if (b && b.alive && b.intro <= 0 && Math.hypot(b.x - x, b.y - y) - b.r < range) res.push(b)
+  const room = k - res.length
+  if (room <= 0) return res
+  const out = w.tmpW
+  out.length = 0
+  w.grid.query(x, y, range, out)
+  const best: Enemy[] = []
+  for (let i = 0; i < out.length; i++) {
+    const e = out[i]
+    if (!e.alive || e.spawnT > 0) continue
+    if (best.length < room) {
+      best.push(e)
+      best.sort((a, c) => c.hp - a.hp)
+    } else if (e.hp > best[best.length - 1].hp) {
+      best[best.length - 1] = e
+      best.sort((a, c) => c.hp - a.hp)
+    }
+  }
+  for (const e of best) res.push(e)
+  return res
+}
+
+/** 主炮光轨的可见时长（秒）。伤害在出膛的第一帧就结算完了，这段只是余辉。 */
+const RAIL_FLASH = 0.32
+
+function updateRail(w: World, wi: WeaponInst, dt: number): void {
+  wi.timer -= dt
+  if (wi.timer > 0) return
+  const p = w.player
+  const s = wi.s
+  const n = Math.max(1, Math.round(s.count))
+  // 只打屏幕里看得见的目标，光轨本身依然射满全程
+  const picks = heaviest(w, p.x, p.y, Math.min(s.range, w.viewR * 1.1), n)
+  if (picks.length === 0) {
+    wi.timer = 0.12
+    return
+  }
+  for (let i = 0; i < n; i++) {
+    const t = picks[i % picks.length]
+    let ang = angleTo(p.x, p.y, t.x, t.y)
+    // 目标比光轨少时，多出来的光轨叠在同一个目标身上：在它体内左右错开一点，
+    // 看上去是几道并排的轨，又保证每一道都打得中。
+    const lap = Math.floor(i / picks.length)
+    if (lap > 0) {
+      const off = (lap % 2 === 1 ? 1 : -1) * Math.ceil(lap / 2) * Math.min(t.r * 0.5, 14)
+      ang += Math.atan2(off, Math.hypot(t.x - p.x, t.y - p.y) || 1)
+    }
+    fireRail(w, wi, ang)
+  }
+  wi.timer = s.cooldown
+}
+
+function fireRail(w: World, wi: WeaponInst, ang: number): void {
+  const p = w.player
+  const s = wi.s
+  const ox = p.x + Math.cos(ang) * 14
+  const oy = p.y + Math.sin(ang) * 14
+
+  // 主炮：瞬发一跳，贯穿全程
+  const b = w.addBeam()
+  b.fixed = true
+  b.punch = true
+  b.ox = ox
+  b.oy = oy
+  b.ang = ang
+  b.len = s.range
+  b.width = s.area
+  b.life = b.maxLife = RAIL_FLASH
+  b.tick = 99
+  b.dmg = s.damage
+  b.color = wi.evolved ? '#ff8aa0' : '#ff4d6d'
+  b.slot = wi.slot
+
+  // 进化：光轨在原地留下一道持续灼烧的等离子痕
+  if (wi.evolved) {
+    const sc = w.addBeam()
+    sc.fixed = true
+    sc.ox = ox
+    sc.oy = oy
+    sc.ang = ang
+    sc.len = s.range
+    sc.width = s.area * 0.5
+    sc.life = sc.maxLife = s.duration
+    sc.tick = s.tick
+    sc.dmg = s.damage * RAIL_SCAR_RATIO
+    sc.color = '#ffb3c1'
+    sc.slot = wi.slot
+  }
+  w.emit({ t: 'shot', w: 'rail', x: ox, y: oy, a: ang })
 }

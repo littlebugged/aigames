@@ -16,7 +16,7 @@ import { METAS, metaCost } from '../src/data/meta'
 import { PASSIVES } from '../src/data/passives'
 import { SECTORS, THREAT_LEVELS } from '../src/data/sectors'
 import { SHIPS } from '../src/data/ships'
-import { WEAPONS } from '../src/data/weapons'
+import { RAIL_SCAR_RATIO, WEAPONS } from '../src/data/weapons'
 
 test('每把武器每一级的数值都合法', () => {
   for (const id of WEAPON_IDS) {
@@ -43,6 +43,11 @@ function output(id: (typeof WEAPON_IDS)[number], evolved: boolean): number {
       return (s.damage * s.count * (s.duration / s.tick)) / s.cooldown
     case 'arc':
       return (s.damage * s.count * (s.chain + 1)) / s.cooldown
+    case 'rail': {
+      // 进化后每道光轨还会留下一道持续灼烧的痕
+      const scar = evolved ? (s.damage * RAIL_SCAR_RATIO * (s.duration / s.tick)) : 0
+      return ((s.damage + scar) * s.count) / s.cooldown
+    }
     default:
       return (s.damage * s.count) / s.cooldown
   }
