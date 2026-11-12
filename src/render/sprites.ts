@@ -4,7 +4,7 @@ import { SHIPS } from '../data/ships'
 import { TAU } from '../engine/math'
 import type { PickupKind } from '../game/events'
 import { lighten, rgba } from './palette'
-import { detailEnemy, polygon, traceEnemy } from './shapes'
+import { SHIP_POLY, detailEnemy, polygon, traceEnemy } from './shapes'
 
 /**
  * 预渲染的霓虹精灵。
@@ -52,61 +52,9 @@ export function neon(ctx: CanvasRenderingContext2D, color: string, ss: number, w
 const SHIP_R = 17
 
 function traceShip(ctx: CanvasRenderingContext2D, id: ShipId, r: number): void {
-  const p = (pts: number[][]): void => {
-    ctx.beginPath()
-    pts.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(x * r, y * r) : ctx.lineTo(x * r, y * r)))
-    ctx.closePath()
-  }
-  switch (id) {
-    case 'vanguard':
-      p([
-        [1, 0],
-        [-0.7, 0.92],
-        [-0.38, 0.3],
-        [-0.58, 0],
-        [-0.38, -0.3],
-        [-0.7, -0.92],
-      ])
-      break
-    case 'phantom':
-      p([
-        [1.18, 0],
-        [0.15, 0.4],
-        [-0.55, 1.02],
-        [-0.34, 0.28],
-        [-0.72, 0],
-        [-0.34, -0.28],
-        [-0.55, -1.02],
-        [0.15, -0.4],
-      ])
-      break
-    case 'bulwark':
-      p([
-        [0.95, 0],
-        [0.55, 0.62],
-        [-0.15, 0.98],
-        [-0.82, 0.62],
-        [-0.9, 0],
-        [-0.82, -0.62],
-        [-0.15, -0.98],
-        [0.55, -0.62],
-      ])
-      break
-    case 'reaper':
-      p([
-        [1.2, 0],
-        [0.3, 0.3],
-        [0.55, 0.98],
-        [-0.28, 0.56],
-        [-0.98, 0.3],
-        [-0.6, 0],
-        [-0.98, -0.3],
-        [-0.28, -0.56],
-        [0.55, -0.98],
-        [0.3, -0.3],
-      ])
-      break
-  }
+  ctx.beginPath()
+  SHIP_POLY[id].forEach(([x, y], i) => (i === 0 ? ctx.moveTo(x * r, y * r) : ctx.lineTo(x * r, y * r)))
+  ctx.closePath()
 }
 
 function shipSprite(id: ShipId, ss: number, flash: boolean): Sprite {

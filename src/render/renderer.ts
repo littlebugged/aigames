@@ -163,7 +163,8 @@ export class Renderer {
     this.halfW = W / (2 * this.k)
     this.halfH = H / (2 * this.k)
     this.ctx.imageSmoothingEnabled = true
-    this.ctx.imageSmoothingQuality = 'high'
+    // 注意：'high' 会在 GPU 画布上触发逐帧 mipmap / 双三次采样，实测慢约 6 倍；双线性对 2:1 降采样已经是正确的盒式滤波
+    this.ctx.imageSmoothingQuality = 'low'
     this.ensureBloom()
     this.syncView()
   }
@@ -182,7 +183,7 @@ export class Renderer {
       const g = c.getContext('2d')
       if (!g) throw new Error('2d context unavailable')
       g.imageSmoothingEnabled = true
-      g.imageSmoothingQuality = 'high'
+      g.imageSmoothingQuality = 'low'
       return [c, g]
     }
     ;[this.bloomHalf, this.bhC] = mk(this.W >> 1, this.H >> 1)
@@ -465,10 +466,11 @@ export class Renderer {
     this.drawGhosts(w)
     this.drawPlayerWeapons(w)
     this.drawPlayerBullets(w, animDt)
-    this.drawPlayer(w)
     this.drawBolts(w)
     this.drawBlasts(w)
     this.parts.draw(ctx, this.bank)
+    // 玩家画在所有加色特效之上：再乱的场面也要一眼看到自己
+    this.drawPlayer(w)
     this.texts.draw(ctx)
 
     // 屏幕空间后处理
@@ -847,16 +849,17 @@ export class Renderer {
       ctx.save()
       ctx.translate(bm.ox, bm.oy)
       ctx.rotate(bm.ang)
-      ctx.fillStyle = rgba(bm.color, 0.2 * env * flick)
-      ctx.fillRect(0, -width * 0.9, bm.len, width * 1.8)
-      ctx.fillStyle = rgba(bm.color, 0.5 * env * flick)
-      ctx.fillRect(0, -width * 0.5, bm.len, width)
-      ctx.fillStyle = rgba('#ffffff', 0.92 * env * flick)
-      ctx.fillRect(0, -width * 0.2, bm.len, width * 0.4)
+      const vw = width * 0.78
+      ctx.fillStyle = rgba(bm.color, 0.12 * env * flick)
+      ctx.fillRect(0, -vw * 0.95, bm.len, vw * 1.9)
+      ctx.fillStyle = rgba(bm.color, 0.4 * env * flick)
+      ctx.fillRect(0, -vw * 0.45, bm.len, vw * 0.9)
+      ctx.fillStyle = rgba('#ffffff', 0.72 * env * flick)
+      ctx.fillRect(0, -vw * 0.13, bm.len, vw * 0.26)
       ctx.restore()
       const g = bank.glow(bm.color)
-      const gs = width * 3.6
-      ctx.globalAlpha = Math.min(1, env)
+      const gs = vw * 2.6
+      ctx.globalAlpha = Math.min(0.75, env)
       ctx.drawImage(g.c, bm.ox - gs / 2, bm.oy - gs / 2, gs, gs)
       ctx.globalAlpha = 1
     }
@@ -965,9 +968,9 @@ export class Renderer {
       const grow = 1 - lp * lp
       const g = bank.glow(b.color)
       const gs = b.r * 2.6 * (0.55 + 0.45 * grow)
-      ctx.globalAlpha = Math.min(1, lp * 1.3)
+      ctx.globalAlpha = Math.min(0.72, lp * 1.0)
       ctx.drawImage(g.c, b.x - gs / 2, b.y - gs / 2, gs, gs)
-      ctx.fillStyle = rgba(b.color, 0.28 * lp)
+      ctx.fillStyle = rgba(b.color, 0.16 * lp)
       ctx.beginPath()
       ctx.arc(b.x, b.y, b.r * (0.4 + 0.6 * grow), 0, TAU)
       ctx.fill()
@@ -1156,6 +1159,16 @@ export class Renderer {
     ctx.globalAlpha = 1
     ctx.globalCompositeOperation = 'source-over'
 
+    // 衬底：深色柔边圆，让机身在明亮的特效里依然清晰
+    const plate = ctx.createRadialGradient(p.x, p.y, 2, p.x, p.y, 24)
+    plate.addColorStop(0, 'rgba(2,4,12,0.62)')
+    plate.addColorStop(0.55, 'rgba(2,4,12,0.34)')
+    plate.addColorStop(1, 'rgba(2,4,12,0)')
+    ctx.fillStyle = plate
+    ctx.beginPath()
+    ctx.arc(p.x, p.y, 24, 0, TAU)
+    ctx.fill()
+
     // 机身
     let alpha = 1
     if (p.invuln > 0 && !dashing) alpha = Math.floor(this.vt * 18) % 2 === 0 ? 0.4 : 1
@@ -1207,10 +1220,10 @@ export class Renderer {
     ec.globalCompositeOperation = 'copy'
     ec.drawImage(quarter, 0, 0, eighth.width, eighth.height)
     const ctx = this.ctx
-    ctx.globalCompositeOperation = 'lighter'
-    ctx.globalAlpha = 0.38
+    ctx.globalCompositeOperation = 'screen'
+    ctx.globalAlpha = 0.42
     ctx.drawImage(quarter, 0, 0, this.W, this.H)
-    ctx.globalAlpha = 0.34
+    ctx.globalAlpha = 0.36
     ctx.drawImage(eighth, 0, 0, this.W, this.H)
     ctx.globalAlpha = 1
     ctx.globalCompositeOperation = 'source-over'

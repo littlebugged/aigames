@@ -432,6 +432,12 @@ export const zh = {
   'ach.threat_3.name': '深渊行者',
   'ach.threat_3.desc': '在「灾厄」威胁等级下通关任一星区',
 
+  // ───── 战斗补充 ─────
+  'hud.bossDown': 'Boss 已击破！',
+  'hud.endlessOn': '无尽模式：敌人将持续加强',
+  'hud.bossEta': 'BOSS {t}',
+  'hud.chest': '补给箱',
+
   // ───── 页面 / 杂项 ─────
   'page.noscript': '《霓虹浪涌》需要启用 JavaScript 才能运行。',
   'page.error': '游戏遇到了问题，请刷新页面重试。',

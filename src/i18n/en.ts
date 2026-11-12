@@ -431,6 +431,12 @@ export const en: Record<Key, string> = {
   'ach.threat_3.name': 'Abyss Walker',
   'ach.threat_3.desc': 'Clear any sector on "Calamity"',
 
+  // ───── Combat extras ─────
+  'hud.bossDown': 'Boss destroyed!',
+  'hud.endlessOn': 'Endless mode: enemies keep growing stronger',
+  'hud.bossEta': 'BOSS {t}',
+  'hud.chest': 'Supply crate',
+
   // ───── Pages / misc ─────
   'page.noscript': 'NEON SURGE needs JavaScript to run.',
   'page.error': 'Something went wrong. Please reload the page.',
