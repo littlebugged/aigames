@@ -7,11 +7,11 @@
     "strict": true,
     "noEmit": true,
     "skipLibCheck": true,
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
     "isolatedModules": true,
-    "resolveJsonModule": true,
+    "noUnusedLocals": false,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
     "types": ["vite/client"]
   },
-  "include": ["src", "games", "vite.config.ts"]
+  "include": ["src"]
 }

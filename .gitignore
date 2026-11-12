@@ -6,5 +6,17 @@ dist
 .env
 .env.*
 
-# AI 助手的工作记录，不进版本库（如需备份可删掉这一行）
+# AI 助手的工作记录，不进版本库
 .workbuddy/
+
+# 由 scripts/gen-pages.ts 在构建时生成（单一数据源：src/data）
+/index.html
+/en/
+/guide/
+/privacy/
+/about/
+/public/sitemap.xml
+/public/robots.txt
+
+# 本地无头浏览器验证产生的截图/日志
+/.e2e/
