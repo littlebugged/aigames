@@ -609,6 +609,40 @@ async function flows(base) {
     await ctx.close()
   }
 
+  // G) 吸附：吃到磁铁后全屏的经验石都被吸向飞机，机器人一路跑动，也不该出现绕着飞机转圈、几秒都收不走的石头
+  {
+    const { ctx, page } = await fresh()
+    await page.click('.btn.play')
+    await page.waitForSelector('.screen.deploy')
+    await page.click('.btn.start')
+    await page.waitForSelector('.hud:not([hidden])')
+    await sleep(500)
+    await page.evaluate(() => {
+      const n = window.__neon
+      const w = n.game
+      n.godMode = true
+      n.autoPilot = true
+      const p = w.player
+      p.xpNext = 1e9 // 别被升级面板打断
+      for (let i = 0; i < 150; i++) {
+        const a = Math.random() * Math.PI * 2
+        const d = 100 + Math.random() * 900
+        w.addGem(p.x + Math.cos(a) * d, p.y + Math.sin(a) * d, 1)
+      }
+      for (const g of w.gems) g.mag = true
+    })
+    let worst = 0
+    for (let i = 0; i < 12; i++) {
+      await sleep(500)
+      const stuck = await page.evaluate(() => window.__neon.game.gems.filter((g) => g.mag && g.magT > 2.5).length)
+      worst = Math.max(worst, stuck)
+    }
+    const left = await page.evaluate(() => window.__neon.game.gems.filter((g) => g.mag).length)
+    console.log(`  [magnet] 吸附 6 秒后：滞留>2.5s 的石头最多 ${worst} 颗，仍在吸附中 ${left} 颗`)
+    if (worst > 0) problems.push(`[flows/magnet] 有 ${worst} 颗被吸附的经验石超过 2.5 秒没被收走（绕着飞机转圈？）`)
+    await ctx.close()
+  }
+
   await browser.close()
 }
 

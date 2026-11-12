@@ -176,6 +176,8 @@ export class Gem {
   /** 0 小 1 中 2 大 3 巨 */
   tier = 0
   mag = false
+  /** 被吸附后经过的时间：吸力随它增长，保证怎么跑都能被追上 */
+  magT = 0
   age = 0
 }
 
@@ -189,6 +191,8 @@ export class Pickup {
   age = 0
   value = 0
   mag = false
+  /** 被吸附后经过的时间 */
+  magT = 0
 }
 
 // ---- 世界内的持续性效果 ----

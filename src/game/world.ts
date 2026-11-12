@@ -73,6 +73,21 @@ export interface HitOpts {
 
 const GEM_CAP = 260
 
+/**
+ * 被吸附的经验石 / 道具怎么飞向玩家。
+ * 以前是"朝玩家加速 + 限速"：一旦带上切向速度，就会在 v²/a ≈ 230px 的半径上稳定地绕着飞机转圈，
+ * 玩家一直在动（手机摇杆）时尤其明显，几十颗石头能绕好几秒收不走。
+ * 现在改成"速度转向"：目标速度 = 朝玩家的速度（随吸附时间加速）+ 玩家自己的速度。
+ * 切向分量会在几十毫秒内被拉直，所以不会绕圈；叠加玩家速度，所以冲刺 / 加速时也追得上。
+ */
+const PULL_STEER = 14
+const GEM_PULL_BASE = 320
+const GEM_PULL_ACCEL = 2400
+const GEM_PULL_MAX = 900
+const PICK_PULL_BASE = 300
+const PICK_PULL_ACCEL = 1800
+const PICK_PULL_MAX = 800
+
 const tierOf = (v: number): number => (v < 4 ? 0 : v < 12 ? 1 : v < 40 ? 2 : 3)
 
 export class World {
@@ -525,6 +540,7 @@ export class World {
     g.value = value
     g.tier = tierOf(value)
     g.mag = false
+    g.magT = 0
     g.age = 0
     this.gems.push(g)
   }
@@ -539,6 +555,7 @@ export class World {
     k.age = 0
     k.value = value
     k.mag = false
+    k.magT = 0
     this.pickups.push(k)
   }
 
@@ -1088,6 +1105,7 @@ export class World {
     const p = this.player
     const magR = p.st.magnet
     const magR2 = magR * magR
+    const steer = 1 - Math.exp(-PULL_STEER * dt)
 
     for (let i = 0; i < this.gems.length; i++) {
       const g = this.gems[i]
@@ -1098,16 +1116,14 @@ export class World {
       const d2 = dx * dx + dy * dy
       if (!g.mag && d2 < magR2) g.mag = true
       if (g.mag) {
+        g.magT += dt
         const d = Math.sqrt(d2) || 1
-        g.vx += (dx / d) * 3200 * dt
-        g.vy += (dy / d) * 3200 * dt
-        const sp = Math.hypot(g.vx, g.vy)
-        const cap = 860
-        if (sp > cap) {
-          g.vx *= cap / sp
-          g.vy *= cap / sp
-        }
-        if (d < 14 + sp * dt) {
+        const pull = Math.min(GEM_PULL_MAX, GEM_PULL_BASE + GEM_PULL_ACCEL * g.magT)
+        g.vx += ((dx / d) * pull + p.vx - g.vx) * steer
+        g.vy += ((dy / d) * pull + p.vy - g.vy) * steer
+        // 相对玩家的速度：用它判断"这一步会不会穿过玩家"，避免高速掠过却没被收走
+        const rel = Math.hypot(g.vx - p.vx, g.vy - p.vy)
+        if (d < 14 + rel * dt) {
           g.alive = false
           this.addXp(g.value)
           this.emit({ t: 'gem', x: g.x, y: g.y, value: g.value })
@@ -1129,14 +1145,26 @@ export class World {
       const dx = p.x - k.x
       const dy = p.y - k.y
       const d = Math.hypot(dx, dy) || 1
-      if (d < magR * 0.55) {
-        k.x += (dx / d) * 260 * dt
-        k.y += (dy / d) * 260 * dt
+      if (!k.mag && d < magR * 0.55) k.mag = true
+      let rel = 0
+      if (k.mag) {
+        // 进入吸附范围后一路追到手，不会因为玩家跑得比吸力快而悬在身后
+        k.magT += dt
+        const pull = Math.min(PICK_PULL_MAX, PICK_PULL_BASE + PICK_PULL_ACCEL * k.magT)
+        k.vx += ((dx / d) * pull + p.vx - k.vx) * steer
+        k.vy += ((dy / d) * pull + p.vy - k.vy) * steer
+        rel = Math.hypot(k.vx - p.vx, k.vy - p.vy)
       }
-      if (d < p.r + 20) {
+      if (d < p.r + 20 + rel * dt) {
         k.alive = false
         this.collectPickup(k)
-      } else if (k.age > 60 && k.kind !== 'chest') k.alive = false
+        continue
+      }
+      if (k.mag) {
+        k.x += k.vx * dt
+        k.y += k.vy * dt
+      }
+      if (k.age > 60 && k.kind !== 'chest') k.alive = false
     }
   }
 
