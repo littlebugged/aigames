@@ -1,0 +1,81 @@
+# 发布与运营手册
+
+站点：<https://aigames.de5.net/>（Cloudflare Pages，推送 `main` 自动构建上线）。**域名不要更改**——canonical、sitemap、Open Graph 都来自 `scripts/site.ts` 的 `SITE_URL`。
+
+## 1. 发布流程
+
+```bash
+npm test                      # 33 项测试
+npm run build                 # 生成页面 → tsc（应用与脚本两套配置）→ vite build
+node scripts/e2e.mjs smoke    # 无头浏览器冒烟（含音频电平断言）
+node scripts/e2e.mjs mobile   # 改动了界面/触屏时再跑
+node scripts/e2e.mjs pwa      # 改动了 SW / 缓存策略时再跑
+git push origin main          # 触发 Cloudflare Pages 构建
+```
+
+上线核对：
+
+```bash
+curl -s https://aigames.de5.net/version.json      # id 应等于刚推送提交 SHA 的前 8 位
+node scripts/e2e.mjs live                           # 线上冒烟 + 关键 URL 全部 200
+```
+
+调试时一律用无头浏览器（`scripts/lib/headless.mjs` 里 `headless: true`），不会弹出窗口。
+
+## 2. 回滚
+
+- **最快**：Cloudflare Pages → 项目 → Deployments → 选择上一个成功部署 → *Rollback*。
+- **留痕**：`git revert <sha>` 后推送 `main`，Pages 会重新构建。
+- 玩家端会在回到菜单时看到"游戏已更新，刷新即可体验新版本"。回滚也走同样的路径（SW 文件字节变化 → 新 SW 接管）。
+
+## 3. 缓存模型（排查"我这里还是旧版本"）
+
+| 资源 | 策略 | 说明 |
+| --- | --- | --- |
+| HTML | 网络优先，离线回退缓存；`max-age=0, must-revalidate` | 推送后下一次打开就是新版 |
+| `/assets/*` | 内容哈希 + `immutable` 一年；SW 缓存优先 | 文件名变了就是新资源 |
+| `/sw.js`、`/version.json` | `no-cache` / `no-store` | 更新探测依赖它们，不能被缓存 |
+| 图标、分享图 | 1 天 | 换图后最长一天生效 |
+
+玩家的长时间标签页：回到标签页时、以及每 30 分钟，会主动探测新版本。出现异常时，让玩家硬刷新一次即可；仍然不行就在浏览器的"应用 → Service Workers"里 Unregister。
+
+## 4. 内容与平衡的工作流
+
+内容全部是数据驱动，改动顺序：
+
+1. 在 `src/data/ids.ts` 登记新 id → TypeScript 会提示所有需要补齐的地方（数据、图标、词典…）。
+2. 补齐 `src/data/*`、`src/i18n/zh.ts` 与 `en.ts`（`tests/i18n.test.ts` 会拦住漏翻或占位符不一致）。
+3. 需要新行为时改 `src/game/*`（武器/敌人/Boss/升级逻辑），需要新画面时改 `src/render/*`。
+4. `npm test`（数据约束 + 确定性 + 稳定性）→ `npm run sim -- --all`（看机器人存活、击杀、进化、Boss 耗时有没有失衡）。
+5. `npm run build`：游戏指南页会自动带上新内容，无需手改文档。
+6. 无头截图确认：`node scripts/e2e.mjs play --sector void --ff 400 --wait 4 --name check`，看 `.e2e/check.png`。
+
+平衡参数集中在 `src/data/tuning.ts`；机器人只是粗略的参照，**真实难度以人工试玩为准**。
+
+## 5. SEO 与可发现性
+
+已经就绪：中英双语静态首页（可抓取的玩法说明与 FAQ）、游戏指南（数据表）、sitemap（含 hreflang）、canonical、Open Graph / Twitter Card、JSON-LD、站点图标与分享图。
+
+需要站长在外部完成（无法由代码代劳）：
+
+- 在 Google Search Console、Bing Webmaster Tools 验证站点并提交 `https://aigames.de5.net/sitemap.xml`。
+- **Cloudflare 的"托管 robots.txt"会在边缘叠加规则**（拦截 AI 爬虫，有的账号还会拦截百度爬虫），这是 Cloudflare 控制台里的开关（AI Crawl Control / 机器人相关设置），不是仓库里的 `robots.txt`。如果希望百度等搜索引擎收录，请在控制台里关闭对应规则，然后用 `curl -s https://aigames.de5.net/robots.txt` 核对。
+- 更换分享图：改 `scripts/gen-assets.mjs` 后 `npm run build && node scripts/gen-assets.mjs`，提交 `public/` 下的新素材。社交平台缓存分享图较久，需要在各平台的调试工具里刷新。
+
+## 6. 统计与隐私
+
+游戏本身不使用 Cookie、不接入统计、不上传数据，`/privacy/` 页面也是这样声明的。如果将来开启 Cloudflare Web Analytics（无 Cookie，控制台一个开关）或其它统计，请同步修改 `scripts/gen-pages.ts` 里的隐私页文案。
+
+## 7. 常见问题
+
+| 现象 | 处理 |
+| --- | --- |
+| 玩家反馈卡顿 | 设置里把画质改为"中/低"，关闭屏幕震动与伤害数字；自动画质会在帧率持续偏低时自动降档 |
+| 存档丢失 | 存档只在玩家浏览器里（清除站点数据会丢失）；设置 → 导出存档可以备份，导入存档可以迁移 |
+| 构建失败 | 先本地 `npm run build` 复现；常见原因是新增 id 后某个词典/数据表没补齐（类型检查会报错） |
+| 想看某个时间点的画面 | `node scripts/e2e.mjs play --sector <fields\|wasteland\|void> --ff <秒> --wait <秒> --name <文件名>` |
+| 想测性能 | `node scripts/e2e.mjs perf --q high --dpr 2 --gpu 1`（`--gpu 1` 使用 Metal，`0` 为纯软件光栅化的最坏情况） |
+
+## 8. 历史
+
+重构前仓库里的旧小游戏（贪吃蛇、Star Vanguard 等）仍保存在 git 历史里，最后一个包含它们的提交是 `f628944`，需要时可 `git show f628944:<路径>` 取回。
