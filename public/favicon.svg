@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0d1538"/><stop offset="1" stop-color="#04050b"/></linearGradient>
+  <radialGradient id="halo" cx=".5" cy=".55" r=".62"><stop offset="0" stop-color="#3df2ff" stop-opacity=".26"/><stop offset=".6" stop-color="#7a5cff" stop-opacity=".07"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+  <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+    <feGaussianBlur in="SourceGraphic" stdDeviation="13" result="b1"/>
+    <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="b2"/>
+    <feMerge><feMergeNode in="b1"/><feMergeNode in="b1"/><feMergeNode in="b2"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+</defs>
+<rect x="8" y="8" width="496" height="496" rx="116" fill="url(#bg)"/><rect x="8" y="8" width="496" height="496" rx="116" fill="url(#halo)"/><rect x="11" y="11" width="490" height="490" rx="113" fill="none" stroke="#3df2ff" stroke-opacity=".38" stroke-width="3"/>
+<g transform="translate(256 256) scale(1) translate(-256 -256)">
+  <g stroke-linecap="round" fill="none">
+    <circle cx="256" cy="262" r="206" stroke="#3df2ff" stroke-opacity=".12" stroke-width="2"/>
+    <circle cx="256" cy="262" r="206" stroke="#ff4fd8" stroke-width="11" stroke-dasharray="170 124" transform="rotate(-62 256 262)" filter="url(#glow)" opacity=".9"/>
+  </g>
+  <g filter="url(#glow)">
+    <circle cx="388.4" cy="104.2" r="17" fill="#ffd84a"/>
+    <polygon points="124,122 146,164 102,164" fill="none" stroke="#ff4a6a" stroke-width="8" stroke-linejoin="round" opacity=".95"/>
+    <rect x="386" y="428" width="24" height="24" fill="none" stroke="#ff4a6a" stroke-width="8" stroke-linejoin="round" transform="rotate(45 398 440)" opacity=".95"/>
+  </g>
+  <g filter="url(#glow)">
+    <polygon points="256.0,134.0 390.3,382.2 299.8,335.5 256.0,364.7 212.2,335.5 121.7,382.2" fill="#3df2ff" fill-opacity=".2" stroke="#3df2ff" stroke-width="15" stroke-linejoin="round"/>
+  </g>
+  <polygon points="256.0,134.0 390.3,382.2 299.8,335.5 256.0,364.7 212.2,335.5 121.7,382.2" fill="none" stroke="#eafcff" stroke-width="4.5" stroke-linejoin="round" opacity=".95"/>
+</g>
+</svg>

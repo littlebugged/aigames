@@ -11,6 +11,7 @@ dist
 
 # 由 scripts/gen-pages.ts 在构建时生成（单一数据源：src/data）
 /index.html
+/404.html
 /en/
 /guide/
 /privacy/
