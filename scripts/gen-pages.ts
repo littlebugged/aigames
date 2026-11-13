@@ -220,6 +220,7 @@ const ZH: Copy = {
     ],
     logH: '更新记录',
     log: [
+      '<strong>v1.3</strong> — 界面质感升级：伤害数字重做为渐变霓虹字形（细暗描边 + 贴字形的柔光，日常数字克制、重击才上色并带斜体与高光，不再有粗描边与感叹号）；进化横幅改为铭牌式（六边形徽章、金属渐变标题、扫光，自动避开顶部信息）并在演出中加入四周暗角聚焦，白闪只持续一瞬；整理手机与小屏的 HUD 版面，通知、教学提示、装备栏与冲刺键不再互相遮挡。',
       '<strong>v1.2</strong> — 打击感大升级：伤害数字扩展为 8 档梯度（字号、颜色、光晕随伤害逐级升级，暴击再升一档），一眼看出这一下有多重；武器进化新增完整演出——蓄力、整屏冲击波、慢动作、大横幅与音效，进化瞬间的冲击波还会清场并抹掉附近的敌方弹幕；进化后飞船周围有常驻光环，进化武器开火更有分量。',
       '<strong>v1.1</strong> — 新增武器「回旋飞轮」与「磁轨炮」（共 10 种）及各自的进化形态；升级卡片会标出本次新增的等级，并显示武器 / 被动栏位上限；修复手机上经验晶体与道具偶尔绕着飞机打转的问题。',
       '<strong>v1.0</strong> — 首个正式版本：3 个星区与 Boss、8 种武器与进化、12 种被动、4 艘飞船、机库、成就、无尽模式、中英双语、触屏与手柄支持。',
@@ -381,6 +382,7 @@ const EN: Copy = {
     ],
     logH: 'Changelog',
     log: [
+      '<strong>v1.3</strong> — UI polish: damage numbers are redrawn as gradient neon glyphs (thin dark outline plus a glow hugging the letterforms; everyday numbers stay restrained and only heavy hits get colour, slant and gloss — no more fat outlines or exclamation marks); the evolution banner becomes a nameplate (hex emblem, metallic title, sheen sweep) that stays clear of the top HUD, with a focus vignette during the cinematic and a much shorter white flash; the HUD layout on phones and small screens is reorganised so notifications, tutorial hints, the loadout and the dash button no longer overlap.',
       '<strong>v1.2</strong> — Big game-feel upgrade: damage numbers now come in 8 visual tiers (size, colour and glow scale up with damage, and crits jump one tier) so you can tell a heavy hit at a glance; weapon evolution gets a full cinematic — charge-up, screen-wide shockwave, slow motion, banner and sound — and the shockwave also clears nearby enemies and enemy bullets; evolved weapons leave a persistent aura around the ship and fire with more weight.',
       '<strong>v1.1</strong> — Two new weapons, Boomerang Chakram and Railgun (10 in total), each with its own evolution; level-up cards now highlight the newly gained level and show the weapon / passive slot caps; fixed XP gems and pickups sometimes orbiting the ship on phones.',
       '<strong>v1.0</strong> — First release: 3 sectors with bosses, 8 weapons with evolutions, 12 passives, 4 ships, hangar, achievements, endless mode, Chinese/English UI, touch and gamepad support.',

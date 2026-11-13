@@ -67,20 +67,18 @@ export class Hud {
       iconEl('pause'),
     )
 
+    // 版面分区：左上血条 / 中上计时器 + 通知栈（横幅、进化铭牌、Toast 流式往下排）/ 右上击杀与暂停 /
+    // 左下教学提示 + 装备栏 / 右下冲刺键。通知与提示都放进流式容器，保证互相不遮挡（e2e layout 模式守护）。
     this.el = h(
       'div',
       { class: 'hud', hidden: true },
       h('div', { class: 'hud-xp' }, this.xpFill, this.xpLv),
       h('div', { class: 'hud-tl' }, this.hpWrap),
-      h('div', { class: 'hud-tc' }, this.timer, this.eta, this.bossBar),
+      h('div', { class: 'hud-tc' }, this.timer, this.eta, this.bossBar, h('div', { class: 'hud-stack' }, this.banner, this.evoBanner, this.toasts)),
       h('div', { class: 'hud-tr' }, h('div', { class: 'kills' }, iconEl('skull'), this.kills), pauseBtn),
-      h('div', { class: 'hud-bl' }, this.weapons, this.passives),
+      h('div', { class: 'hud-bl' }, this.hint, this.weapons, this.passives),
       h('div', { class: 'hud-bc' }, this.dash),
       h('div', { class: 'hud-br' }, this.dashBtn),
-      this.banner,
-      this.evoBanner,
-      this.toasts,
-      this.hint,
     )
   }
 
@@ -255,15 +253,24 @@ export class Hud {
     this.bannerT = sev === 2 ? 3.2 : 2.2
   }
 
-  /** 武器进化的大横幅：武器图标 + 进化后的名字 + 一句话效果，颜色取该武器的主色 */
+  /** 武器进化铭牌：六边形徽章（武器图标）+「武器进化」+ 进化后的名字 + 一句话效果，颜色取该武器的主色 */
   showEvolve(id: WeaponId): void {
     this.evoBanner.style.setProperty('--c', WEAPONS[id].color)
     this.evoBanner.replaceChildren(
-      h('div', { class: 'evo-rays' }),
-      h('div', { class: 'evo-ico' }, svgEl(weaponIcon(id))),
-      h('div', { class: 'evo-kicker' }, t('evo.kicker')),
-      h('div', { class: 'evo-name' }, t(dyn(`weapon.${id}.evoName`))),
-      h('div', { class: 'evo-desc' }, t(dyn(`weapon.${id}.evoDesc`))),
+      h(
+        'div',
+        { class: 'evo-plate' },
+        h('div', { class: 'evo-emblem' }, h('i', { class: 'evo-ring' }), h('div', { class: 'evo-ico' }, svgEl(weaponIcon(id)))),
+        h(
+          'div',
+          { class: 'evo-text' },
+          h('div', { class: 'evo-kicker' }, t('evo.kicker')),
+          h('div', { class: 'evo-name' }, t(dyn(`weapon.${id}.evoName`))),
+          h('div', { class: 'evo-desc' }, t(dyn(`weapon.${id}.evoDesc`))),
+        ),
+        h('div', { class: 'evo-sheen' }),
+        h('i', { class: 'evo-flare' }),
+      ),
     )
     this.evoBanner.className = 'evo-banner'
     // 重启动画

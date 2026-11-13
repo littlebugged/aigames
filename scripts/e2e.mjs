@@ -7,6 +7,7 @@
  *   node scripts/e2e.mjs flows              # 关键流程：英文界面、失败结算、机库购买、暂停放弃、手柄
  *   node scripts/e2e.mjs pwa                # Service Worker：激活、离线可玩、新版本提示、清单与图标
  *   node scripts/e2e.mjs fx                 # 手感：伤害数字 8 档梯度 + 武器进化演出（蓄力 → 爆发 → 慢动作 → 横幅 → 光环），逐帧截图
+ *   node scripts/e2e.mjs layout [--only 名]  # 版面审计：手机竖/横屏、平板、桌面，满配 HUD 元素互不遮挡、不出屏
  *   node scripts/e2e.mjs play [选项]        # 直接开一局并快进截图：--sector --ship --threat --ff --wait --name --q --audio 1
  *   node scripts/e2e.mjs perf [选项]        # 性能探针：--q high|medium|low|auto --dpr 2 --gpu 1 --secs 6
  *   node scripts/e2e.mjs live [--url URL]   # 对线上地址做冒烟测试（默认 https://aigames.de5.net）
@@ -214,8 +215,9 @@ async function play(base) {
   const vw = Number(opt('w', '1440'))
   const vh = Number(opt('h', '810'))
   const quality = opt('q', 'high')
+  const dpr = Number(opt('dpr', '1'))
   const browser = await launch()
-  const ctx = await browser.newContext({ viewport: { width: vw, height: vh }, deviceScaleFactor: 1 })
+  const ctx = await browser.newContext({ viewport: { width: vw, height: vh }, deviceScaleFactor: dpr })
   const page = await ctx.newPage()
   watch(page, 'play')
   await page.goto(`${base}/?e2e=1&q=${quality}`, { waitUntil: 'load' })
@@ -659,8 +661,9 @@ async function flows(base) {
 
 /** 手感专项：伤害数字分级 + 武器进化演出。截图在 .e2e/fx*.png，同时断言演出时序（导演 / 横幅 / 慢动作 / 光环）。 */
 async function fx(base) {
+  const opt = (k, d) => (args.includes(`--${k}`) ? args[args.indexOf(`--${k}`) + 1] : d)
   const browser = await launch()
-  const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 })
+  const ctx = await browser.newContext({ viewport: { width: Number(opt('w', '1280')), height: Number(opt('h', '720')) }, deviceScaleFactor: Number(opt('dpr', '1')) })
   const page = await ctx.newPage()
   watch(page, 'fx')
   await page.goto(`${base}/?e2e=1&q=high`, { waitUntil: 'load' })
@@ -673,7 +676,20 @@ async function fx(base) {
   await page.waitForSelector('.hud:not([hidden])')
   await sleep(600)
 
-  // ① 伤害数字梯度：上排普通命中，下排同样数值的暴击（上浮一档 + 感叹号）
+  // ⓪ 数字字样本：8 档 + 受伤数字，静止不动（寿命很长、不上浮、不弹出），逐档对比字形质感，不受截图时序影响
+  await page.evaluate(() => {
+    const a = window.__neon
+    const p = a.game.player
+    const specimens = [['6', 0, 11], ['14', 1, 13], ['30', 2, 15], ['60', 3, 19], ['120', 4, 23], ['260', 5, 28], ['520', 6, 34], ['1.4k', 7, 41], ['-18', 8, 18]]
+    specimens.forEach(([text, tier, size], i) => {
+      a.renderer.texts.add(p.x - 330 + i * 84, p.y + 40, text, { size, style: tier, life: 600, pop: 1, tier: tier === 8 ? 4 : tier, rise: 0 })
+    })
+  })
+  await sleep(450)
+  await shot(page, 'fx0-numbers-specimen')
+  await page.evaluate(() => window.__neon.renderer.texts.clear())
+
+  // ① 伤害数字梯度：上排普通命中，下排同样数值的暴击（上浮一档）
   await page.evaluate(() => {
     const w = window.__neon.game
     const p = w.player
@@ -743,8 +759,12 @@ async function fx(base) {
     if (!Object.values(seen).some((x) => x.cine?.boomed)) problems.push('[fx] 冲击波没有引爆（导演从未进入爆发阶段）')
     // 每个采样点都带一次截图，真实耗时会漂移，所以只要任意一次采样看到横幅就算数
     if (!Object.values(seen).some((x) => x.banner)) problems.push('[fx] 进化横幅没有显示')
-    if (seen.after.cine) problems.push('[fx] 3.6 秒后演出导演应已结束（时间流速恢复正常）')
-    if (seen.after.banner) problems.push('[fx] 3.6 秒后进化横幅应已消失')
+    // 截图会让页面主循环停顿（App 限制了单帧时间步长，游戏时间走得比墙钟慢），高 DPR 下尤其明显，
+    // 所以"演出结束、横幅退场"改成轮询等待（最多 12 秒），而不是按墙钟时间点断言
+    const done = await page
+      .waitForFunction(() => !window.__neon.cine && !document.querySelector('.evo-banner.show'), null, { timeout: 12000, polling: 100 })
+      .then(() => true, () => false)
+    if (!done) problems.push('[fx] 演出结束后，演出导演应已退出（时间流速恢复正常）且进化横幅应已消失')
 
     // ③ 无障碍：关掉"屏幕震动"、打开"减少闪烁"后再进化一次——不应有镜头变焦与白闪，横幅等其余演出照常
     await page.evaluate((partners) => {
@@ -792,6 +812,141 @@ async function fx(base) {
     }
   }
   console.log('  debug:', JSON.stringify(await dbg(page)))
+  await browser.close()
+}
+
+/**
+ * 版面审计：各种屏幕下，"满配"状态（6 武器 + 6 被动 + 教学提示 + Toast + Boss 血条 + 通用横幅 + 进化横幅）
+ * 的 HUD 元素互不遮挡、不出屏。包围盒在页面里量，两两检查；截图写到 .e2e/layout-*.png。
+ */
+async function layout(base) {
+  const profiles = [
+    { name: 'phone-port', w: 390, h: 844, touch: true },
+    { name: 'phone-port-s', w: 360, h: 640, touch: true },
+    { name: 'phone-land', w: 844, h: 390, touch: true },
+    { name: 'phone-land-s', w: 667, h: 360, touch: true },
+    { name: 'tablet-port', w: 820, h: 1180, touch: true },
+    { name: 'desktop', w: 1280, h: 720, touch: false },
+    { name: 'desktop-s', w: 1024, h: 600, touch: false },
+  ]
+  const only = args.includes('--only') ? args[args.indexOf('--only') + 1] : null
+  const browser = await launch()
+  for (const pf of profiles) {
+    if (only && pf.name !== only) continue
+    const ctx = await browser.newContext({
+      viewport: { width: pf.w, height: pf.h },
+      deviceScaleFactor: 2,
+      isMobile: pf.touch,
+      hasTouch: pf.touch,
+      ...(pf.touch ? { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1' } : {}),
+    })
+    const page = await ctx.newPage()
+    watch(page, `layout-${pf.name}`)
+    await page.goto(`${base}/?e2e=1&q=medium`, { waitUntil: 'load' })
+    await waitReady(page)
+    await sleep(1200)
+    if (pf.touch) await page.tap('.btn.play')
+    else await page.click('.btn.play')
+    await page.waitForSelector('.screen.deploy')
+    if (pf.touch) await page.tap('.btn.start')
+    else await page.click('.btn.start')
+    await page.waitForSelector('.hud:not([hidden])')
+    await sleep(800)
+    await page.evaluate(() => {
+      const a = window.__neon
+      a.godMode = true
+      a.fastForward(240)
+      a.paused = true // 定格：模拟停住，HUD 的计时器也不再走，元素位置稳定
+      const p = a.game.player
+      const W = ['pulse', 'orbit', 'arc', 'missile', 'laser', 'mine']
+      p.weapons = W.map((id, i) => ({ id, slot: i, level: i < 2 ? 8 : 3 + i, evolved: i < 2, timer: 0, pending: 0, angle: 0, pts: [], s: p.weapons[0].s }))
+      const P = ['power', 'area', 'haste', 'accel', 'multi', 'magnet']
+      for (const k of Object.keys(p.passives)) delete p.passives[k]
+      P.forEach((id, i) => (p.passives[id] = 1 + (i % 3)))
+      const hud = a.hud
+      hud.showHint('武器练到满级，再带上搭档装备，就能进化！', 999)
+      hud.toast('获得补给：+120 晶核', 'gold', 600000)
+      hud.toast('磁暴地雷 升至 Lv.4', 'good', 600000)
+      hud.bossBar.hidden = false
+      hud.bossName.textContent = '监察者'
+      hud.bossFill.style.width = '72%'
+      hud.showBanner('警告：Boss 来袭', 2, true)
+      hud.showEvolve('missile')
+    })
+    await sleep(500)
+    const measure = async (label) => {
+      const boxes = await page.evaluate(() => {
+        const rect = (el) => {
+          const r = el.getBoundingClientRect()
+          return { x: r.left, y: r.top, r: r.right, b: r.bottom }
+        }
+        const union = (els) => {
+          const rs = els.filter((e) => e && e.getClientRects().length > 0).map(rect) // display:none 的元素不参与
+          if (!rs.length) return null
+          return { x: Math.min(...rs.map((r) => r.x)), y: Math.min(...rs.map((r) => r.y)), r: Math.max(...rs.map((r) => r.r)), b: Math.max(...rs.map((r) => r.b)) }
+        }
+        const q = (s) => [...document.querySelectorAll(s)]
+        const visible = (el) => !!el && el.getClientRects().length > 0
+        const touch = document.querySelector('.hud').classList.contains('touch')
+        const o = {
+          hp: union(q('.hud-tl .hp')),
+          lv: union(q('.hud-xp .xp-lv')),
+          timer: union(q('.hud-tc .timer')),
+          eta: union(q('.hud-tc .boss-eta').filter((e) => e.textContent)),
+          bossbar: union(q('.hud-tc .boss-bar').filter(visible)),
+          kills: union(q('.hud-tr .kills')),
+          pause: union(q('.hud-tr .hud-pause')),
+          weapons: union(q('.hud-bl .weapons .slot')),
+          passives: union(q('.hud-bl .passives .slot')),
+          dash: union(touch ? q('.hud-br .dash-btn') : q('.hud-bc .dash-ring')),
+          hint: union(q('.hint.show')),
+          toasts: union(q('.toasts .toast')),
+          banner: union(q('.banner.show')),
+          evo: union(q('.evo-banner.show .evo-plate')),
+        }
+        return { vw: innerWidth, vh: innerHeight, touch, slots: q('.hud-bl .slot').length, boxes: o }
+      })
+      const { vw, vh, boxes: B } = boxes
+      const names = Object.keys(B).filter((k) => B[k])
+      const hits = []
+      for (let i = 0; i < names.length; i++) {
+        for (let j = i + 1; j < names.length; j++) {
+          const a = B[names[i]]
+          const b = B[names[j]]
+          const ox = Math.min(a.r, b.r) - Math.max(a.x, b.x)
+          const oy = Math.min(a.b, b.b) - Math.max(a.y, b.y)
+          if (ox > 1 && oy > 1) hits.push(`${names[i]}×${names[j]}（重叠 ${Math.round(ox)}×${Math.round(oy)}px）`)
+        }
+      }
+      const out = []
+      for (const n of names) {
+        const r = B[n]
+        if (r.x < -1 || r.y < -1 || r.r > vw + 1 || r.b > vh + 1) out.push(`${n} 超出屏幕 (${Math.round(r.x)},${Math.round(r.y)})-(${Math.round(r.r)},${Math.round(r.b)}) / ${vw}×${vh}`)
+      }
+      console.log(`  [${pf.name}/${label}] ${vw}×${vh} touch=${boxes.touch} 槽位=${boxes.slots}  重叠=${hits.length} 出屏=${out.length}`)
+      for (const s of hits) console.log('     重叠：', s)
+      for (const s of out) console.log('     出屏：', s)
+      for (const s of hits) problems.push(`[layout/${pf.name}/${label}] 重叠 ${s}`)
+      for (const s of out) problems.push(`[layout/${pf.name}/${label}] ${s}`)
+      await shot(page, `layout-${pf.name}${label === 'full' ? '' : '-' + label}`)
+    }
+    await measure('full')
+    // 开局状态：1 把武器、没有被动、只剩教学提示——手机上教学提示紧贴冲刺键，最容易在这个状态下撞上
+    await page.evaluate(() => {
+      const a = window.__neon
+      const p = a.game.player
+      p.weapons = [p.weapons[0]]
+      for (const k of Object.keys(p.passives)) delete p.passives[k]
+      a.hud.toasts.replaceChildren()
+      a.hud.banner.classList.remove('show')
+      a.hud.evoBanner.classList.remove('show')
+      a.hud.bossBar.hidden = true
+      a.hud.showHint('按住屏幕左侧拖动即可移动，武器会自动开火', 999)
+    })
+    await sleep(500)
+    await measure('early')
+    await ctx.close()
+  }
   await browser.close()
 }
 
@@ -886,6 +1041,7 @@ try {
   else if (mode === 'pwa') await pwa()
   else if (mode === 'flows') await flows(base)
   else if (mode === 'fx') await fx(base)
+  else if (mode === 'layout') await layout(base)
   else throw new Error(`未知模式 ${mode}`)
 } finally {
   srv?.server.close()

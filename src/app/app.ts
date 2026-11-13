@@ -694,7 +694,9 @@ export class App {
       this.input.reset()
     }
 
-    this.renderer.frame(w, playing ? dt * ts : w.phase === 'won' || w.phase === 'lost' ? dt : 0)
+    const animDt = playing ? dt * ts : w.phase === 'won' || w.phase === 'lost' ? dt : 0
+    this.renderer.setFocus(playing ? 1 - ts : 0)
+    this.renderer.frame(w, animDt, playing ? dt : animDt)
     this.hud.update(w, playing ? dt : 0)
 
     if (this.endT >= 0) {

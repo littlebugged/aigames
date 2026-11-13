@@ -1,8 +1,36 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { FloatTexts, type FloatStyle } from '../src/render/floattext'
+import { FloatTexts, type FloatStyle, type NumPainter } from '../src/render/floattext'
 
-const st = (tier: number, life = 1): FloatStyle => ({ size: 12 + tier * 3, color: '#fff', life, tier })
+const st = (tier: number, life = 1): FloatStyle => ({ size: 12 + tier * 3, style: tier, life, tier })
+
+interface Call {
+  text: string
+  style: number
+  x: number
+  y: number
+  size: number
+  scale: number
+  alpha: number
+}
+
+/** 记录每次绘制调用的假画笔（FloatTexts 只负责"画什么、画在哪、多大、多透明"，字形怎么画是 NumberFont 的事） */
+function recorder(): { ctx: CanvasRenderingContext2D; painter: NumPainter; calls: Call[] } {
+  const calls: Call[] = []
+  const ctx = { globalAlpha: 1 } as unknown as CanvasRenderingContext2D
+  const painter: NumPainter = {
+    draw(c, text, style, x, y, size, scale) {
+      calls.push({ text, style, x, y, size, scale, alpha: (c as unknown as { globalAlpha: number }).globalAlpha })
+    },
+  }
+  return { ctx, painter, calls }
+}
+
+function render(ft: FloatTexts, scale = 1): Call[] {
+  const r = recorder()
+  ft.draw(r.ctx, r.painter, scale)
+  return r.calls
+}
 
 /** 池容量（与实现里的 CAP 保持一致，测试里靠"填满"来探测） */
 function fill(ft: FloatTexts, tier: number, life = 1): number {
@@ -52,8 +80,7 @@ test('飘字池：高档位不会被低档位或同档位挤掉；挤的是最�
   g.update(0.7) // old 只剩 30%，其余还有 93%
   assert.equal(g.add(0, 0, 'BIG', st(3)), true)
   assert.equal(g.count, slots)
-  const names = new Set<string>()
-  g.draw(recorder(names))
+  const names = new Set(render(g).map((c) => c.text))
   assert.ok(!names.has('old'), '最老的那条应被挤掉')
   assert.ok(names.has('BIG'))
   assert.ok(names.has('fresh0'), '其余的都还在')
@@ -73,102 +100,82 @@ test('飘字池：到期自动移除', () => {
   assert.equal(ft.count, 0)
 })
 
-/** 记录 fillText 调用顺序的假画布 */
-function recorder(into: Set<string> | string[]): CanvasRenderingContext2D {
-  const target: Record<string, unknown> = {}
-  return new Proxy(target, {
-    get(t, k: string) {
-      if (k === 'fillText')
-        return (text: string) => {
-          if (Array.isArray(into)) into.push(text)
-          else into.add(text)
-        }
-      if (k === 'createLinearGradient') return () => ({ addColorStop: () => {} })
-      if (k in t) return t[k]
-      return () => {}
-    },
-    set(t, k: string, v) {
-      t[k] = v
-      return true
-    },
-  }) as unknown as CanvasRenderingContext2D
-}
-
 test('飘字绘制顺序：高档位画在最上层，即使它是先加入的', () => {
   const ft = new FloatTexts()
   ft.add(0, 0, 'BIG', st(6))
   ft.add(0, 0, 'mid', st(3))
   ft.add(0, 0, 'tiny-a', st(0))
   ft.add(0, 0, 'tiny-b', st(1))
-  const order: string[] = []
-  ft.draw(recorder(order))
+  const order = render(ft).map((c) => c.text)
   assert.equal(order.length, 4)
   const idx = (s: string): number => order.indexOf(s)
   assert.ok(idx('tiny-a') < idx('BIG') && idx('tiny-b') < idx('BIG'), '小数字必须先画（在下面）')
   assert.ok(idx('tiny-a') < idx('mid') && idx('tiny-b') < idx('mid'))
 })
 
-/** 记录 fillText 的 x 坐标与 shadowBlur 状态的假画布 */
-function probe(): { ctx: CanvasRenderingContext2D; xs: number[]; blurs: number[]; state: Record<string, unknown> } {
-  const xs: number[] = []
-  const blurs: number[] = []
-  const state: Record<string, unknown> = {}
-  const ctx = new Proxy(state, {
-    get(o, k: string) {
-      if (k === 'fillText')
-        return (_: string, x: number) => {
-          xs.push(x)
-          blurs.push(Number(o.shadowBlur ?? 0))
-        }
-      if (k === 'createLinearGradient') return () => ({ addColorStop: () => {} })
-      if (k in o) return o[k]
-      return () => {}
-    },
-    set(o, k: string, v) {
-      o[k] = v
-      return true
-    },
-  }) as unknown as CanvasRenderingContext2D
-  return { ctx, xs, blurs, state }
-}
+test('飘字：外观下标、缩放原样交给画笔，画完把 globalAlpha 复位', () => {
+  const ft = new FloatTexts()
+  ft.add(10, 20, '123', { size: 19, style: 3, life: 1, tier: 3, pop: 1 })
+  ft.add(10, 20, '-9', { size: 18, style: 8, life: 1, tier: 4, pop: 1 })
+  const r = recorder()
+  ft.draw(r.ctx, r.painter, 2.5)
+  assert.deepEqual(r.calls.map((c) => [c.text, c.style, c.scale]), [
+    ['123', 3, 2.5],
+    ['-9', 8, 2.5],
+  ])
+  assert.equal((r.ctx as unknown as { globalAlpha: number }).globalAlpha, 1, '画完必须复位，否则会污染后面的所有绘制')
+})
+
+test('飘字：弹出时放大到 pop 倍，随后回弹落定为原字号；越到末尾越透明', () => {
+  const ft = new FloatTexts()
+  ft.add(0, 0, '77', { size: 20, style: 2, life: 1, pop: 2, tier: 2, rise: 0 })
+  const first = render(ft)[0]
+  assert.ok(first.size > 20 * 1.9 && first.size <= 20 * 2.0001, `刚出现时应接近 2 倍，实际 ${first.size}`)
+  ft.update(0.4) // 弹出早已结束，剩余寿命 60%（>50%，还没开始淡出）
+  const settled = render(ft)[0]
+  assert.ok(Math.abs(settled.size - 20) < 0.01, `弹出结束后应落回原字号，实际 ${settled.size}`)
+  assert.equal(settled.alpha, 1, '中段完全不透明')
+  ft.update(0.5) // 剩余 10%
+  const fading = render(ft)[0]
+  assert.ok(fading.alpha < 0.5 && fading.alpha > 0, `快到期时应已在淡出，实际 ${fading.alpha}`)
+})
+
+test('飘字：重击数字比杂兵数字更晚才开始淡出', () => {
+  const ft = new FloatTexts()
+  ft.add(0, 0, 'low', { size: 12, style: 0, life: 1, pop: 1, tier: 0, rise: 0 })
+  ft.add(0, 0, 'high', { size: 12, style: 3, life: 1, pop: 1, tier: 3, rise: 0 })
+  ft.update(0.6) // 剩余 40%：低档已开始淡出（<50%），高档还没（>30%）
+  const calls = render(ft)
+  const low = calls.find((c) => c.text === 'low')
+  const high = calls.find((c) => c.text === 'high')
+  assert.ok(low && high)
+  assert.ok(low.alpha < 1, '低档位已开始淡出')
+  assert.equal(high.alpha, 1, '高档位仍完全不透明')
+})
 
 test('飘字：热档位弹出时抖动，但最终稳定停在原位', () => {
   const ft = new FloatTexts()
-  ft.add(100, 100, '999', { size: 28, color: '#f55', halo: '#f00', life: 1, pop: 2, tier: 5, rise: 0 })
-  const a = probe()
-  ft.draw(a.ctx) // age=0：抖动最强
+  ft.add(100, 100, '999', { size: 28, style: 5, life: 1, pop: 2, tier: 5, rise: 0 })
+  const a = render(ft) // age=0：抖动最强
   ft.update(0.5)
-  const b = probe()
-  ft.draw(b.ctx) // 弹出结束后：不再抖
+  const b = render(ft) // 弹出结束后：不再抖
   ft.update(0.1)
-  const c = probe()
-  ft.draw(c.ctx)
-  assert.equal(b.xs.length, c.xs.length)
-  assert.deepEqual(b.xs, c.xs, '弹出结束后位置应保持稳定（vy=0 时 x 不变）')
-  assert.notEqual(a.xs[0], b.xs[0], '弹出瞬间应有抖动偏移')
+  const c = render(ft)
+  assert.equal(b.length, c.length)
+  assert.deepEqual(
+    b.map((v) => [v.x, v.y]),
+    c.map((v) => [v.x, v.y]),
+    '弹出结束后位置应保持稳定（vy=0 时 x/y 不变）',
+  )
+  assert.notEqual(a[0].x, b[0].x, '弹出瞬间应有抖动偏移')
 })
 
-test('飘字光晕：重击档位多画一层 shadowBlur 柔光，低画质可关闭，且绘制后一定复位', () => {
-  const heavy = new FloatTexts()
-  heavy.add(0, 0, '500', { size: 28, color: '#f55', halo: '#f00', life: 1, tier: 5 })
-  const on = probe()
-  heavy.draw(on.ctx, 2, true)
-  assert.equal(on.xs.length, 2, '光晕层 + 正常填充层')
-  assert.ok(on.blurs[0] > 0, '第一遍带 shadowBlur')
-  assert.equal(on.blurs[1], 0, '第二遍（正常填充）不带 shadowBlur')
-  assert.equal(on.state.shadowBlur, 0, '画完后 shadowBlur 必须复位，否则会污染后面的所有绘制')
-  assert.equal(on.state.shadowColor, 'transparent')
-
-  const off = probe()
-  heavy.draw(off.ctx, 2, false)
-  assert.equal(off.xs.length, 1, '低画质：只有正常填充')
-  assert.ok(off.blurs.every((v) => v === 0))
-
-  // 小数字（低档位）永远不走 shadowBlur
-  const small = new FloatTexts()
-  small.add(0, 0, '30', { size: 15, color: '#fff', halo: '#7fe9ff', life: 1, tier: 2 })
-  const sm = probe()
-  small.draw(sm.ctx, 2, true)
-  assert.equal(sm.xs.length, 1)
-  assert.ok(sm.blurs.every((v) => v === 0))
+test('飘字：非热档位弹出时不抖动', () => {
+  const ft = new FloatTexts()
+  ft.add(100, 100, '55', { size: 19, style: 3, life: 1, pop: 1.6, tier: 3, rise: 0 })
+  const a = render(ft)
+  ft.update(0.001)
+  const b = render(ft)
+  assert.equal(a[0].x, b[0].x)
+  assert.equal(a[0].y, b[0].y)
 })

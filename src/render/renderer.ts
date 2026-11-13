@@ -1,7 +1,7 @@
 import type { WeaponId } from '../data/ids'
 import { SHIPS } from '../data/ships'
 import { WEAPONS } from '../data/weapons'
-import { DMG_TIERS, EVOLVE_CHARGE, EVOLVE_ZOOM, budgetClass, dmgTier, fmtDmg } from '../engine/feel'
+import { DMG_TIERS, EVOLVE_CHARGE, EVOLVE_ZOOM, HURT_STYLE, NUM_LOOKS, budgetClass, dmgTier, fmtDmg } from '../engine/feel'
 import { TAU, clamp01 } from '../engine/math'
 import type { GameEvent } from '../game/events'
 import type { World } from '../game/world'
@@ -9,6 +9,7 @@ import { Background } from './background'
 import { BossArt } from './bossart'
 import { Camera } from './camera'
 import { FloatTexts } from './floattext'
+import { NumberFont } from './numfont'
 import { Particles } from './particles'
 import { lighten, rgba } from './palette'
 import { FACES_MOTION } from './shapes'
@@ -82,6 +83,8 @@ export class Renderer {
   private readonly bg = new Background()
   private readonly parts: Particles
   private readonly texts = new FloatTexts()
+  /** 伤害数字的字形图集（预渲染渐变 / 光晕 / 描边，运行时只做 drawImage） */
+  private readonly numFont = new NumberFont(NUM_LOOKS)
 
   private world: World | null = null
 
@@ -133,6 +136,9 @@ export class Renderer {
   private beC: CanvasRenderingContext2D | null = null
 
   private readonly hurtVig: HTMLCanvasElement
+  /** 聚焦暗角（进化演出时把视线收向飞船）与它的强度（0..1，由 App 按时间流速给出） */
+  private readonly focusVig: HTMLCanvasElement
+  private focusV = 0
 
   /** 最近一帧 CPU 耗时（毫秒，指数平滑），用于自适应画质 */
   frameMs = 0
@@ -145,7 +151,16 @@ export class Renderer {
     this.ctx = ctx
     this.parts = new Particles(QUALITY[settings.quality].cap)
     this.hurtVig = this.makeVignette('#ff1f4b')
+    this.focusVig = this.makeVignette('#01030b')
     this.applyQuality()
+  }
+
+  /**
+   * 聚焦强度（0 = 无，1 = 最强）：进化演出时 App 传入"1 - 时间流速"，
+   * 屏息 → 定格 → 恢复的过程里四周暗下去再亮回来，视线自然收到飞船和冲击波上。
+   */
+  setFocus(v: number): void {
+    this.focusV = clamp01(v)
   }
 
   private makeVignette(color: string): HTMLCanvasElement {
@@ -288,7 +303,7 @@ export class Renderer {
         this.cam.addTrauma(Math.min(0.75, 0.3 + e.dmg * 0.012))
         P.burst(p.x, p.y, '#ff3b5c', 10, 220, 6, 0.4)
         P.spark(p.x, p.y, '#ffffff', 8, 260, 0.3)
-        if (this.settings.dmgNumbers) this.texts.add(p.x, p.y - 20, `-${Math.round(e.dmg)}`, { size: 18, color: '#ff5c7a', halo: '#ff1f4b', life: 0.9, pop: 1.7, tier: 4, rise: 0.8 })
+        if (this.settings.dmgNumbers) this.texts.add(p.x, p.y - 20, `-${Math.round(e.dmg)}`, { size: NUM_LOOKS[HURT_STYLE].size, style: HURT_STYLE, life: 0.9, pop: 1.7, tier: 4, rise: 0.8 })
         break
       }
       case 'gem': {
@@ -468,8 +483,8 @@ export class Renderer {
     this.texts.add(
       x + (boss ? (Math.random() - 0.5) * (52 + tier * 8) : 0),
       boss ? y - 24 - Math.random() * 26 - tier * 3 : y - 8 - tier * 2,
-      fmtDmg(dmg) + (crit ? '!' : ''),
-      { size: T.size, color: T.color, halo: T.halo, life: T.life, pop: T.pop, tier, rise: tier >= 3 ? 0.72 : 1 },
+      fmtDmg(dmg),
+      { size: T.size, style: tier, life: T.life, pop: T.pop, tier, rise: tier >= 3 ? 0.72 : 1 },
     )
   }
 
@@ -616,8 +631,11 @@ export class Renderer {
 
   // ───────────────────────── 主绘制 ─────────────────────────
 
-  /** animDt 是"视觉时间步长"：暂停/升级选择时传 0，粒子与镜头就会定格 */
-  frame(w: World, animDt: number): void {
+  /**
+   * animDt 是"视觉时间步长"：暂停/升级选择时传 0，粒子与镜头就会定格；进化慢动作里它被拖慢。
+   * realDt 是真实时间步长：全屏白闪按它衰减——否则定格期间白闪会被拖成一层迟迟不退的白雾，把暗角和冲击波都洗掉。
+   */
+  frame(w: World, animDt: number, realDt: number = animDt): void {
     const t0 = performance.now()
     if (this.world !== w) this.attach(w)
     const ctx = this.ctx
@@ -664,7 +682,7 @@ export class Renderer {
     this.cam.update(animDt, p.x, p.y, p.vx, p.vy, this.settings.shake)
     this.parts.update(animDt)
     this.texts.update(animDt)
-    this.flashA = Math.max(0, this.flashA - animDt * 2.4)
+    this.flashA = Math.max(0, this.flashA - realDt * 2.4)
     this.updateEvoAura(w, animDt)
     this.updateGhosts(w, animDt)
 
@@ -697,7 +715,7 @@ export class Renderer {
     this.parts.draw(ctx, this.bank)
     // 玩家画在所有加色特效之上：再乱的场面也要一眼看到自己
     this.drawPlayer(w)
-    this.texts.draw(ctx, this.k, this.settings.quality !== 'low')
+    this.texts.draw(ctx, this.numFont, this.k)
 
     // 屏幕空间后处理
     ctx.setTransform(1, 0, 0, 1, 0, 0)
@@ -1612,6 +1630,12 @@ export class Renderer {
       ctx.drawImage(this.hurtVig, 0, 0, this.W, this.H)
     }
     ctx.globalAlpha = 1
+    // 进化聚焦暗角（在闪光之下：爆发那一下的白闪盖过它，随后它慢慢退去）
+    if (this.focusV > 0.01) {
+      ctx.globalAlpha = this.focusV * 0.62 * soft
+      ctx.drawImage(this.focusVig, 0, 0, this.W, this.H)
+      ctx.globalAlpha = 1
+    }
     // 全屏闪光
     if (this.flashA > 0.01) {
       ctx.fillStyle = rgba(this.flashColor, this.flashA * 0.6)

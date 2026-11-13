@@ -1136,7 +1136,7 @@ button.card {
   left: 0;
   right: 0;
   top: 0;
-  height: 7px;
+  height: 14px;
   background: rgba(255, 255, 255, 0.08);
 }
 
@@ -1149,16 +1149,21 @@ button.card {
   transition: width 0.12s linear;
 }
 
+/* 等级标签放进经验条里（以前悬在条下面，会和计时器叠在一起） */
 .hud-xp .xp-lv {
   position: absolute;
   left: 50%;
-  top: 9px;
+  top: 0;
+  height: 100%;
   transform: translateX(-50%);
+  display: flex;
+  align-items: center;
   font-family: var(--display);
-  font-weight: 700;
-  font-size: 0.7rem;
-  letter-spacing: 0.14em;
-  color: var(--dim);
+  font-weight: 800;
+  font-size: 0.6rem;
+  letter-spacing: 0.18em;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.95), 0 0 5px rgba(0, 0, 0, 0.8);
   white-space: nowrap;
 }
 
@@ -1257,6 +1262,17 @@ button.card {
   flex-direction: column;
   align-items: center;
   gap: 2px;
+}
+
+/* 顶部中央的"通知栈"：横幅 / 进化铭牌 / Toast 按流式排在计时器与 Boss 血条下面，
+   天然不会互相遮挡，也不会压到计时器（Boss 血条出现时自动下移）。 */
+.hud-stack {
+  width: min(92vw, 640px);
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
 }
 
 .timer {
@@ -1535,16 +1551,13 @@ button.card {
 }
 
 .banner {
-  left: 50%;
-  top: 24%;
-  transform: translateX(-50%);
+  display: none;
   font-family: var(--display);
   font-weight: 800;
   font-size: clamp(1.1rem, 3vw, 1.8rem);
   letter-spacing: 0.18em;
   text-align: center;
   white-space: nowrap;
-  opacity: 0;
   text-shadow: 0 0 18px currentColor;
 }
 
@@ -1561,6 +1574,7 @@ button.card {
 }
 
 .banner.show {
+  display: block;
   animation: bannerIn 2.4s ease-out both;
 }
 
@@ -1568,47 +1582,95 @@ button.card {
   animation-duration: 3.2s;
 }
 
-/* 武器进化大横幅：图标 + 「武器进化」+ 新名字 + 一句话效果，颜色取该武器的主色（--c） */
+/* 武器进化铭牌：徽章 + 「武器进化」+ 新名字 + 一句话效果。颜色取该武器的主色（--c）。
+   放在顶部通知栈里（流式布局），所以不会压到计时器 / Boss 血条；矮屏自动收成紧凑版。 */
 .evo-banner {
   --c: #ffd84a;
-  left: 50%;
-  top: 27%;
-  width: min(92vw, 640px);
   display: none;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  text-align: center;
-  transform: translate(-50%, -50%);
-  z-index: 4;
+  width: 100%;
+  justify-content: center;
 }
 
 .evo-banner.show {
   display: flex;
-  animation: evoIn 2.8s cubic-bezier(0.2, 0.8, 0.25, 1) both;
+  animation: evoLife 2.8s linear both;
 }
 
-.evo-rays {
+.evo-plate {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: clamp(12px, 2.6vw, 24px);
+  max-width: 100%;
+  padding: clamp(10px, 1.8vw, 18px) clamp(22px, 4.6vw, 52px) clamp(10px, 1.8vw, 18px) clamp(14px, 2.6vw, 26px);
+  background: linear-gradient(90deg, transparent 0, rgba(4, 8, 20, 0.84) 15%, rgba(4, 8, 20, 0.84) 85%, transparent 100%);
+  animation: evoPlateIn 2.8s cubic-bezier(0.2, 0.8, 0.25, 1) both;
+}
+
+/* 上下两道细亮线，从中间向两端"画开" */
+.evo-plate::before,
+.evo-plate::after {
+  content: '';
   position: absolute;
-  left: 50%;
-  top: 50%;
-  width: min(150vw, 980px);
+  left: 3%;
+  right: 3%;
+  height: 1.5px;
+  background: linear-gradient(90deg, transparent, var(--c) 16%, #fff 50%, var(--c) 84%, transparent);
+  box-shadow: 0 0 10px var(--c);
+  animation: evoLine 2.8s ease-out both;
+}
+
+.evo-plate::before {
+  top: 0;
+}
+
+.evo-plate::after {
+  bottom: 0;
+}
+
+/* 六边形徽章：渐变描边 + 深色内芯 + 外圈虚线缓慢旋转 */
+.evo-emblem {
+  position: relative;
+  flex: none;
+  width: clamp(48px, 9.4vw, 84px);
   aspect-ratio: 1;
-  transform: translate(-50%, -50%);
-  z-index: -1;
+  display: grid;
+  place-items: center;
+}
+
+.evo-emblem::before,
+.evo-emblem::after {
+  content: '';
+  position: absolute;
+  clip-path: polygon(50% 0, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
+}
+
+.evo-emblem::before {
+  inset: 0;
+  background: conic-gradient(from 30deg, var(--c), #fff 22%, var(--c) 50%, #fff 78%, var(--c));
+}
+
+.evo-emblem::after {
+  inset: 3.5%;
+  background: radial-gradient(circle at 50% 36%, color-mix(in srgb, var(--c) 38%, #0b1226), #060a16 74%);
+}
+
+.evo-ring {
+  position: absolute;
+  inset: -15%;
+  border-radius: 50%;
+  border: 1.5px dashed color-mix(in srgb, var(--c) 70%, transparent);
+  animation: evoSpin 7s linear infinite, evoRingIn 0.6s ease-out both;
   pointer-events: none;
-  background: repeating-conic-gradient(from 0deg, rgba(255, 216, 74, 0.3) 0deg 3.5deg, transparent 3.5deg 15deg);
-  background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--c) 34%, transparent) 0deg 3.5deg, transparent 3.5deg 15deg);
-  -webkit-mask-image: radial-gradient(circle, #000 0%, rgba(0, 0, 0, 0.55) 30%, transparent 62%);
-  mask-image: radial-gradient(circle, #000 0%, rgba(0, 0, 0, 0.55) 30%, transparent 62%);
-  animation: evoRays 2.8s linear both;
 }
 
 .evo-ico {
-  width: clamp(40px, 8vw, 62px);
-  height: clamp(40px, 8vw, 62px);
-  color: var(--c);
-  filter: drop-shadow(0 0 10px var(--c)) drop-shadow(0 0 22px var(--c));
+  position: relative;
+  z-index: 1;
+  width: 54%;
+  height: 54%;
+  color: #fff;
+  filter: drop-shadow(0 0 5px var(--c)) drop-shadow(0 0 14px var(--c));
 }
 
 .evo-ico svg {
@@ -1617,47 +1679,131 @@ button.card {
   display: block;
 }
 
+.evo-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+  text-align: left;
+}
+
 .evo-kicker {
+  display: flex;
+  align-items: center;
+  gap: 0.9em;
   font-family: var(--display);
   font-weight: 800;
-  font-size: clamp(0.72rem, 1.9vw, 1rem);
-  letter-spacing: 0.52em;
-  padding-left: 0.52em;
-  color: #fff;
-  text-shadow: 0 0 12px var(--c), 0 0 26px var(--c);
+  font-size: clamp(0.62rem, 1.5vw, 0.82rem);
+  letter-spacing: 0.42em;
+  color: var(--c);
+  text-shadow: 0 0 10px var(--c);
+}
+
+.evo-kicker::after {
+  content: '';
+  width: clamp(24px, 7vw, 72px);
+  height: 1px;
+  background: linear-gradient(90deg, var(--c), transparent);
 }
 
 /* 渐变字：用 drop-shadow 做光晕（text-shadow 会穿过透明字面盖住渐变） */
 .evo-name {
   font-family: var(--display);
   font-weight: 900;
-  font-size: clamp(1.9rem, 7.2vw, 4.2rem);
+  font-size: clamp(1.45rem, 5.2vw, 2.9rem);
   line-height: 1.1;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
   color: #fff;
-  background: linear-gradient(180deg, #fff 0%, #fff 38%, var(--c) 100%);
+  background: linear-gradient(180deg, #fff 0%, #fff 42%, var(--c) 100%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  filter: drop-shadow(0 0 8px var(--c)) drop-shadow(0 0 26px var(--c));
+  filter: drop-shadow(0 0 9px color-mix(in srgb, var(--c) 85%, transparent));
+  animation: evoTrack 2.8s cubic-bezier(0.2, 0.8, 0.25, 1) both;
 }
 
 .evo-desc {
-  max-width: min(86vw, 520px);
-  font-size: clamp(0.8rem, 2vw, 1.02rem);
+  max-width: 36em;
+  font-size: clamp(0.74rem, 1.7vw, 0.95rem);
   font-weight: 600;
-  line-height: 1.5;
-  color: #fff;
-  opacity: 0.88;
-  text-shadow: 0 2px 10px #000, 0 0 3px #000;
+  line-height: 1.45;
+  color: rgba(235, 244, 255, 0.88);
+  text-shadow: 0 1px 6px #000;
+}
+
+/* 扫光：一道斜向高光划过铭牌 */
+.evo-sheen {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.evo-sheen::before {
+  content: '';
+  position: absolute;
+  top: -20%;
+  bottom: -20%;
+  left: -30%;
+  width: 22%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+  transform: skewX(-20deg);
+  mix-blend-mode: screen;
+  animation: evoSweep 1.15s ease-out 0.32s both;
+}
+
+/* 变形镜头式的横向光斑：登场瞬间闪一下 */
+.evo-flare {
+  position: absolute;
+  left: -12%;
+  right: -12%;
+  top: 50%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--c) 20%, #fff 50%, var(--c) 80%, transparent);
+  filter: drop-shadow(0 0 8px var(--c));
+  transform-origin: center;
+  pointer-events: none;
+  animation: evoFlare 1s ease-out both;
+}
+
+/* 进化铭牌出现时，通用横幅让位（同时出现会把通知栈撑得太高） */
+.hud-stack:has(.evo-banner.show) .banner {
+  display: none;
+}
+
+/* 通知栈别越长越高：中等高度最多 3 条 Toast，矮屏（手机横屏）最多 1 条 */
+@media (max-height: 700px) {
+  .toasts .toast:nth-last-child(n + 4) {
+    display: none;
+  }
+}
+
+/* 矮屏（手机横屏）：进化铭牌收成紧凑版，去掉说明文字 */
+@media (max-height: 540px) {
+  .toasts .toast:nth-last-child(n + 2) {
+    display: none;
+  }
+  .evo-desc {
+    display: none;
+  }
+  .evo-emblem {
+    width: clamp(38px, 12vh, 54px);
+  }
+  .evo-name {
+    font-size: clamp(1.15rem, 4.2vw, 1.9rem);
+  }
+  .evo-plate {
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
 }
 
 .toasts {
-  left: max(var(--pad), var(--safe-l));
-  top: calc(var(--pad) + 46px + var(--safe-t));
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   gap: 6px;
 }
 
@@ -1717,26 +1863,30 @@ button.card {
   pointer-events: none;
 }
 
+/* 教学提示：放进左下角的装备栏上方（流式），不会再压住装备图标或冲刺键 */
 .hint {
-  left: 50%;
-  bottom: calc(var(--pad) + var(--safe-b) + 64px);
-  transform: translateX(-50%);
-  max-width: min(92vw, 560px);
-  padding: 9px 18px;
-  border-radius: 99px;
+  display: none;
+  align-self: flex-start;
+  max-width: min(88vw, 520px);
+  padding: 8px 16px;
+  border-radius: 12px;
   border: 1px solid rgba(61, 242, 255, 0.5);
   background: rgba(6, 12, 28, 0.86);
   color: var(--text);
-  font-size: 0.92rem;
+  font-size: 0.88rem;
   font-weight: 700;
-  text-align: center;
-  opacity: 0;
-  transition: opacity 0.4s;
+  line-height: 1.4;
   box-shadow: 0 0 22px rgba(61, 242, 255, 0.22);
 }
 
 .hint.show {
-  opacity: 1;
+  display: block;
+  animation: toastIn 0.3s ease-out;
+}
+
+/* 触屏：冲刺键在对侧的右下角、和这一栏同高——提示的宽度要给它让出位置，超出的文字折行 */
+.hud.touch .hint {
+  max-width: min(520px, calc(100vw - clamp(76px, 20vmin, 104px) - 3 * var(--pad) - var(--safe-l) - var(--safe-r)));
 }
 
 body.left-handed .hud-br {
@@ -1752,6 +1902,10 @@ body.left-handed .hud.touch .hud-bl {
 
 body.left-handed .hud.touch .slots {
   justify-content: flex-end;
+}
+
+body.left-handed .hud.touch .hint {
+  align-self: flex-end;
 }
 
 /* ───────────────────────── 触屏摇杆 ───────────────────────── */
@@ -2916,12 +3070,12 @@ input[type='range']:focus-visible {
 @keyframes bannerIn {
   0% {
     opacity: 0;
-    transform: translateX(-50%) scale(1.35);
+    transform: scale(1.35);
     letter-spacing: 0.5em;
   }
   12% {
     opacity: 1;
-    transform: translateX(-50%) scale(1);
+    transform: scale(1);
     letter-spacing: 0.18em;
   }
   80% {
@@ -2945,45 +3099,107 @@ input[type='range']:focus-visible {
   }
 }
 
-@keyframes evoIn {
-  0% {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(2.7);
-    filter: blur(12px);
-  }
-  8% {
+/* 进化铭牌的整体寿命：后段淡出（动画结束后由 HUD 计时器收起） */
+@keyframes evoLife {
+  0%,
+  78% {
     opacity: 1;
-    transform: translate(-50%, -50%) scale(0.93);
-    filter: blur(0);
-  }
-  13% {
-    transform: translate(-50%, -50%) scale(1.045);
-  }
-  19%,
-  76% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
+    transform: none;
   }
   100% {
     opacity: 0;
-    transform: translate(-50%, -58%) scale(1.07);
+    transform: translateY(-6px);
   }
 }
 
-@keyframes evoRays {
+/* 铭牌从中线向两侧"拉开"，略带过冲 */
+@keyframes evoPlateIn {
   0% {
+    clip-path: inset(0 50% 0 50%);
     opacity: 0;
-    transform: translate(-50%, -50%) rotate(0deg) scale(0.35);
   }
   10% {
     opacity: 1;
   }
-  70% {
-    opacity: 0.85;
+  22%,
+  100% {
+    clip-path: inset(-30% 0 -30% 0);
+    opacity: 1;
+  }
+}
+
+@keyframes evoLine {
+  0% {
+    transform: scaleX(0);
+    opacity: 0;
+  }
+  18% {
+    transform: scaleX(1.04);
+    opacity: 1;
+  }
+  26%,
+  100% {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+}
+
+/* 标题"收拢"：字距从宽到正常，同时淡入 */
+@keyframes evoTrack {
+  0% {
+    letter-spacing: 0.5em;
+    opacity: 0;
+  }
+  8% {
+    opacity: 0;
+  }
+  24%,
+  100% {
+    letter-spacing: 0.06em;
+    opacity: 1;
+  }
+}
+
+@keyframes evoSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes evoRingIn {
+  from {
+    opacity: 0;
+    scale: 0.6;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+@keyframes evoSweep {
+  0% {
+    left: -30%;
+    opacity: 1;
   }
   100% {
+    left: 120%;
     opacity: 0;
-    transform: translate(-50%, -50%) rotate(34deg) scale(1.15);
+  }
+}
+
+@keyframes evoFlare {
+  0% {
+    transform: scaleX(0);
+    opacity: 0;
+  }
+  18% {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scaleX(1.1);
+    opacity: 0;
   }
 }
 
@@ -3238,9 +3454,6 @@ input[type='range']:focus-visible {
   .res-actions {
     margin-top: 12px;
   }
-  .hint {
-    bottom: calc(var(--pad) + var(--safe-b) + 54px);
-  }
 }
 
 /* 手机横屏的升级面板需要保持三列并排 */
@@ -3293,7 +3506,9 @@ input[type='range']:focus-visible {
     animation: bannerFade 2.8s both !important;
     animation-duration: 2.8s !important;
   }
-  .evo-rays {
+  .evo-flare,
+  .evo-sheen,
+  .evo-ring {
     display: none;
   }
   .btn.play {
@@ -3319,7 +3534,11 @@ body.reduce-flash .evo-banner.show {
   animation: bannerFade 2.8s both;
 }
 
-body.reduce-flash .evo-rays,
+body.reduce-flash .evo-flare,
+body.reduce-flash .evo-sheen {
+  display: none;
+}
+
 body.reduce-flash .slot.evolved {
   animation: none;
 }

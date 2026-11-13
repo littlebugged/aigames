@@ -3,19 +3,23 @@ import { clamp01 } from '../engine/math'
 export interface FloatStyle {
   /** 字号（世界单位） */
   size: number
-  color: string
-  /** 光晕色；省略或空串表示没有光晕 */
-  halo?: string
+  /** 外观下标：见 engine/feel 的 NUM_LOOKS（伤害档位 / 受伤数字）；由 NumberFont 负责实际画法 */
+  style: number
   life?: number
   /** 弹出瞬间的放大倍率（之后带一点回弹地落回 1） */
   pop?: number
   /**
    * 档位：池满时高档位会挤掉低档位；档位 ≥ 3 的字画在最上层，
-   * 档位 ≥ 5 的字用"白顶 → 本色 → 光晕色"的渐变填充，并在弹出时轻微抖动。
+   * 档位 ≥ 5 的字在弹出时轻微抖动。
    */
   tier?: number
   /** 上浮速度倍率（越重的数字越"沉"，停得越久） */
   rise?: number
+}
+
+/** 谁来把一串数字画出来（生产环境是 NumberFont；测试里换成记录器） */
+export interface NumPainter {
+  draw(ctx: CanvasRenderingContext2D, text: string, style: number, x: number, y: number, size: number, scale: number): void
 }
 
 /** 先冲过头再回弹：u=0 → 0，u≈0.6 时超过 1，u=1 → 1 */
@@ -30,7 +34,7 @@ const easeOutBack = (u: number): number => {
 const CAP = 44
 /** 从这一档起画在最上层 */
 const TOP_LAYER = 3
-/** 从这一档起用渐变填充 + 弹出抖动 */
+/** 从这一档起弹出时抖动 */
 const HOT_TIER = 5
 
 /**
@@ -38,13 +42,12 @@ const HOT_TIER = 5
  * 每条记录带一个"档位"：
  *   - 画：低档在下、高档在上，大数字不会被一片小数字盖住；
  *   - 挤：池满时高档位挤掉最低档里最老的一条，保证重击的数字一定看得到；
- *   - 样式：字号 / 颜色 / 光晕 / 弹出倍率 / 停留时间都由调用方按档位传入。
+ *   - 样式：字号 / 外观 / 弹出倍率 / 停留时间都由调用方按档位传入。
  */
 export class FloatTexts {
   private n = 0
   private readonly txt: string[] = new Array(CAP).fill('')
-  private readonly col: string[] = new Array(CAP).fill('#fff')
-  private readonly halo: string[] = new Array(CAP).fill('')
+  private readonly look = new Uint8Array(CAP)
   private readonly x = new Float32Array(CAP)
   private readonly y = new Float32Array(CAP)
   private readonly vy = new Float32Array(CAP)
@@ -91,8 +94,7 @@ export class FloatTexts {
     }
     const life = st.life ?? 0.7
     this.txt[i] = text
-    this.col[i] = st.color
-    this.halo[i] = st.halo ?? ''
+    this.look[i] = st.style
     this.x[i] = x + (Math.random() - 0.5) * 10
     this.y[i] = y
     this.vy[i] = (-46 - Math.random() * 18) * (st.rise ?? 1)
@@ -112,8 +114,7 @@ export class FloatTexts {
         const l = --this.n
         if (i !== l) {
           this.txt[i] = this.txt[l]
-          this.col[i] = this.col[l]
-          this.halo[i] = this.halo[l]
+          this.look[i] = this.look[l]
           this.x[i] = this.x[l]
           this.y[i] = this.y[l]
           this.vy[i] = this.vy[l]
@@ -132,36 +133,27 @@ export class FloatTexts {
     }
   }
 
-  /**
-   * scale：世界单位 → 设备像素（shadowBlur 不受画布变换影响，要自己换算）；
-   * glow：是否启用 shadowBlur 光晕（低画质关掉，手机 GPU 上它比普通绘制贵得多）。
-   */
-  draw(ctx: CanvasRenderingContext2D, scale = 1, glow = true): void {
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.lineJoin = 'round'
+  /** scale：世界单位 → 设备像素（决定字形图集的预渲染分辨率） */
+  draw(ctx: CanvasRenderingContext2D, painter: NumPainter, scale = 1): void {
     for (let pass = 0; pass < 2; pass++) {
       for (let i = 0; i < this.n; i++) {
         const tier = this.tier[i]
-        const onTop = tier >= TOP_LAYER
-        if (onTop !== (pass === 1)) continue
-        this.drawOne(ctx, i, tier, scale, glow)
+        if (tier >= TOP_LAYER !== (pass === 1)) continue
+        this.drawOne(ctx, painter, i, tier, scale)
       }
     }
     ctx.globalAlpha = 1
-    ctx.globalCompositeOperation = 'source-over'
   }
 
-  private drawOne(ctx: CanvasRenderingContext2D, i: number, tier: number, scale: number, glow: boolean): void {
+  private drawOne(ctx: CanvasRenderingContext2D, painter: NumPainter, i: number, tier: number, scale: number): void {
     const maxLife = this.maxLife[i]
     const age = maxLife - this.life[i]
     const frac = this.life[i] / maxLife
-    const hi = tier >= TOP_LAYER
     // 弹出：先冲到 pop 倍再回弹落定；档位越高弹得越久
     const u = clamp01(age / (0.15 + tier * 0.014))
     const s = this.size[i] * (1 + (this.pop[i] - 1) * (1 - easeOutBack(u)))
     // 最后一段时间淡出；重击的数字更晚才开始淡
-    const alpha = Math.min(1, frac / (hi ? 0.3 : 0.5))
+    const alpha = Math.min(1, frac / (tier >= TOP_LAYER ? 0.3 : 0.5))
     // 热档位：弹出时抖一下
     let px = this.x[i]
     let py = this.y[i]
@@ -170,43 +162,7 @@ export class FloatTexts {
       px += Math.sin(age * 88 + this.phase[i]) * j
       py += Math.cos(age * 97 + this.phase[i] * 1.7) * j * 0.7
     }
-    const text = this.txt[i]
-    const color = this.col[i]
-    const halo = this.halo[i]
-    ctx.font = `800 ${s.toFixed(1)}px Orbitron, "Rajdhani", system-ui, sans-serif`
-
-    // 光晕（第一层）：加色混合的描边，便宜；越重的数字越亮
-    if (halo) {
-      ctx.globalCompositeOperation = 'lighter'
-      ctx.globalAlpha = alpha * Math.min(0.42, 0.12 + tier * 0.04)
-      ctx.lineWidth = s * 0.36
-      ctx.strokeStyle = halo
-      ctx.strokeText(text, px, py)
-      ctx.globalCompositeOperation = 'source-over'
-    }
-    // 深色描边：任何背景上都读得清
     ctx.globalAlpha = alpha
-    ctx.lineWidth = Math.max(3, s * 0.16)
-    ctx.strokeStyle = 'rgba(5,5,20,0.88)'
-    ctx.strokeText(text, px, py)
-    // 填充：热档位用渐变，像烧红的金属
-    if (tier >= HOT_TIER) {
-      const g = ctx.createLinearGradient(px, py - s * 0.55, px, py + s * 0.55)
-      g.addColorStop(0, '#ffffff')
-      g.addColorStop(0.5, color)
-      g.addColorStop(1, halo || color)
-      ctx.fillStyle = g
-    } else {
-      ctx.fillStyle = color
-    }
-    // 光晕（第二层）：重击档位再加一圈 shadowBlur 的柔光，像灼热的金属在发亮
-    if (glow && halo && tier >= 4) {
-      ctx.shadowColor = halo
-      ctx.shadowBlur = Math.min(28, s * 0.55) * scale
-      ctx.fillText(text, px, py)
-      ctx.shadowBlur = 0
-      ctx.shadowColor = 'transparent'
-    }
-    ctx.fillText(text, px, py)
+    painter.draw(ctx, this.txt[i], this.look[i], px, py, s, scale)
   }
 }
