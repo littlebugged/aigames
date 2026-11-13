@@ -1,17 +1,17 @@
 import { EnemyId } from './ids'
 
-/** 敌人外形，对应 render/shapes.ts 里的绘制函数。 */
+/** 敌人外形（生物设计），对应 render/creatures.ts 里的绘制函数。 */
 export type EnemyShape =
-  | 'tri'
-  | 'diamond'
-  | 'hex'
-  | 'ring'
-  | 'square'
-  | 'chevron'
-  | 'orb'
-  | 'oct'
-  | 'crescent'
-  | 'shard'
+  | 'wasp'
+  | 'mite'
+  | 'beetle'
+  | 'spitter'
+  | 'twin'
+  | 'ram'
+  | 'mine'
+  | 'aegis'
+  | 'wraith'
+  | 'crystal'
 
 /** 行为模板，对应 game/enemies.ts 里的 AI 实现。 */
 export type EnemyAI =
@@ -47,7 +47,7 @@ export const ENEMIES: Record<EnemyId, EnemyDef> = {
   drone: {
     id: 'drone',
     ai: 'chase',
-    shape: 'tri',
+    shape: 'wasp',
     color: '#ff4d8d',
     hp: 13,
     speed: 72,
@@ -60,7 +60,7 @@ export const ENEMIES: Record<EnemyId, EnemyDef> = {
   swarmer: {
     id: 'swarmer',
     ai: 'swarm',
-    shape: 'diamond',
+    shape: 'mite',
     color: '#ff8a3d',
     hp: 6,
     speed: 128,
@@ -73,7 +73,7 @@ export const ENEMIES: Record<EnemyId, EnemyDef> = {
   brute: {
     id: 'brute',
     ai: 'brute',
-    shape: 'hex',
+    shape: 'beetle',
     color: '#ff3b3b',
     hp: 95,
     speed: 46,
@@ -86,7 +86,7 @@ export const ENEMIES: Record<EnemyId, EnemyDef> = {
   shooter: {
     id: 'shooter',
     ai: 'shooter',
-    shape: 'ring',
+    shape: 'spitter',
     color: '#ffd84a',
     hp: 30,
     speed: 62,
@@ -99,7 +99,7 @@ export const ENEMIES: Record<EnemyId, EnemyDef> = {
   splitter: {
     id: 'splitter',
     ai: 'splitter',
-    shape: 'square',
+    shape: 'twin',
     color: '#9dff4d',
     hp: 38,
     speed: 64,
@@ -112,7 +112,7 @@ export const ENEMIES: Record<EnemyId, EnemyDef> = {
   charger: {
     id: 'charger',
     ai: 'charger',
-    shape: 'chevron',
+    shape: 'ram',
     color: '#ff6a2e',
     hp: 44,
     speed: 76,
@@ -125,7 +125,7 @@ export const ENEMIES: Record<EnemyId, EnemyDef> = {
   bomber: {
     id: 'bomber',
     ai: 'bomber',
-    shape: 'orb',
+    shape: 'mine',
     color: '#ff2fd6',
     hp: 26,
     speed: 92,
@@ -138,7 +138,7 @@ export const ENEMIES: Record<EnemyId, EnemyDef> = {
   shielder: {
     id: 'shielder',
     ai: 'shielder',
-    shape: 'oct',
+    shape: 'aegis',
     color: '#b36bff',
     hp: 85,
     speed: 50,
@@ -151,7 +151,7 @@ export const ENEMIES: Record<EnemyId, EnemyDef> = {
   wraith: {
     id: 'wraith',
     ai: 'wraith',
-    shape: 'crescent',
+    shape: 'wraith',
     color: '#d9a6ff',
     hp: 30,
     speed: 98,
@@ -164,7 +164,7 @@ export const ENEMIES: Record<EnemyId, EnemyDef> = {
   shard: {
     id: 'shard',
     ai: 'swarm',
-    shape: 'shard',
+    shape: 'crystal',
     color: '#c8ff66',
     hp: 9,
     speed: 118,

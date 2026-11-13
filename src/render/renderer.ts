@@ -2,7 +2,7 @@ import type { WeaponId } from '../data/ids'
 import { SHIPS } from '../data/ships'
 import { WEAPONS } from '../data/weapons'
 import { DMG_TIERS, EVOLVE_CHARGE, EVOLVE_ZOOM, HURT_STYLE, NUM_LOOKS, budgetClass, dmgTier, fmtDmg } from '../engine/feel'
-import { TAU, clamp01 } from '../engine/math'
+import { TAU, clamp01, turnToward } from '../engine/math'
 import type { GameEvent } from '../game/events'
 import type { World } from '../game/world'
 import { Background } from './background'
@@ -13,7 +13,7 @@ import { NumberFont } from './numfont'
 import { Particles } from './particles'
 import { ink } from './matte'
 import { lighten, rgba } from './palette'
-import { FACES_MOTION } from './shapes'
+import { CREATURES } from './creatures'
 import { GEM_COLORS, PICKUP_COLOR, SpriteBank, engineMounts } from './sprites'
 
 export type Quality = 'high' | 'medium' | 'low'
@@ -710,7 +710,7 @@ export class Renderer {
     this.drawGems(w)
     this.drawPickups(w)
     this.drawEnemiesUnder(w)
-    this.drawEnemies(w)
+    this.drawEnemies(w, animDt)
     this.drawEnemiesOver(w)
     if (boss) this.bossArt.draw(ctx, boss, p.x, p.y, this.vt, this.bank)
     this.drawBeams(w)
@@ -1003,7 +1003,7 @@ export class Renderer {
     }
   }
 
-  private drawEnemies(w: World): void {
+  private drawEnemies(w: World, animDt: number): void {
     const ctx = this.ctx
     const bank = this.bank
     const k = this.k
@@ -1036,9 +1036,14 @@ export class Renderer {
         sc = 0.55 + 0.45 * t
       }
       if (def.ai === 'wraith' && e.state !== 0) alpha *= 0.12 + 0.88 * e.aux
+      // 精英的画面也跟着碰撞体放大，不然金色虚线圈里是一只"普通大小"的怪
+      sc *= e.r / def.radius
       let ang: number
-      if (FACES_MOTION[def.shape]) ang = e.angle
-      else ang = e.age * (def.shape === 'oct' ? 0.5 : 1.1) * (e.id % 2 === 0 ? 1 : -1) + e.id
+      if (CREATURES[def.shape].faces) {
+        // 朝向平滑转过去：怪是"转身"而不是瞬间换方向（冲锋兽转得快一点，瞄得准）
+        e.ra = turnToward(e.ra, e.angle, animDt * (def.ai === 'charger' ? 16 : 9))
+        ang = e.ra
+      } else ang = e.age * 1.1 * (e.id % 2 === 0 ? 1 : -1) + e.id
       const c = Math.cos(ang) * k * sc
       const s = Math.sin(ang) * k * sc
       ctx.setTransform(c, s, -s, c, ox + e.x * k, oy + e.y * k)

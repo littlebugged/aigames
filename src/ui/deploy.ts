@@ -5,8 +5,9 @@ import { ACHIEVEMENTS } from '../data/achievements'
 import { buyShip, isSectorUnlocked, isShipOwned, maxSelectableThreat } from '../game/progress'
 import { dyn, fmtInt, fmtTime, t } from '../i18n'
 import type { Screen, Selection, UiCtx } from './ctx'
+import { shipPortrait } from '../render/sprites'
 import { clear, h, iconEl, svgEl } from './dom'
-import { shipIcon, weaponIcon } from './icons'
+import { weaponIcon } from './icons'
 import { coresChip, screenHead, statBar } from './parts'
 
 const maxOf = (f: (id: ShipId) => number): number => Math.max(...SHIP_IDS.map(f))
@@ -59,7 +60,7 @@ export function createDeploy(ctx: UiCtx): Screen {
               render()
             },
           },
-          h('div', { class: 'ship-ico', style: { color: d.color } }, svgEl(shipIcon(id))),
+          h('div', { class: 'ship-ico', style: { color: d.color } }, shipPortrait(id, 68)),
           h(
             'div',
             { class: 'card-main' },

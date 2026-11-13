@@ -122,6 +122,8 @@ export class Enemy implements GridItem {
   spawnT = 0
   contactCd = 0
   angle = 0
+  /** 渲染用的朝向：向 angle 平滑转过去（只给画面看，模拟不读它） */
+  ra = 0
   // AI 通用状态
   state = 0
   timer = 0

@@ -5,6 +5,7 @@
  *
  * 输出到 public/：favicon.svg、favicon-32.png、apple-touch-icon.png、icon-192.png、icon-512.png、
  * icon-maskable-512.png、og-image.jpg（1200×630，用真实游戏画面合成）。
+ * 图标里的飞船 / 敌人 / 宝石直接取自游戏里的真实精灵（8× 超采样重画一份），和局内美术保持一致。
  * 全程使用无头浏览器，不会弹出窗口。
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
@@ -17,78 +18,198 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 // ───────────────────────── 图标 ─────────────────────────
 
-const SHIP = [
-  [1, 0],
-  [-0.7, 0.92],
-  [-0.38, 0.3],
-  [-0.58, 0],
-  [-0.38, -0.3],
-  [-0.7, -0.92],
-]
-/** 先锋号轮廓，机头朝上 */
-const shipPoints = (cx, cy, s) => SHIP.map(([x, y]) => `${(cx + y * s).toFixed(1)},${(cy - x * s).toFixed(1)}`).join(' ')
-
 /**
- * 512×512 坐标系；rounded=false 时是满铺方形（maskable / apple-touch），内容缩进到安全区。
- * 美术方向与游戏一致（哑光硬表面）：实心机体 + 深墨描边 + 明暗两面，只在驾驶舱和引擎点一小粒自发光；
- * 不使用任何 filter / 模糊发光。
+ * 在游戏页面里用真实精灵合成图标（512×512 坐标系），返回各尺寸的 PNG dataURL。
+ * rounded=false 时是满铺方形（maskable / apple-touch），内容按 inset 缩进到安全区。
+ * 美术方向与游戏一致（哑光硬表面）：不使用任何 filter / 模糊发光，只在引擎处叠一点加色火焰。
  */
-function iconSvg({ rounded = true, inset = 1 } = {}) {
-  const INK = '#04060d'
-  const bg = rounded
-    ? `<rect x="8" y="8" width="496" height="496" rx="116" fill="url(#bg)"/><rect x="8" y="8" width="496" height="496" rx="116" fill="url(#dots)"/><rect x="8" y="8" width="496" height="496" rx="116" fill="url(#vig)"/><rect x="10" y="10" width="492" height="492" rx="114" fill="none" stroke="url(#rim)" stroke-width="3"/>`
-    : `<rect width="512" height="512" fill="url(#bg)"/><rect width="512" height="512" fill="url(#dots)"/><rect width="512" height="512" fill="url(#vig)"/>`
-  const P = (cx, cy, s, pts) => pts.map(([x, y]) => `${(cx + y * s).toFixed(1)},${(cy - x * s).toFixed(1)}`).join(' ')
-  const ship = P(256, 280, 146, SHIP)
-  // 左半边（受光面）：机头 → 左翼尖 → 左凹口 → 尾心
-  const lit = P(256, 280, 146, [SHIP[0], SHIP[5], SHIP[4], SHIP[3]])
-  const k = inset
-  const arc = (a) => `${(256 + 206 * Math.cos((a * Math.PI) / 180)).toFixed(1)}`
-  const arcY = (a) => `${(262 + 206 * Math.sin((a * Math.PI) / 180)).toFixed(1)}`
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-<defs>
-  <linearGradient id="bg" x1="0" y1="0" x2="0.6" y2="1"><stop offset="0" stop-color="#1b2342"/><stop offset="1" stop-color="#070a15"/></linearGradient>
-  <pattern id="dots" width="48" height="48" patternUnits="userSpaceOnUse"><circle cx="24" cy="24" r="2.2" fill="#8fb0ff" fill-opacity=".14"/></pattern>
-  <radialGradient id="vig" cx=".5" cy=".5" r=".72"><stop offset=".55" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".45"/></radialGradient>
-  <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff" stop-opacity=".28"/><stop offset=".5" stop-color="#ffffff" stop-opacity=".04"/><stop offset="1" stop-color="#ffffff" stop-opacity=".1"/></linearGradient>
-  <linearGradient id="hullR" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8396b8"/><stop offset="1" stop-color="#2e3b5a"/></linearGradient>
-  <linearGradient id="hullL" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4f9ff"/><stop offset=".55" stop-color="#b3c4e0"/><stop offset="1" stop-color="#6f83aa"/></linearGradient>
-  <radialGradient id="lamp" cx=".4" cy=".35" r=".75"><stop offset="0" stop-color="#ffffff"/><stop offset=".45" stop-color="#8ff6ff"/><stop offset="1" stop-color="#1ea9cf"/></radialGradient>
-  <linearGradient id="flame" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e8feff"/><stop offset=".35" stop-color="#3de6ff"/><stop offset="1" stop-color="#3de6ff" stop-opacity="0"/></linearGradient>
-  <radialGradient id="shadow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#000" stop-opacity=".55"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
-</defs>
-${bg}
-<g transform="translate(256 256) scale(${k}) translate(-256 -256)">
-  <g fill="none" stroke-linecap="round">
-    <circle cx="256" cy="262" r="206" stroke="${INK}" stroke-opacity=".55" stroke-width="20"/>
-    <circle cx="256" cy="262" r="206" stroke="#26335a" stroke-width="10"/>
-    <circle cx="256" cy="262" r="206" stroke="${INK}" stroke-width="22" stroke-dasharray="170 124" transform="rotate(-62 256 262)"/>
-    <circle cx="256" cy="262" r="206" stroke="#3df2ff" stroke-width="11" stroke-dasharray="170 124" transform="rotate(-62 256 262)"/>
-    <circle cx="256" cy="262" r="206" stroke="#e6fdff" stroke-opacity=".75" stroke-width="3" stroke-dasharray="170 124" stroke-dashoffset="0" transform="rotate(-62 256 258)"/>
-  </g>
-  <g stroke-linejoin="round">
-    <circle cx="${arc(-50)}" cy="${arcY(-50)}" r="21" fill="${INK}"/>
-    <circle cx="${arc(-50)}" cy="${arcY(-50)}" r="16" fill="#ffd84a"/>
-    <circle cx="${(+arc(-50) - 5).toFixed(1)}" cy="${(+arcY(-50) - 5).toFixed(1)}" r="6" fill="#fff6c9"/>
-    <polygon points="124,116 152,170 96,170" fill="${INK}" stroke="${INK}" stroke-width="14"/>
-    <polygon points="124,116 152,170 96,170" fill="#ff4a6a"/>
-    <polygon points="124,116 124,170 96,170" fill="#ff8da0"/>
-    <g transform="rotate(45 398 440)"><rect x="378" y="420" width="40" height="40" fill="${INK}" stroke="${INK}" stroke-width="14"/><rect x="378" y="420" width="40" height="40" fill="#ff8a3d"/><rect x="378" y="420" width="40" height="20" fill="#ffb07a"/></g>
-  </g>
-  <ellipse cx="274" cy="404" rx="104" ry="24" fill="url(#shadow)"/>
-  <g>
-    <polygon points="226,360 246,360 236,424" fill="url(#flame)"/>
-    <polygon points="266,360 286,360 276,424" fill="url(#flame)"/>
-    <polygon points="${ship}" fill="${INK}" stroke="${INK}" stroke-width="30" stroke-linejoin="round"/>
-    <polygon points="${ship}" fill="url(#hullR)"/>
-    <polygon points="${lit}" fill="url(#hullL)"/>
-    <polyline points="${P(256, 280, 146, [SHIP[0], SHIP[5]])}" fill="none" stroke="#ffffff" stroke-opacity=".7" stroke-width="4" stroke-linecap="round"/>
-    <rect x="224" y="344" width="22" height="18" rx="3" fill="#161d33" stroke="${INK}" stroke-width="5"/>
-    <rect x="266" y="344" width="22" height="18" rx="3" fill="#161d33" stroke="${INK}" stroke-width="5"/>
-    <ellipse cx="256" cy="236" rx="17" ry="32" fill="url(#lamp)" stroke="${INK}" stroke-width="7"/>
-  </g>
-</g>
-</svg>`
+async function renderIcons(page) {
+  return page.evaluate(() => {
+    const r = window.__neon.renderer
+    const hb = new r.bank.constructor(8) // 高倍超采样的精灵库，只用来出图
+    const TAU = Math.PI * 2
+    const S = 512
+    const INK = '#04060d'
+
+    function draw(g, { rounded, inset }) {
+      g.clearRect(0, 0, S, S)
+      const shape = () => {
+        g.beginPath()
+        if (rounded) g.roundRect(8, 8, 496, 496, 116)
+        else g.rect(0, 0, S, S)
+      }
+      g.save()
+      shape()
+      g.clip()
+      const bg = g.createLinearGradient(0, 0, S * 0.6, S)
+      bg.addColorStop(0, '#1b2342')
+      bg.addColorStop(1, '#070a15')
+      g.fillStyle = bg
+      g.fillRect(0, 0, S, S)
+      g.fillStyle = 'rgba(143,176,255,0.14)'
+      for (let y = 24; y < S; y += 48) {
+        for (let x = 24; x < S; x += 48) {
+          g.beginPath()
+          g.arc(x, y, 2.2, 0, TAU)
+          g.fill()
+        }
+      }
+      const vg = g.createRadialGradient(256, 256, 0, 256, 256, S * 0.72)
+      vg.addColorStop(0.55, 'rgba(0,0,0,0)')
+      vg.addColorStop(1, 'rgba(0,0,0,0.45)')
+      g.fillStyle = vg
+      g.fillRect(0, 0, S, S)
+      g.restore()
+      if (rounded) {
+        const rim = g.createLinearGradient(0, 10, 0, 502)
+        rim.addColorStop(0, 'rgba(255,255,255,0.28)')
+        rim.addColorStop(0.5, 'rgba(255,255,255,0.04)')
+        rim.addColorStop(1, 'rgba(255,255,255,0.1)')
+        g.beginPath()
+        g.roundRect(10, 10, 492, 492, 114)
+        g.lineWidth = 3
+        g.strokeStyle = rim
+        g.stroke()
+      }
+
+      g.save()
+      g.translate(256, 256)
+      g.scale(inset, inset)
+      g.translate(-256, -256)
+      g.lineCap = 'round'
+      g.lineJoin = 'round'
+
+      // 外环：深色底 → 钢蓝环 → 一段青色高亮弧
+      const ring = (w, color, dash, rotC) => {
+        g.save()
+        g.translate(256, rotC)
+        g.rotate((-62 * Math.PI) / 180)
+        g.setLineDash(dash)
+        g.lineWidth = w
+        g.strokeStyle = color
+        g.beginPath()
+        g.arc(0, 262 - rotC, 206, 0, TAU)
+        g.stroke()
+        g.restore()
+      }
+      g.lineWidth = 20
+      g.strokeStyle = 'rgba(4,6,13,0.55)'
+      g.beginPath()
+      g.arc(256, 262, 206, 0, TAU)
+      g.stroke()
+      g.lineWidth = 10
+      g.strokeStyle = '#26335a'
+      g.stroke()
+      ring(22, INK, [170, 124], 262)
+      ring(11, '#3df2ff', [170, 124], 262)
+      ring(3, 'rgba(230,253,255,0.75)', [170, 124], 258)
+
+      // 环上的金色光球
+      const ox = 256 + 206 * Math.cos((-50 * Math.PI) / 180)
+      const oy = 262 + 206 * Math.sin((-50 * Math.PI) / 180)
+      g.fillStyle = INK
+      g.beginPath()
+      g.arc(ox, oy, 21, 0, TAU)
+      g.fill()
+      g.fillStyle = '#ffd84a'
+      g.beginPath()
+      g.arc(ox, oy, 16, 0, TAU)
+      g.fill()
+      g.fillStyle = '#fff6c9'
+      g.beginPath()
+      g.arc(ox - 5, oy - 5, 6, 0, TAU)
+      g.fill()
+
+      const put = (spr, x, y, k, rot, alpha = 1) => {
+        g.save()
+        g.translate(x, y)
+        g.rotate(rot)
+        g.globalAlpha = alpha
+        g.drawImage(spr.c, (-spr.w / 2) * k, (-spr.h / 2) * k, spr.w * k, spr.h * k)
+        g.restore()
+      }
+
+      // 迎面扑来的无人机（朝向飞船），和右下角的晶簇宝石
+      put(hb.enemy.drone.n, 122, 140, 4.6, Math.atan2(276 - 140, 256 - 122))
+      put(hb.gemBare(3), 408, 436, 3.7, 0)
+
+      // 接触阴影
+      g.save()
+      g.translate(274, 410)
+      g.scale(1, 24 / 104)
+      const sh = g.createRadialGradient(0, 0, 0, 0, 0, 104)
+      sh.addColorStop(0, 'rgba(0,0,0,0.55)')
+      sh.addColorStop(1, 'rgba(0,0,0,0)')
+      g.fillStyle = sh
+      g.beginPath()
+      g.arc(0, 0, 104, 0, TAU)
+      g.fill()
+      g.restore()
+
+      // 先锋号：机头朝上，两道尾焰（加色）压在机身下面
+      const K = 8.2
+      g.save()
+      g.translate(256, 266)
+      g.rotate(-Math.PI / 2)
+      g.scale(K, K)
+      const fl = hb.flame('#3df2ff')
+      g.globalCompositeOperation = 'lighter'
+      for (const my of [5.85, -5.85]) {
+        g.save()
+        g.translate(-16.8, my)
+        g.rotate(Math.PI)
+        g.scale(9 / 36, 6.5 / 12)
+        g.drawImage(fl.c, 17 - fl.w / 2, -fl.h / 2, fl.w, fl.h)
+        g.restore()
+      }
+      g.globalCompositeOperation = 'source-over'
+      const ship = hb.ship.vanguard.n
+      g.drawImage(ship.c, -ship.w / 2, -ship.h / 2, ship.w, ship.h)
+      g.restore()
+
+      g.restore()
+    }
+
+    /** 逐级对半缩小，比一次缩到位清晰得多 */
+    const shrink = (src, size) => {
+      let cur = src
+      while (cur.width / 2 >= size) {
+        const c = document.createElement('canvas')
+        c.width = c.height = cur.width / 2
+        const x = c.getContext('2d')
+        x.imageSmoothingQuality = 'high'
+        x.drawImage(cur, 0, 0, c.width, c.height)
+        cur = c
+      }
+      if (cur.width !== size) {
+        const c = document.createElement('canvas')
+        c.width = c.height = size
+        const x = c.getContext('2d')
+        x.imageSmoothingQuality = 'high'
+        x.drawImage(cur, 0, 0, size, size)
+        cur = c
+      }
+      return cur.toDataURL('image/png')
+    }
+
+    const make = (opts) => {
+      const c = document.createElement('canvas')
+      c.width = c.height = S
+      draw(c.getContext('2d'), opts)
+      return c
+    }
+    const round = make({ rounded: true, inset: 1 })
+    const apple = make({ rounded: false, inset: 0.92 })
+    const mask = make({ rounded: false, inset: 0.74 })
+    return {
+      'favicon-32.png': shrink(round, 32),
+      'favicon-48.png': shrink(round, 48),
+      'apple-touch-icon.png': shrink(apple, 180),
+      'icon-192.png': shrink(round, 192),
+      'icon-512.png': shrink(round, 512),
+      'icon-maskable-512.png': shrink(mask, 512),
+    }
+  })
 }
 
 // ───────────────────────── 社交分享图 ─────────────────────────
@@ -140,30 +261,34 @@ body{width:1200px;height:630px;position:relative;overflow:hidden;background:#050
 async function main() {
   const browser = await launch()
 
-  // 1) 图标
-  writeFileSync(join(pub, 'favicon.svg'), iconSvg({ rounded: true }))
-  const targets = [
-    ['favicon-32.png', 32, iconSvg({ rounded: true })],
-    ['apple-touch-icon.png', 180, iconSvg({ rounded: false, inset: 0.92 })],
-    ['icon-192.png', 192, iconSvg({ rounded: true })],
-    ['icon-512.png', 512, iconSvg({ rounded: true })],
-    ['icon-maskable-512.png', 512, iconSvg({ rounded: false, inset: 0.74 })],
-  ]
+  // 1) 图标：先要有 dist（精灵库就在游戏代码里）
+  if (!existsSync(join(dist, 'index.html'))) throw new Error('dist/ 不存在，请先运行 npm run build')
+  const srv = await serveDist()
   {
-    const ctx = await browser.newContext({ deviceScaleFactor: 1 })
+    const ctx = await browser.newContext({ viewport: { width: 900, height: 600 }, deviceScaleFactor: 1 })
     const page = await ctx.newPage()
-    for (const [name, size, svg] of targets) {
-      await page.setViewportSize({ width: size, height: size })
-      await page.setContent(`<style>html,body{margin:0;background:transparent}svg{display:block;width:${size}px;height:${size}px}</style>${svg}`)
-      await page.screenshot({ path: join(pub, name), omitBackground: true, clip: { x: 0, y: 0, width: size, height: size } })
+    await page.goto(`http://127.0.0.1:${srv.port}/?e2e=1&q=high`, { waitUntil: 'load' })
+    await page.waitForSelector('body.ready')
+    await sleep(500)
+    const icons = await renderIcons(page)
+    for (const [name, url] of Object.entries(icons)) {
+      const buf = Buffer.from(url.split(',')[1], 'base64')
+      if (name === 'favicon-48.png') {
+        // SVG 图标里内嵌一张 48px 的位图：和 PNG 图标完全一致，又省得再手绘一份矢量
+        writeFileSync(
+          join(pub, 'favicon.svg'),
+          `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48"><image width="48" height="48" href="${url}"/></svg>\n`,
+        )
+        console.log('  ✓ favicon.svg')
+        continue
+      }
+      writeFileSync(join(pub, name), buf)
       console.log('  ✓', name)
     }
     await ctx.close()
   }
 
   // 2) 社交分享图：先截一张真实的游戏画面
-  if (!existsSync(join(dist, 'index.html'))) throw new Error('dist/ 不存在，请先运行 npm run build')
-  const srv = await serveDist()
   let shot
   {
     const ctx = await browser.newContext({ viewport: { width: 1100, height: 630 }, deviceScaleFactor: 1 })

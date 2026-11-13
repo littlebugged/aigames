@@ -1,5 +1,4 @@
-import type { PassiveId, ShipId, WeaponId } from '../data/ids'
-import { SHIP_POLY } from '../render/shapes'
+import type { PassiveId, WeaponId } from '../data/ids'
 
 /**
  * 内联 SVG 图标（24×24，描边风格，颜色跟随 currentColor）。
@@ -74,46 +73,3 @@ const wrap = (inner: string, cls = '', fill = false): string =>
 export const weaponIcon = (id: WeaponId, cls = ''): string => wrap(WEAPON_ICON[id], cls)
 export const passiveIcon = (id: PassiveId, cls = ''): string => wrap(PASSIVE_ICON[id], cls)
 export const uiIcon = (name: UiIconName, cls = ''): string => wrap(UI_ICON[name], cls)
-
-/** 飞船图标：直接用游戏里的轮廓，车头朝上 */
-export function shipIcon(id: ShipId, cls = ''): string {
-  const pts = SHIP_POLY[id].map(([x, y]) => `${(12 - y * 9.5).toFixed(2)},${(12 - x * 9.5).toFixed(2)}`).join(' ')
-  return `<svg class="ico ${cls}" viewBox="0 0 24 24" fill="currentColor" fill-opacity=".18" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><polygon points="${pts}"/></svg>`
-}
-
-/** 敌人缩略图（静态页面用）：简化轮廓 */
-export function enemyIcon(shape: string, cls = ''): string {
-  let inner: string
-  switch (shape) {
-    case 'tri':
-      inner = '<path d="M21 12L5 3.5 9 12 5 20.5z"/>'
-      break
-    case 'diamond':
-      inner = '<path d="M22 12L12 6 2 12l10 6z"/>'
-      break
-    case 'hex':
-      inner = '<path d="M12 2.5l8.2 4.75v9.5L12 21.5l-8.2-4.75v-9.5z"/>'
-      break
-    case 'ring':
-      inner = '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.5"/>'
-      break
-    case 'square':
-      inner = '<rect x="4" y="4" width="16" height="16" rx="1.5"/><path d="M4 12h16M12 4v16" opacity=".5"/>'
-      break
-    case 'chevron':
-      inner = '<path d="M21 12L4 4l5 8-5 8z"/><path d="M13 12l-3-4" opacity=".6"/>'
-      break
-    case 'orb':
-      inner = '<circle cx="12" cy="12" r="8.5"/><path d="M12 5v14M5 12h14" opacity=".5"/>'
-      break
-    case 'oct':
-      inner = '<path d="M8 3h8l5 5v8l-5 5H8l-5-5V8z"/><circle cx="12" cy="12" r="3"/>'
-      break
-    case 'crescent':
-      inner = '<path d="M17 3a9 9 0 100 18 7 7 0 010-18z"/>'
-      break
-    default:
-      inner = '<path d="M12 3l6 9-6 9-6-9z"/>'
-  }
-  return wrap(inner, cls)
-}

@@ -431,6 +431,7 @@ export class World {
     e.spawnT = o.spawnT ?? 0.35
     e.contactCd = 0
     e.angle = this.rng.angle()
+    e.ra = e.angle
     e.state = 0
     e.timer = this.rng.range(0.4, 2)
     e.ax = e.ay = e.aux = 0

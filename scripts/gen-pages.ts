@@ -21,7 +21,7 @@ import { SECTORS, THREAT_LEVELS } from '../src/data/sectors'
 import { SHIPS } from '../src/data/ships'
 import { WEAPONS } from '../src/data/weapons'
 import { dyn, tIn } from '../src/i18n'
-import { enemyIcon, passiveIcon, shipIcon, uiIcon, weaponIcon } from '../src/ui/icons'
+import { passiveIcon, uiIcon, weaponIcon } from '../src/ui/icons'
 import { PAGE_KEYS, SITE_URL, pageFile, pagePath, type PageKey, type SiteLang } from './site'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -220,6 +220,7 @@ const ZH: Copy = {
     ],
     logH: '更新记录',
     log: [
+      '<strong>v1.5</strong> — 造型重做，告别“几何体敌人”：十种敌人全部改成部件拼成的生物——无人机是带锯齿翅与毒刺的黄蜂，蜂群体是六足螨，重装巨兽是长钳甲虫，炮手是炮塔虫，裂变体是三叶结合体，冲锋者是长矛头加弯角，自爆怪是十二根尖刺的水雷，护盾者是带弧形盾的八角核心，幽灵拖着破布斗篷，碎片是五棱晶簇；四艘飞船各有独立的机翼与机身结构（先锋号的后掠翼、幽影号的前掠翼、堡垒号的双侧货舱、收割者的新月翼）；三个 Boss 也重画——监察者是带光圈叶片与六条钳臂的机械眼，分形核心是十二瓣晶体星并有碎晶环绕，虚空之喉是双排獠牙的旋涡。遮住颜色只看剪影也能认出是谁。敌人会平滑转向，精英怪的外形会随判定一起放大；经验宝石按档位有四种切工；机库的飞船卡片、结算页和玩法指南的图鉴都换成真实立绘，应用图标也改用真实精灵合成。性能与判定范围不变。',
       '<strong>v1.4</strong> — 画面质感重做：整套美术从“发光的霓虹线框”改为哑光硬表面——敌人、飞船、Boss 和拾取物都是带深色描边与明暗面的实心机体，只在灯位点一小粒自发光；子弹变成实心弹珠、碎片变成实心残骸，敌人脚下有接触阴影；泛光加了阈值，只有爆炸、光束这类真正的强光才会晕开，人潮里不再糊成一团粉雾；背景改为深色点阵地面；Boss 预警改为流动的斜纹警示带；界面去掉所有彩色外发光，按钮、卡片与图标底板改为带高光边和投影的哑光材质，伤害数字的光晕收窄；应用图标与分享图同步换成同一套风格。',
       '<strong>v1.3</strong> — 界面质感升级：伤害数字重做为渐变霓虹字形（细暗描边 + 贴字形的柔光，日常数字克制、重击才上色并带斜体与高光，不再有粗描边与感叹号）；进化横幅改为铭牌式（六边形徽章、金属渐变标题、扫光，自动避开顶部信息）并在演出中加入四周暗角聚焦，白闪只持续一瞬；整理手机与小屏的 HUD 版面，通知、教学提示、装备栏与冲刺键不再互相遮挡。',
       '<strong>v1.2</strong> — 打击感大升级：伤害数字扩展为 8 档梯度（字号、颜色、光晕随伤害逐级升级，暴击再升一档），一眼看出这一下有多重；武器进化新增完整演出——蓄力、整屏冲击波、慢动作、大横幅与音效，进化瞬间的冲击波还会清场并抹掉附近的敌方弹幕；进化后飞船周围有常驻光环，进化武器开火更有分量。',
@@ -383,6 +384,7 @@ const EN: Copy = {
     ],
     logH: 'Changelog',
     log: [
+      '<strong>v1.5</strong> — Shapes, redone: every one of the ten enemies is now a creature built from parts instead of a lone polygon — the drone is a wasp with sawtooth wings and a stinger, the swarmer a six-legged mite, the brute a pincered beetle, the shooter a turret-bug, the splitter a three-lobed cluster, the charger a spearhead with bent horns, the bomber a twelve-spiked sea mine, the shielder an octagonal core with an arc shield, the wraith trails a tattered cloak and the shard is a five-point crystal; the four ships get distinct wing and fuselage structures (swept-back, forward-swept, twin cargo pods, crescent); all three bosses are redrawn — the Overseer is a mechanical eye with iris blades and six pincer arms, the Fractal Core a twelve-point crystal star with orbiting shards, the Maw a vortex with two rows of fangs. Cover the colours and you can still tell who is who. Enemies now turn smoothly, elites scale their art with their hitbox, XP gems come in four distinct cuts by tier, and the hangar ship cards, results screen and guide bestiary use the real sprites; the app icon is composed from them too. Performance and hit radii are unchanged.',
       '<strong>v1.4</strong> — Visual overhaul: the whole art direction moves from glowing neon wireframes to matte hard-surface — enemies, ships, bosses and pickups are now opaque, shaded hulls with dark outlines and only a tiny emissive lamp where a light belongs; bullets are solid beads, debris is solid shrapnel and enemies cast contact shadows; bloom is thresholded so only real bright sources such as explosions and beams bleed light, and big crowds no longer melt into a pink haze; the backdrop becomes a dark dot-grid floor; boss warnings are drawn as flowing hazard stripes; the interface drops every coloured outer glow in favour of highlighted edges, drop shadows and matte tiles, and damage-number glows are tightened; the app icon and share image follow the same style.',
       '<strong>v1.3</strong> — UI polish: damage numbers are redrawn as gradient neon glyphs (thin dark outline plus a glow hugging the letterforms; everyday numbers stay restrained and only heavy hits get colour, slant and gloss — no more fat outlines or exclamation marks); the evolution banner becomes a nameplate (hex emblem, metallic title, sheen sweep) that stays clear of the top HUD, with a focus vignette during the cinematic and a much shorter white flash; the HUD layout on phones and small screens is reorganised so notifications, tutorial hints, the loadout and the dash button no longer overlap.',
       '<strong>v1.2</strong> — Big game-feel upgrade: damage numbers now come in 8 visual tiers (size, colour and glow scale up with damage, and crits jump one tier) so you can tell a heavy hit at a glance; weapon evolution gets a full cinematic — charge-up, screen-wide shockwave, slow motion, banner and sound — and the shockwave also clears nearby enemies and enemy bullets; evolved weapons leave a persistent aura around the ship and fire with more weight.',
@@ -417,6 +419,8 @@ const COPY: Record<SiteLang, Copy> = { zh: ZH, en: EN }
 const other = (l: SiteLang): SiteLang => (l === 'zh' ? 'en' : 'zh')
 const abs = (p: string): string => `${SITE_URL}${p}`
 const ico = (svg: string): string => svg
+/** 图鉴里的立绘：游戏里真实精灵导出的小图（scripts/gen-sprites.mjs），装饰性图片，名称就在旁边 */
+const spr = (file: string, px: number): string => `<img class="spr" src="/img/sprites/${file}.webp" width="${px}" height="${px}" alt="" loading="lazy" decoding="async">`
 
 function head(l: SiteLang, page: PageKey, o: { title: string; desc: string; jsonld?: object[]; robots?: string }): string {
   const c = COPY[l]
@@ -624,14 +628,14 @@ function guidePage(l: SiteLang): string {
   const enemyRows = ENEMY_IDS.map((id) => {
     const e = ENEMIES[id]
     const where = SECTOR_IDS.filter((s) => SECTORS[s].roster.some((r) => r.id === id)).map((s) => `<span class="pill">${esc(sectorName(s))}</span>`)
-    return `<tr><td>${nm(enemyIcon(e.shape), name('enemy', id), e.color)}</td><td>${esc(T(l, `enemy.${id}.desc`))}</td><td>${e.hp}</td><td>${e.speed}</td><td>${e.dmg}</td><td>${where.join(' ') || '—'}</td></tr>`
+    return `<tr><td>${nm(spr(`enemy-${id}`, 40), name('enemy', id), e.color)}</td><td>${esc(T(l, `enemy.${id}.desc`))}</td><td>${e.hp}</td><td>${e.speed}</td><td>${e.dmg}</td><td>${where.join(' ') || '—'}</td></tr>`
   })
 
   // Boss
   const bossCards = BOSS_IDS.map((id) => {
     const sec = SECTOR_IDS.find((s) => SECTORS[s].boss === id)!
     const color = SECTORS[sec].palette.accent
-    return `<article class="fcard" style="--c:${color}"><h3>${ico(uiIcon('skull'))}${esc(name('boss', id))}</h3><p><span class="pill">${esc(sectorName(sec))}</span> <span class="pill">${Math.round(SECTORS[sec].length / 60)} ${esc(g.unitMin)}</span></p><p>${esc(T(l, `boss.${id}.desc`))}</p><p><strong>${esc(g.bossTips[id] ?? '')}</strong></p></article>`
+    return `<article class="fcard boss" style="--c:${color}"><div class="boss-head">${spr(`boss-${id}`, 80)}<div><h3>${esc(name('boss', id))}</h3><p><span class="pill">${esc(sectorName(sec))}</span> <span class="pill">${Math.round(SECTORS[sec].length / 60)} ${esc(g.unitMin)}</span></p></div></div><p>${esc(T(l, `boss.${id}.desc`))}</p><p><strong>${esc(g.bossTips[id] ?? '')}</strong></p></article>`
   })
 
   // 飞船
@@ -640,7 +644,7 @@ function guidePage(l: SiteLang): string {
     const unlock = s.unlockAch
       ? `${esc(T(l, `ach.${s.unlockAch}.name`))} / ${esc(n0(s.cost))} ${esc(T(l, 'common.cores'))}`
       : esc(T(l, 'common.owned'))
-    return `<tr><td>${nm(shipIcon(id), name('ship', id), s.color)}<small>${esc(T(l, `ship.${id}.tag`))}</small></td><td>${esc(T(l, `ship.${id}.desc`))}</td><td>${s.hp}</td><td>${s.speed}</td><td>×${s.dmg}</td><td>${Math.round(s.crit * 100)}%</td><td>${s.dashCd}s</td><td>${nm(weaponIcon(s.startWeapon), name('weapon', s.startWeapon), WEAPONS[s.startWeapon].color)}</td><td>${unlock}</td></tr>`
+    return `<tr><td>${nm(spr(`ship-${id}`, 40), name('ship', id), s.color)}<small>${esc(T(l, `ship.${id}.tag`))}</small></td><td>${esc(T(l, `ship.${id}.desc`))}</td><td>${s.hp}</td><td>${s.speed}</td><td>×${s.dmg}</td><td>${Math.round(s.crit * 100)}%</td><td>${s.dashCd}s</td><td>${nm(weaponIcon(s.startWeapon), name('weapon', s.startWeapon), WEAPONS[s.startWeapon].color)}</td><td>${unlock}</td></tr>`
   })
 
   // 星区

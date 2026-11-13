@@ -64,7 +64,8 @@ node scripts/e2e.mjs live                           # 线上冒烟 + 关键 URL 
 
 - 在 Google Search Console、Bing Webmaster Tools 验证站点并提交 `https://aigames.de5.net/sitemap.xml`。
 - **Cloudflare 的"托管 robots.txt"会在边缘叠加规则**（拦截 AI 爬虫，有的账号还会拦截百度爬虫），这是 Cloudflare 控制台里的开关（AI Crawl Control / 机器人相关设置），不是仓库里的 `robots.txt`。如果希望百度等搜索引擎收录，请在控制台里关闭对应规则，然后用 `curl -s https://aigames.de5.net/robots.txt` 核对。
-- 更换图标 / 分享图：图标（SVG，哑光硬表面风格，不使用 filter）与分享图都在 `scripts/gen-assets.mjs` 里程序化绘制；改后 `npm run build && node scripts/gen-assets.mjs`，提交 `public/` 下的新素材（分享图用的是真实游戏画面，美术大改后要重新生成）。社交平台缓存分享图较久，需要在各平台的调试工具里刷新。
+- 更换图标 / 分享图：都在 `scripts/gen-assets.mjs` 里生成——图标是用游戏里的**真实精灵**（先锋号 / 无人机 / 晶簇宝石，8 倍超采样重画一份）在无头浏览器里合成的，`favicon.svg` 内嵌一张 48px 位图；分享图用的是真实游戏画面。改后 `npm run build && node scripts/gen-assets.mjs`，提交 `public/` 下的新素材（美术大改后都要重新生成）。社交平台缓存分享图较久，需要在各平台的调试工具里刷新。
+- 玩法指南里的敌人 / 飞船 / Boss 图：`npm run build && node scripts/gen-sprites.mjs`，输出 `public/img/sprites/*.webp`（已提交）；新增条目或改了美术后必须重跑，`npm test` 会检查文件齐全。
 
 ## 6. 统计与隐私
 

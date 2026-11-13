@@ -9,6 +9,7 @@
  *   node scripts/e2e.mjs fx                 # 手感：伤害数字 8 档梯度 + 武器进化演出（蓄力 → 爆发 → 慢动作 → 横幅 → 光环），逐帧截图
  *   node scripts/e2e.mjs layout [--only 名]  # 版面审计：手机竖/横屏、平板、桌面，满配 HUD 元素互不遮挡、不出屏
  *   node scripts/e2e.mjs art [--scale N]    # 美术样张：把全部预渲染精灵（敌人/飞船/宝石/拾取物/武器件/Boss 部件）放大排在一张图上，逐个检查质感
+ *   node scripts/e2e.mjs zoo [选项]         # 敌人动物园：全部敌人（普通 + 精英）定身摆成三排，真实比例截图，检查缩小后的辨识度：--dpr --face --bg --clip
  *   node scripts/e2e.mjs play [选项]        # 直接开一局并快进截图：--sector --ship --threat --ff --wait --name --q --audio 1
  *   node scripts/e2e.mjs perf [选项]        # 性能探针：--q high|medium|low|auto --dpr 2 --gpu 1 --secs 6
  *   node scripts/e2e.mjs live [--url URL]   # 对线上地址做冒烟测试（默认 https://aigames.de5.net）
@@ -274,6 +275,61 @@ async function play(base) {
   await browser.close()
 }
 
+
+/**
+ * 敌人动物园：把全部敌人（普通 + 精英）定身摆成两排，以游戏里的真实比例截图，检查"缩小后还认不认得出"。
+ * 例：zoo --dpr 2 --name zoo；--face 0.6 统一朝向（弧度）；--bg void 换星区底色。
+ */
+async function zoo(base) {
+  const opt = (k, d) => (args.includes(`--${k}`) ? args[args.indexOf(`--${k}`) + 1] : d)
+  const name = opt('name', 'zoo')
+  const vw = Number(opt('w', '1280'))
+  const vh = Number(opt('h', '720'))
+  const dpr = Number(opt('dpr', '2'))
+  const sector = opt('bg', 'fields')
+  const face = Number(opt('face', '0'))
+  const browser = await launch()
+  const ctx = await browser.newContext({ viewport: { width: vw, height: vh }, deviceScaleFactor: dpr })
+  const page = await ctx.newPage()
+  watch(page, 'zoo')
+  await page.goto(`${base}/?e2e=1&q=high`, { waitUntil: 'load' })
+  await waitReady(page)
+  await page.evaluate(
+    ([sector, face]) => {
+      const a = window.__neon
+      a.startRun({ ship: 'vanguard', sector, threat: 0, endless: false })
+      a.godMode = true
+      const w = a.game
+      const p = w.player
+      const ids = ['drone', 'swarmer', 'brute', 'shooter', 'splitter', 'charger', 'bomber', 'shielder', 'wraith', 'shard']
+      const put = (id, x, y, elite, ang) => {
+        const e = w.spawnEnemy(id, x, y, { spawnT: 0, elite })
+        e.stun = 1e9
+        e.angle = e.ra = ang
+        e.age = 1
+      }
+      ids.forEach((id, i) => {
+        const x = p.x + (i - 4.5) * 92
+        put(id, x, p.y - 150, false, face)
+        put(id, x, p.y - 30, false, face + Math.PI * 0.75)
+        put(id, x, p.y + 110, true, face - Math.PI * 0.4)
+      })
+    },
+    [sector, face],
+  )
+  await sleep(900)
+  await page.addStyleTag({ content: '.hint,.toasts,.banner{display:none!important}' })
+  await sleep(200)
+  await shot(page, name)
+  const clip = opt('clip', '')
+  if (clip) {
+    const [x, y, w, h] = clip.split(',').map(Number)
+    const file = join(out, `${name}-clip.png`)
+    await page.screenshot({ path: file, clip: { x, y, width: w, height: h } })
+    console.log('  📸', file.replace(root + '/', ''))
+  }
+  await browser.close()
+}
 
 /** 性能探针：固定后期战局，统计 rAF 帧间隔与渲染耗时。例：perf --q high --gpu 1 --dpr 2 */
 async function perf(base) {
@@ -1107,6 +1163,46 @@ async function art(base) {
     await page.screenshot({ path: file, clip: { x: 0, y: r.y, width: 1000, height: Math.min(r.h, 3300 - r.y) } })
     console.log('  📸', file.replace(root + '/', ''))
   }
+  // 三个 Boss 的"整机"：用游戏里同一套绘制函数拼起来（含阶段色环境光 / 阴影），放大 1.5 倍看
+  await page.evaluate(
+    ({ S }) => {
+      const a = window.__neon
+      const r = a.renderer
+      const bossArt = new r.bossArt.constructor(8)
+      const W = 1000
+      const H = 360
+      document.querySelectorAll('canvas[data-bosses]').forEach((c) => c.remove())
+      const cv = document.createElement('canvas')
+      cv.dataset.bosses = '1'
+      cv.width = W
+      cv.height = H
+      cv.style.cssText = 'position:fixed;left:0;top:0;z-index:100000;background:#080c18'
+      document.body.appendChild(cv)
+      const g = cv.getContext('2d')
+      const bg = g.createRadialGradient(W / 2, H / 2, 40, W / 2, H / 2, W * 0.7)
+      bg.addColorStop(0, '#16203d')
+      bg.addColorStop(1, '#070a14')
+      g.fillStyle = bg
+      g.fillRect(0, 0, W, H)
+      const defs = [
+        { id: 'overseer', r: 58 },
+        { id: 'fractal', r: 48 },
+        { id: 'maw', r: 64 },
+      ]
+      defs.forEach((d, i) => {
+        const fake = { id: d.id, x: 0, y: 0, r: d.r, phase: 0, age: 10, state: 0, ang: 0.7 + i, flash: 0, intro: 0, orbs: [], tx: 0, ty: 0 }
+        g.save()
+        g.translate(W * (0.17 + i * 0.33), H / 2)
+        g.scale(S, S)
+        bossArt.draw(g, fake, 160, 40, 1.3 + i, r.bank)
+        g.restore()
+      })
+    },
+    { S: Math.min(scale, 1.5) },
+  )
+  await sleep(150)
+  await page.screenshot({ path: join(out, 'art-bosses-assembled.png'), clip: { x: 0, y: 0, width: 1000, height: 360 } })
+  console.log('  📸', '.e2e/art-bosses-assembled.png')
   await browser.close()
 }
 
@@ -1196,6 +1292,7 @@ try {
   else if (mode === 'mobile') await mobile(base)
   else if (mode === 'smoke') await smoke(base)
   else if (mode === 'play') await play(base)
+  else if (mode === 'zoo') await zoo(base)
   else if (mode === 'perf') await perf(base)
   else if (mode === 'live') await live()
   else if (mode === 'pwa') await pwa()

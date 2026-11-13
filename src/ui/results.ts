@@ -1,8 +1,8 @@
 import type { RunSummary, Settlement } from '../game/progress'
 import { dictKeys, dyn, fmtInt, fmtTime, getLang, t, type Key } from '../i18n'
 import type { UiCtx } from './ctx'
-import { clear, h, iconEl, svgEl } from './dom'
-import { shipIcon } from './icons'
+import { shipPortrait } from '../render/sprites'
+import { clear, h, iconEl } from './dom'
 
 export interface ResultsData {
   summary: RunSummary
@@ -145,7 +145,7 @@ export class ResultsScreen {
     if (s.unlockedSector) notices.push(h('div', { class: 'notice good' }, iconEl('check'), t('res.unlockSector', { name: t(dyn(`sector.${s.unlockedSector}.name`)) })))
     if (s.unlockedThreat !== null) notices.push(h('div', { class: 'notice good' }, iconEl('check'), t('res.unlockThreat', { name: t(dyn(`threat.${s.unlockedThreat}.name`)) })))
     for (const id of s.unlockedShips) {
-      notices.push(h('div', { class: 'notice gold' }, svgEl(shipIcon(id)), t('res.unlockShip', { name: t(dyn(`ship.${id}.name`)) })))
+      notices.push(h('div', { class: 'notice gold' }, shipPortrait(id, 30), t('res.unlockShip', { name: t(dyn(`ship.${id}.name`)) })))
     }
 
     const achs =
@@ -168,7 +168,7 @@ export class ResultsScreen {
       h(
         'div',
         { class: `res-panel ${won ? 'won' : 'lost'}` },
-        h('div', { class: 'res-head' }, h('h1', null, title), h('p', null, `${t(dyn(`sector.${summary.sector}.name`))} · ${t(dyn(`threat.${summary.threat}.name`))}`, ' · ', svgEl(shipIcon(summary.ship)), t(dyn(`ship.${summary.ship}.name`)))),
+        h('div', { class: 'res-head' }, h('h1', null, title), h('p', null, `${t(dyn(`sector.${summary.sector}.name`))} · ${t(dyn(`threat.${summary.threat}.name`))}`, ' · ', shipPortrait(summary.ship, 26), t(dyn(`ship.${summary.ship}.name`)))),
         killer ? h('p', { class: 'killer' }, iconEl('skull'), t('res.killedBy'), ' ', h('b', null, killer)) : null,
         h(
           'div',

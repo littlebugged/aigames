@@ -77,6 +77,11 @@ export interface HullOpts {
   light?: number
   /** 边缘高光强度 0~1 */
   rim?: number
+  /** 明暗的中心（部件自己的中心）；默认原点。拼装式的怪物每个部件要各自明暗，而不是整只共用一条渐变 */
+  cx?: number
+  cy?: number
+  /** 上下翻转边缘光的方向（左右对称的部件：镜像的那一侧用它，两侧才会一样亮） */
+  flip?: boolean
 }
 
 /** 路径构造器：只构建路径（含 beginPath），不描边不填充 */
@@ -102,6 +107,8 @@ function wedges(ctx: CanvasRenderingContext2D, R: number, n: number, phase: numb
 export function hull(ctx: CanvasRenderingContext2D, trace: Trace, r: number, t: Tones, o: HullOpts = {}): void {
   const lw = o.line ?? Math.max(1.2, r * 0.09)
   const light = o.light ?? -0.7
+  const cx = o.cx ?? 0
+  const cy = o.cy ?? 0
   // 外描边：先画双倍宽度，里面那半会被底色盖住，剩下的就是向外的墨线
   trace()
   ctx.lineWidth = lw * 2
@@ -111,12 +118,12 @@ export function hull(ctx: CanvasRenderingContext2D, trace: Trace, r: number, t: 
   trace()
   let g: CanvasGradient
   if (o.radial) {
-    g = ctx.createRadialGradient(Math.cos(light) * r * 0.45, Math.sin(light) * r * 0.45, r * 0.04, 0, 0, r * 1.2)
+    g = ctx.createRadialGradient(cx + Math.cos(light) * r * 0.45, cy + Math.sin(light) * r * 0.45, r * 0.04, cx, cy, r * 1.2)
     g.addColorStop(0, t.hi)
     g.addColorStop(0.5, t.mid)
     g.addColorStop(1, t.lo)
   } else {
-    g = ctx.createLinearGradient(r, 0, -r, 0)
+    g = ctx.createLinearGradient(cx + r, cy, cx - r, cy)
     g.addColorStop(0, t.hi)
     g.addColorStop(0.5, t.mid)
     g.addColorStop(1, t.lo)
@@ -127,12 +134,16 @@ export function hull(ctx: CanvasRenderingContext2D, trace: Trace, r: number, t: 
   ctx.save()
   trace()
   ctx.clip()
-  if ((o.facets ?? 0) > 0) wedges(ctx, r * 1.7, o.facets ?? 0, o.phase ?? 0, light, o.facetK ?? 1)
+  if ((o.facets ?? 0) > 0) {
+    ctx.translate(cx, cy)
+    wedges(ctx, r * 1.7, o.facets ?? 0, o.phase ?? 0, light, o.facetK ?? 1)
+    ctx.translate(-cx, -cy)
+  }
   const rim = o.rim ?? 1
   if (rim > 0) {
     trace()
     ctx.lineWidth = lw * 2.2
-    const rg = ctx.createLinearGradient(0, -r, 0, r)
+    const rg = o.flip ? ctx.createLinearGradient(0, cy + r, 0, cy - r) : ctx.createLinearGradient(0, cy - r, 0, cy + r)
     rg.addColorStop(0, rgba('#ffffff', 0.5 * rim))
     rg.addColorStop(0.55, rgba('#ffffff', 0.05 * rim))
     rg.addColorStop(1, rgba('#000000', 0.32 * rim))
@@ -152,12 +163,14 @@ export function plate(
   r: number,
   top: string,
   bottom: string,
-  o: { line?: number; raised?: boolean; alpha?: number } = {},
+  o: { line?: number; raised?: boolean; alpha?: number; cy?: number; flip?: boolean } = {},
 ): void {
   const lw = o.line ?? 0.9
   const raised = o.raised ?? false
+  const cy = o.cy ?? 0
+  const vgrad = (): CanvasGradient => (o.flip ? ctx.createLinearGradient(0, cy + r, 0, cy - r) : ctx.createLinearGradient(0, cy - r, 0, cy + r))
   build()
-  const g = ctx.createLinearGradient(0, -r, 0, r)
+  const g = vgrad()
   g.addColorStop(0, top)
   g.addColorStop(1, bottom)
   ctx.fillStyle = g
@@ -167,7 +180,7 @@ export function plate(
   ctx.clip()
   build()
   ctx.lineWidth = lw * 2.4
-  const bg = ctx.createLinearGradient(0, -r, 0, r)
+  const bg = vgrad()
   bg.addColorStop(0, raised ? rgba('#ffffff', 0.4) : rgba('#000000', 0.5))
   bg.addColorStop(1, raised ? rgba('#000000', 0.4) : rgba('#ffffff', 0.22))
   ctx.strokeStyle = bg
