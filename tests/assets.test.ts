@@ -3,7 +3,9 @@ import { existsSync, statSync } from 'node:fs'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { ENEMIES } from '../src/data/enemies'
-import { BOSS_IDS, ENEMY_IDS, SHIP_IDS } from '../src/data/ids'
+import { BOSS_IDS, ENEMY_IDS, PICKUP_IDS, SHIP_IDS } from '../src/data/ids'
+import { PICKUP_COLOR } from '../src/data/pickups'
+import { tIn } from '../src/i18n'
 import { CREATURES } from '../src/render/creatures'
 import { SHIP_ART } from '../src/render/shipart'
 
@@ -31,11 +33,28 @@ test('每艘飞船都有部件设计和喷口', () => {
 })
 
 test('玩法指南用的立绘齐全（改了美术或新增条目后请运行 node scripts/gen-sprites.mjs）', () => {
-  const names = [...ENEMY_IDS.map((id) => `enemy-${id}`), ...SHIP_IDS.map((id) => `ship-${id}`), ...BOSS_IDS.map((id) => `boss-${id}`)]
+  const names = [
+    ...ENEMY_IDS.map((id) => `enemy-${id}`),
+    ...SHIP_IDS.map((id) => `ship-${id}`),
+    ...BOSS_IDS.map((id) => `boss-${id}`),
+    ...PICKUP_IDS.map((id) => `pickup-${id}`),
+  ]
   for (const name of names) {
     const f = spriteFile(name)
     assert.ok(existsSync(f), `缺少 public/img/sprites/${name}.webp`)
     const size = statSync(f).size
     assert.ok(size > 1500 && size < 60_000, `${name}.webp 大小异常：${size} B`)
+  }
+})
+
+test('每种拾取物都有识别色、双语名称和指南立绘', () => {
+  const hex = /^#[0-9a-f]{6}$/i
+  const seen = new Set<string>()
+  for (const id of PICKUP_IDS) {
+    assert.match(PICKUP_COLOR[id], hex, `${id} 缺少合法的识别色`)
+    // 五种拾取物各自一个颜色：光晕里靠颜色、轮廓里靠形状，两条线索都不能撞车
+    assert.ok(!seen.has(PICKUP_COLOR[id]), `${id} 的颜色和别的拾取物重复`)
+    seen.add(PICKUP_COLOR[id])
+    for (const lang of ['zh', 'en'] as const) assert.ok(tIn(lang, `pickup.${id}`) && tIn(lang, `pickup.${id}`) !== `pickup.${id}`, `${lang} 缺少 pickup.${id} 的名称`)
   }
 })

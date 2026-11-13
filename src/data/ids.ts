@@ -42,6 +42,9 @@ export type EnemyId = (typeof ENEMY_IDS)[number]
 export const BOSS_IDS = ['overseer', 'fractal', 'maw'] as const
 export type BossId = (typeof BOSS_IDS)[number]
 
+export const PICKUP_IDS = ['heal', 'magnet', 'bomb', 'chest', 'cache'] as const
+export type PickupId = (typeof PICKUP_IDS)[number]
+
 export const META_IDS = [
   'm_power',
   'm_hull',

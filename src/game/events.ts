@@ -1,6 +1,6 @@
-import type { BossId, WeaponId } from '../data/ids'
+import type { BossId, PickupId, WeaponId } from '../data/ids'
 
-export type PickupKind = 'heal' | 'magnet' | 'bomb' | 'chest' | 'cache'
+export type PickupKind = PickupId
 
 /**
  * 模拟层 → 渲染/音频层 的单向事件。

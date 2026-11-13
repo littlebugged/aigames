@@ -1,13 +1,15 @@
 import { ENEMIES, type EnemyDef } from '../data/enemies'
-import { ENEMY_IDS, SHIP_IDS, type EnemyId, type ShipId } from '../data/ids'
+import { ENEMY_IDS, PICKUP_IDS, SHIP_IDS, type EnemyId, type ShipId } from '../data/ids'
+import { PICKUP_COLOR } from '../data/pickups'
 import { SHIPS } from '../data/ships'
 import { TAU } from '../engine/math'
 import type { PickupKind } from '../game/events'
-import { flatTones, groove, hull, ink, lamp, plate, rivet, roundRect, tonesOf, type Tones, type Trace } from './matte'
+import { ink, tonesOf } from './matte'
 import { lighten, mixHex, rgba } from './palette'
 import { CREATURES } from './creatures'
+import { cut } from './parts'
+import { paintBlade, paintBolt, paintBomb, paintCache, paintChakram, paintChest, paintDrone, paintHeal, paintMagnet, paintMine, paintPlasma } from './props'
 import { SHIP_ART, steelTones } from './shipart'
-import { polygon } from './shapes'
 
 /**
  * 预渲染精灵（哑光硬表面风格，工具见 matte.ts）。
@@ -136,53 +138,6 @@ function enemySprite(def: EnemyDef, ss: number, flash: boolean): Sprite {
 export const GEM_COLORS = ['#3df2ff', '#6dff8a', '#ffd84a', '#ff5ccf'] as const
 const GEM_R = [5, 6.6, 8.6, 11.5]
 
-type P2 = [number, number]
-
-/**
- * 一颗刻面宝石：墨线底 → 按边的朝向给每个三角刻面上不同明暗（光从左上来）→ 棱线 → 外轮廓。
- * pts 是按顺时针排列的外轮廓；c 是刻面汇聚的中心点。
- */
-function cut(ctx: CanvasRenderingContext2D, pts: P2[], c: P2, col: string): void {
-  const trace: Trace = () => {
-    ctx.beginPath()
-    pts.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)))
-    ctx.closePath()
-  }
-  trace()
-  ctx.lineWidth = 2.2
-  ctx.strokeStyle = ink(0.92)
-  ctx.stroke()
-  const shades = [lighten(col, 0.7), lighten(col, 0.38), col, mixHex(col, '#0a0c14', 0.28), mixHex(col, '#0a0c14', 0.52)]
-  for (let i = 0; i < pts.length; i++) {
-    const a = pts[i]
-    const b = pts[(i + 1) % pts.length]
-    // 外法线朝向与光方向 (-1,-1) 的夹角 → 明暗
-    const nx = b[1] - a[1]
-    const ny = a[0] - b[0]
-    const len = Math.hypot(nx, ny) || 1
-    const lit = (-nx - ny) / len / Math.SQRT2 // -1..1
-    ctx.beginPath()
-    ctx.moveTo(c[0], c[1])
-    ctx.lineTo(a[0], a[1])
-    ctx.lineTo(b[0], b[1])
-    ctx.closePath()
-    ctx.fillStyle = shades[Math.min(4, Math.max(0, Math.round((1 - lit) * 2)))]
-    ctx.fill()
-  }
-  ctx.beginPath()
-  for (const [x, y] of pts) {
-    ctx.moveTo(c[0], c[1])
-    ctx.lineTo(x, y)
-  }
-  ctx.lineWidth = 0.6
-  ctx.strokeStyle = rgba('#ffffff', 0.32)
-  ctx.stroke()
-  trace()
-  ctx.lineWidth = 1
-  ctx.strokeStyle = ink(0.85)
-  ctx.stroke()
-}
-
 /** 四档宝石四种切工：碎晶 → 祖母绿 → 明亮式 → 晶簇，除了颜色和大小，轮廓本身也一眼能分出档次 */
 function gemSprite(tier: number, ss: number, halo = true): Sprite {
   const r = GEM_R[tier]
@@ -237,266 +192,74 @@ function gemSprite(tier: number, ss: number, halo = true): Sprite {
   })
 }
 
-const PICKUP_COLOR: Record<PickupKind, string> = {
-  heal: '#6dff8a',
-  magnet: '#5dd0ff',
-  bomb: '#ff6a4d',
-  chest: '#ffd84a',
-  cache: '#d58bff',
-}
 export const PICKUP_R = 13
 
-function pickupSprite(kind: PickupKind, ss: number): Sprite {
+const PICKUP_PAINT: Record<PickupKind, (ctx: CanvasRenderingContext2D, r: number, col: string) => void> = {
+  heal: paintHeal,
+  magnet: paintMagnet,
+  bomb: paintBomb,
+  chest: paintChest,
+  cache: paintCache,
+}
+
+function pickupSprite(kind: PickupKind, ss: number, halo = true): Sprite {
   const r = PICKUP_R
   const col = PICKUP_COLOR[kind]
   const size = (r + 11) * 2
   return make(size, size, ss, (ctx) => {
     // 淡光，让它在乱战里依然醒目
-    const hr = r * 2
-    const hg = ctx.createRadialGradient(0, 0, r * 0.5, 0, 0, hr)
-    hg.addColorStop(0, rgba(col, 0.22))
-    hg.addColorStop(1, rgba(col, 0))
-    ctx.fillStyle = hg
-    ctx.beginPath()
-    ctx.arc(0, 0, hr, 0, TAU)
-    ctx.fill()
-
-    const trace: Trace = () => {
+    if (halo) {
+      const hr = r * 2
+      const hg = ctx.createRadialGradient(0, 0, r * 0.5, 0, 0, hr)
+      hg.addColorStop(0, rgba(col, 0.22))
+      hg.addColorStop(1, rgba(col, 0))
+      ctx.fillStyle = hg
       ctx.beginPath()
-      switch (kind) {
-        case 'heal':
-        case 'magnet':
-          ctx.arc(0, 0, r, 0, TAU)
-          break
-        case 'bomb':
-          polygon(ctx, 8, r, Math.PI / 8)
-          break
-        case 'chest':
-          roundRect(ctx, -r * 0.98, -r * 0.78, r * 1.96, r * 1.56, 3)
-          break
-        case 'cache':
-          ctx.moveTo(0, -r * 1.2)
-          ctx.lineTo(r * 0.95, 0)
-          ctx.lineTo(0, r * 1.2)
-          ctx.lineTo(-r * 0.95, 0)
-          ctx.closePath()
-          break
-      }
+      ctx.arc(0, 0, hr, 0, TAU)
+      ctx.fill()
     }
-    // 金属外圈：亮色，像拉丝的金属边
-    const ring = tonesOf(col, -0.3)
-    hull(ctx, trace, r, { ...ring, hi: lighten(col, 0.55), mid: col, lo: mixHex(col, '#0a0c14', 0.45) }, { radial: true, line: 1.5 })
-    // 内嵌深色玻璃：让白色图标压得住
-    const inner = (k: number): Trace => () => {
-      ctx.save()
-      ctx.scale(k, k)
-      trace()
-      ctx.restore()
-    }
-    plate(ctx, inner(0.72), r, mixHex(col, '#05070d', 0.82), mixHex(col, '#05070d', 0.62), { line: 0.9 })
-    // 图标：亮色 + 墨色衬底，保证任何背景上都清楚
-    const icon = (): void => {
-      ctx.beginPath()
-      switch (kind) {
-        case 'heal':
-          ctx.moveTo(-r * 0.4, 0)
-          ctx.lineTo(r * 0.4, 0)
-          ctx.moveTo(0, -r * 0.4)
-          ctx.lineTo(0, r * 0.4)
-          break
-        case 'magnet':
-          ctx.arc(0, -r * 0.04, r * 0.36, Math.PI, 0)
-          ctx.moveTo(-r * 0.36, -r * 0.04)
-          ctx.lineTo(-r * 0.36, r * 0.38)
-          ctx.moveTo(r * 0.36, -r * 0.04)
-          ctx.lineTo(r * 0.36, r * 0.38)
-          break
-        case 'bomb':
-          for (let i = 0; i < 4; i++) {
-            const a = (i / 4) * TAU + Math.PI / 4
-            ctx.moveTo(Math.cos(a) * r * 0.14, Math.sin(a) * r * 0.14)
-            ctx.lineTo(Math.cos(a) * r * 0.46, Math.sin(a) * r * 0.46)
-          }
-          break
-        case 'chest':
-          ctx.moveTo(-r * 0.7, -r * 0.14)
-          ctx.lineTo(r * 0.7, -r * 0.14)
-          ctx.moveTo(0, -r * 0.14)
-          ctx.lineTo(0, r * 0.3)
-          break
-        case 'cache':
-          ctx.moveTo(0, -r * 0.46)
-          ctx.lineTo(0, r * 0.46)
-          ctx.moveTo(-r * 0.36, 0)
-          ctx.lineTo(r * 0.36, 0)
-          break
-      }
-    }
-    icon()
-    ctx.lineWidth = 3.6
-    ctx.strokeStyle = ink(0.7)
-    ctx.stroke()
-    icon()
-    ctx.lineWidth = 2.1
-    ctx.strokeStyle = lighten(col, 0.72)
-    ctx.stroke()
+    PICKUP_PAINT[kind](ctx, r, col)
   })
 }
 
 // ───────────────────────── 武器小件 ─────────────────────────
 
-/** 环绕刃：一片锋利的双面刀锋 */
+/** 环绕刃：弯月镰刀（造型见 props.ts） */
 function bladeSprite(color: string, ss: number): Sprite {
   const r = 20
   const size = (r + 8) * 2
-  return make(size, size, ss, (ctx) => {
-    const t = tonesOf(color, -0.18)
-    const blade: Trace = () => {
-      ctx.beginPath()
-      ctx.moveTo(r, 0)
-      ctx.lineTo(0, r * 0.38)
-      ctx.lineTo(-r * 0.75, 0)
-      ctx.lineTo(0, -r * 0.38)
-      ctx.closePath()
-    }
-    blade()
-    ctx.lineWidth = 3.2
-    ctx.strokeStyle = ink(0.92)
-    ctx.stroke()
-    // 上下两个斜面：上亮下暗，中间一道脊
-    ctx.save()
-    blade()
-    ctx.clip()
-    const up = ctx.createLinearGradient(r, 0, -r * 0.75, 0)
-    up.addColorStop(0, '#ffffff')
-    up.addColorStop(0.35, lighten(color, 0.5))
-    up.addColorStop(1, t.mid)
-    ctx.fillStyle = up
-    ctx.fillRect(-r, -r, r * 2, r)
-    const dn = ctx.createLinearGradient(r, 0, -r * 0.75, 0)
-    dn.addColorStop(0, lighten(color, 0.2))
-    dn.addColorStop(0.4, color)
-    dn.addColorStop(1, t.lo)
-    ctx.fillStyle = dn
-    ctx.fillRect(-r, 0, r * 2, r)
-    ctx.restore()
-    // 脊线
-    ctx.beginPath()
-    ctx.moveTo(r * 0.94, 0)
-    ctx.lineTo(-r * 0.6, 0)
-    ctx.lineWidth = 0.9
-    ctx.strokeStyle = rgba('#ffffff', 0.8)
-    ctx.stroke()
-    // 刃口
-    blade()
-    ctx.lineWidth = 1
-    ctx.strokeStyle = rgba('#ffffff', 0.55)
-    ctx.stroke()
-    // 尾部固定孔
-    rivet(ctx, -r * 0.42, 0, r * 0.07)
-  })
+  return make(size, size, ss, (ctx) => paintBlade(ctx, r, color))
 }
 
-/** 回旋飞轮：带四枚尖齿的金属环 */
+/** 回旋飞轮：八枚钩齿的锯盘 */
 function chakramSprite(color: string, ss: number): Sprite {
   const r = 14
   const size = (r + 12) * 2
-  return make(size, size, ss, (ctx) => {
-    const t = tonesOf(color, -0.15)
-    const body: Trace = () => {
-      ctx.beginPath()
-      // 四枚尖齿
-      for (let i = 0; i < 4; i++) {
-        const a = (i * TAU) / 4
-        ctx.moveTo(Math.cos(a - 0.6) * r * 0.78, Math.sin(a - 0.6) * r * 0.78)
-        ctx.lineTo(Math.cos(a) * r * 1.42, Math.sin(a) * r * 1.42)
-        ctx.lineTo(Math.cos(a + 0.6) * r * 0.78, Math.sin(a + 0.6) * r * 0.78)
-        ctx.closePath()
-      }
-      // 外环
-      ctx.moveTo(r * 0.9, 0)
-      ctx.arc(0, 0, r * 0.9, 0, TAU)
-    }
-    const hole: Trace = () => {
-      ctx.beginPath()
-      ctx.arc(0, 0, r * 0.34, 0, TAU)
-    }
-    body()
-    ctx.lineWidth = 3
-    ctx.strokeStyle = ink(0.92)
-    ctx.stroke()
-    // 环体：金属渐变；中心孔掏空
-    const g = ctx.createRadialGradient(-r * 0.3, -r * 0.35, r * 0.1, 0, 0, r * 1.45)
-    g.addColorStop(0, '#ffffff')
-    g.addColorStop(0.35, lighten(color, 0.4))
-    g.addColorStop(0.7, t.mid)
-    g.addColorStop(1, t.lo)
-    ctx.fillStyle = g
-    ctx.fill('nonzero')
-    // 刻面：四个扇区明暗
-    ctx.save()
-    body()
-    ctx.clip()
-    for (let i = 0; i < 4; i++) {
-      const a0 = (i * TAU) / 4 - Math.PI / 4
-      const a1 = a0 + Math.PI / 2
-      ctx.fillStyle = i % 2 === 0 ? rgba('#ffffff', 0.12) : rgba('#000000', 0.2)
-      ctx.beginPath()
-      ctx.moveTo(0, 0)
-      ctx.lineTo(Math.cos(a0) * r * 2, Math.sin(a0) * r * 2)
-      ctx.lineTo(Math.cos(a1) * r * 2, Math.sin(a1) * r * 2)
-      ctx.closePath()
-      ctx.fill()
-    }
-    ctx.restore()
-    // 内圈凹槽 + 中心孔
-    groove(
-      ctx,
-      () => {
-        ctx.beginPath()
-        ctx.arc(0, 0, r * 0.62, 0, TAU)
-      },
-      0.9,
-    )
-    hole()
-    ctx.fillStyle = ink(0.95)
-    ctx.fill()
-    hole()
-    ctx.lineWidth = 1
-    ctx.strokeStyle = rgba('#ffffff', 0.3)
-    ctx.stroke()
-    // 齿尖高光
-    for (let i = 0; i < 4; i++) {
-      const a = (i * TAU) / 4
-      line(ctx, Math.cos(a) * r * 1.0, Math.sin(a) * r * 1.0, Math.cos(a) * r * 1.34, Math.sin(a) * r * 1.34)
-      ctx.lineWidth = 0.9
-      ctx.strokeStyle = rgba('#ffffff', 0.6)
-      ctx.stroke()
-    }
-  })
+  return make(size, size, ss, (ctx) => paintChakram(ctx, r, color))
 }
 
-/** 僚机：小型战斗机 */
+/** 僚机：带翼的微型战机 */
 function droneSprite(color: string, ss: number): Sprite {
-  const r = 8
+  const r = 9
   const size = (r + 8) * 2
-  return make(size, size, ss, (ctx) => {
-    const t = tonesOf(color, -0.1)
-    const trace: Trace = () => {
-      ctx.beginPath()
-      ctx.moveTo(r, 0)
-      ctx.lineTo(-r * 0.8, r * 0.75)
-      ctx.lineTo(-r * 0.4, 0)
-      ctx.lineTo(-r * 0.8, -r * 0.75)
-      ctx.closePath()
-    }
-    hull(ctx, trace, r, t, { facets: 4, line: 1.2 })
-    ctx.beginPath()
-    ctx.ellipse(r * 0.12, 0, r * 0.3, r * 0.14, 0, 0, TAU)
-    ctx.fillStyle = ink(0.85)
-    ctx.fill()
-    lamp(ctx, -r * 0.34, 0, r * 0.14, color, 0.9)
-  })
+  return make(size, size, ss, (ctx) => paintDrone(ctx, r, color))
+}
+
+/** 地雷：带尖刺的圆盘 */
+function mineSprite(color: string, ss: number): Sprite {
+  const r = 7
+  const size = (r + 7) * 2
+  return make(size, size, ss, (ctx) => paintMine(ctx, r, color))
+}
+
+/** 脉冲弹：尖头弹丸 */
+function boltSprite(color: string, ss: number): Sprite {
+  return make(26, 12, ss, (ctx) => paintBolt(ctx, color))
+}
+
+/** 等离子球 */
+function plasmaSprite(color: string, ss: number): Sprite {
+  return make(36, 36, Math.max(1, ss * 0.8), (ctx) => paintPlasma(ctx, color))
 }
 
 /**
@@ -647,6 +410,9 @@ export class SpriteBank {
   private readonly beads = new Map<string, Sprite>()
   private readonly flames = new Map<string, Sprite>()
   private readonly missiles = new Map<string, Sprite>()
+  private readonly mines = new Map<string, Sprite>()
+  private readonly bolts = new Map<string, Sprite>()
+  private readonly plasmas = new Map<string, Sprite>()
 
   constructor(ss: number) {
     this.ss = ss
@@ -656,13 +422,18 @@ export class SpriteBank {
     }
     for (const id of SHIP_IDS) this.ship[id] = { n: shipSprite(id, ss, false), f: shipSprite(id, ss, true) }
     for (let i = 0; i < 4; i++) this.gem.push(gemSprite(i, ss))
-    for (const k of Object.keys(PICKUP_COLOR) as PickupKind[]) this.pickup[k] = pickupSprite(k, ss)
+    for (const k of PICKUP_IDS) this.pickup[k] = pickupSprite(k, ss)
     this.shadow = shadowSprite(ss)
   }
 
   /** 不带光晕的宝石（只给导出图标用，局内不走这里） */
   gemBare(tier: number): Sprite {
     return gemSprite(tier, this.ss, false)
+  }
+
+  /** 不带光晕的拾取物（导出指南页的小图用，局内不走这里） */
+  pickupBare(kind: PickupKind): Sprite {
+    return pickupSprite(kind, this.ss, false)
   }
 
   private cached(map: Map<string, Sprite>, color: string, build: (c: string, ss: number) => Sprite): Sprite {
@@ -703,6 +474,21 @@ export class SpriteBank {
   /** 导弹 */
   missile(color: string): Sprite {
     return this.cached(this.missiles, color, missileSprite)
+  }
+
+  /** 地雷 */
+  mine(color: string): Sprite {
+    return this.cached(this.mines, color, mineSprite)
+  }
+
+  /** 脉冲弹 */
+  bolt(color: string): Sprite {
+    return this.cached(this.bolts, color, boltSprite)
+  }
+
+  /** 等离子球 */
+  plasma(color: string): Sprite {
+    return this.cached(this.plasmas, color, plasmaSprite)
   }
 }
 

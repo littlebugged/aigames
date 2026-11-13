@@ -1,6 +1,6 @@
 import { TAU } from '../engine/math'
-import { hull, ink, lamp, plate, type HullOpts, type Tones } from './matte'
-import { fromHsl, mixHex, rgba, toHsl } from './palette'
+import { hull, ink, lamp, plate, type HullOpts, type Tones, type Trace } from './matte'
+import { fromHsl, lighten, mixHex, rgba, toHsl } from './palette'
 
 /**
  * 「拼装式」美术的通用部件：敌人（creatures.ts）和飞船（shipart.ts）共用。
@@ -177,3 +177,48 @@ export function metal(t: Tones): Tones {
 
 /** 装甲板的暗面渐变（和机体同色系，略暗） */
 export const dark = (t: Tones): [string, string] => [mixHex(t.lo, t.mid, 0.4), t.deep]
+
+/**
+ * 一颗刻面宝石：墨线底 → 按边的朝向给每个三角刻面上不同明暗（光从左上来）→ 棱线 → 外轮廓。
+ * pts 是按顺时针排列的外轮廓；c 是刻面汇聚的中心点。宝石和补给晶核共用。
+ */
+export function cut(ctx: Ctx, pts: readonly Pt[], c: Pt, col: string): void {
+  const trace: Trace = () => {
+    ctx.beginPath()
+    pts.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)))
+    ctx.closePath()
+  }
+  trace()
+  ctx.lineWidth = 2.2
+  ctx.strokeStyle = ink(0.92)
+  ctx.stroke()
+  const shades = [lighten(col, 0.7), lighten(col, 0.38), col, mixHex(col, '#0a0c14', 0.28), mixHex(col, '#0a0c14', 0.52)]
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[i]
+    const b = pts[(i + 1) % pts.length]
+    // 外法线朝向与光方向 (-1,-1) 的夹角 → 明暗
+    const nx = b[1] - a[1]
+    const ny = a[0] - b[0]
+    const len = Math.hypot(nx, ny) || 1
+    const lit = (-nx - ny) / len / Math.SQRT2 // -1..1
+    ctx.beginPath()
+    ctx.moveTo(c[0], c[1])
+    ctx.lineTo(a[0], a[1])
+    ctx.lineTo(b[0], b[1])
+    ctx.closePath()
+    ctx.fillStyle = shades[Math.min(4, Math.max(0, Math.round((1 - lit) * 2)))]
+    ctx.fill()
+  }
+  ctx.beginPath()
+  for (const [x, y] of pts) {
+    ctx.moveTo(c[0], c[1])
+    ctx.lineTo(x, y)
+  }
+  ctx.lineWidth = 0.6
+  ctx.strokeStyle = rgba('#ffffff', 0.32)
+  ctx.stroke()
+  trace()
+  ctx.lineWidth = 1
+  ctx.strokeStyle = ink(0.85)
+  ctx.stroke()
+}

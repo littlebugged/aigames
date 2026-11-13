@@ -776,26 +776,22 @@ export class Renderer {
         ctx.arc(0, 0, m.trigger, 0, TAU)
         ctx.stroke()
       }
-      ctx.rotate(this.vt * 1.6 + m.x)
-      const s = armed ? 7 : 5 + 2 * (m.age / m.arm)
-      ctx.beginPath()
-      ctx.moveTo(s, 0)
-      ctx.lineTo(0, s)
-      ctx.lineTo(-s, 0)
-      ctx.lineTo(0, -s)
-      ctx.closePath()
-      ctx.fillStyle = rgba(col, armed ? 0.4 : 0.15)
-      ctx.fill()
-      ctx.strokeStyle = rgba(col, 0.95)
-      ctx.lineWidth = 2
-      ctx.stroke()
+      // 地雷本体：带尖刺的圆盘，缓慢自转；布设阶段半透明且略小，装填完成后实心
+      const prog = armed ? 1 : m.age / m.arm
+      const spr = this.bank.mine(col)
+      const k = 0.72 + 0.28 * prog
+      ctx.rotate(this.vt * 1.2 + m.x)
+      ctx.globalAlpha = 0.5 + 0.5 * prog
+      ctx.drawImage(spr.c, (-spr.w * k) / 2, (-spr.h * k) / 2, spr.w * k, spr.h * k)
+      ctx.globalAlpha = 1
       ctx.restore()
       if (armed) {
+        // 信号灯闪烁
         const g = this.bank.glow(col)
-        const blink = 0.45 + 0.4 * Math.sin(this.vt * 9 + m.y)
+        const blink = 0.4 + 0.4 * Math.sin(this.vt * 9 + m.y)
         ctx.globalCompositeOperation = 'lighter'
         ctx.globalAlpha = blink
-        ctx.drawImage(g.c, m.x - 12, m.y - 12, 24, 24)
+        ctx.drawImage(g.c, m.x - 10, m.y - 10, 20, 20)
         ctx.globalAlpha = 1
         ctx.globalCompositeOperation = 'source-over'
       }
@@ -1362,7 +1358,7 @@ export class Renderer {
     const bank = this.bank
     for (const wi of w.player.weapons) {
       if (wi.id === 'orbit') {
-        const col = wi.evolved ? '#fff1b8' : '#8fb8ff'
+        const col = wi.evolved ? '#ffd24d' : '#8fb8ff'
         const spr = bank.blade(col)
         for (const pt of wi.pts) {
           const sc = (pt.r * 1.5) / 20
@@ -1446,40 +1442,47 @@ export class Renderer {
       switch (b.kind) {
         case 'bolt':
         case 'drone': {
-          // 曳光弹：彩色尾迹 + 白热弹芯 + 弹头一点亮斑
+          // 尖头弹丸 + 身后一道淡淡的曳光
           const len = b.kind === 'bolt' ? 20 + b.r * 2 : 14
-          ctx.strokeStyle = rgba(b.color, 0.55)
-          ctx.lineWidth = b.r * 1.7
+          ctx.strokeStyle = rgba(b.color, 0.42)
+          ctx.lineWidth = b.r * 1.2
           ctx.beginPath()
-          ctx.moveTo(b.x, b.y)
-          ctx.lineTo(b.x - dx * len, b.y - dy * len)
-          ctx.stroke()
-          ctx.strokeStyle = 'rgba(255,255,255,0.95)'
-          ctx.lineWidth = b.r * 0.8
-          ctx.beginPath()
-          ctx.moveTo(b.x, b.y)
-          ctx.lineTo(b.x - dx * len * 0.6, b.y - dy * len * 0.6)
+          ctx.moveTo(b.x - dx * 8, b.y - dy * 8)
+          ctx.lineTo(b.x - dx * (len + 8), b.y - dy * (len + 8))
           ctx.stroke()
           const g = bank.glow(b.color)
-          const gs = b.r * 3.4
+          const gs = b.r * 3
+          ctx.globalAlpha = 0.7
           ctx.drawImage(g.c, b.x - gs / 2, b.y - gs / 2, gs, gs)
+          ctx.globalAlpha = 1
+          // 弹丸本体是不透明的金属件，临时切回正常混合
+          const bs = bank.bolt(b.color)
+          const k = b.kind === 'bolt' ? b.r / 5 : 0.72
+          ctx.globalCompositeOperation = 'source-over'
+          ctx.save()
+          ctx.translate(b.x, b.y)
+          ctx.rotate(Math.atan2(dy, dx))
+          ctx.scale(k, k)
+          ctx.drawImage(bs.c, -bs.w / 2, -bs.h / 2, bs.w, bs.h)
+          ctx.restore()
+          ctx.globalCompositeOperation = 'lighter'
           break
         }
         case 'plasma': {
-          // 等离子球：白热核心 + 一圈收得很紧的彩色光
-          const g = bank.glow(b.color)
-          const gs = b.r * 4.6
+          // 等离子球：旋涡状的能量球，身后拖一道光尾
+          const ps = bank.plasma(b.color)
+          const sz = b.r * 4.4
           ctx.strokeStyle = rgba(b.color, 0.4)
           ctx.lineWidth = b.r * 1.2
           ctx.beginPath()
           ctx.moveTo(b.x, b.y)
           ctx.lineTo(b.x - dx * 26, b.y - dy * 26)
           ctx.stroke()
-          ctx.drawImage(g.c, b.x - gs / 2, b.y - gs / 2, gs, gs)
-          ctx.fillStyle = 'rgba(255,255,255,0.95)'
-          ctx.beginPath()
-          ctx.arc(b.x, b.y, b.r * 0.5, 0, TAU)
-          ctx.fill()
+          ctx.save()
+          ctx.translate(b.x, b.y)
+          ctx.rotate(this.vt * 9 + b.x * 0.05)
+          ctx.drawImage(ps.c, -sz / 2, -sz / 2, sz, sz)
+          ctx.restore()
           break
         }
         case 'missile': {

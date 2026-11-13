@@ -1,6 +1,6 @@
 /**
  * 把游戏里的真实精灵导出成静态页面（玩法指南）用的小图：public/img/sprites/*.webp
- * 图片已提交到仓库，只有改了敌人 / 飞船 / Boss 的美术或新增了条目才需要重跑：
+ * 图片已提交到仓库，只有改了敌人 / 飞船 / Boss / 拾取物的美术或新增了条目才需要重跑：
  *
  *   npm run build && node scripts/gen-sprites.mjs
  *
@@ -70,6 +70,8 @@ const files = await page.evaluate(() => {
 
   for (const id of Object.keys(r.bank.enemy)) out[`enemy-${id}`] = bake(r.bank.enemy[id].n.c, -Math.PI / 2, 96, 5)
   for (const id of Object.keys(r.bank.ship)) out[`ship-${id}`] = bake(r.bank.ship[id].n.c, -Math.PI / 2, 96, 5)
+  // 拾取物：不带光晕的版本，方向不转（本来就是正立的）
+  for (const id of Object.keys(r.bank.pickup)) out[`pickup-${id}`] = bake(r.bank.pickupBare(id).c, 0, 96, 5)
 
   // Boss：整机（8× 超采样的部件 → 缩到 320 像素画布）
   const bossArt = new r.bossArt.constructor(4)

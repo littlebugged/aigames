@@ -232,18 +232,65 @@ async function play(base) {
   watch(page, 'play')
   await page.goto(`${base}/?e2e=1&q=${quality}`, { waitUntil: 'load' })
   await waitReady(page)
+  // --gear orbit,chakram,...：开局直接发这几把武器；--glv 5 设等级；--evo 1 直接进化（看各武器的造型 / 弹道）
+  const gear = opt('gear', '')
+  const glv = Number(opt('glv', '5'))
+  const evo = opt('evo', '0') === '1'
   await page.evaluate(
-    ([sector, ship, threat, ff]) => {
+    ([sector, ship, threat, ff, gear, glv, evo]) => {
       const a = window.__neon
       a.startRun({ ship, sector, threat, endless: false })
       a.godMode = true
       a.autoPilot = true
+      if (gear) {
+        const w = a.game
+        const Inst = w.player.weapons[0].constructor
+        for (const id of gear.split(',')) {
+          let wi = w.player.weapons.find((x) => x.id === id)
+          if (!wi) {
+            wi = new Inst(id, w.player.weapons.length)
+            w.player.weapons.push(wi)
+          }
+          wi.level = glv
+          wi.evolved = evo
+        }
+        w.recalc()
+      }
       if (ff > 0) a.fastForward(ff)
     },
-    [sector, ship, threat, ff],
+    [sector, ship, threat, ff, gear, glv, evo],
   )
   await sleep(wait * 1000)
-  if (opt('clean', '0') === '1') await page.addStyleTag({ content: '.hint,.toasts,.banner{display:none!important}' })
+  // --pickups 2：不清场，把五种拾取物撒在玩家四周（距离 150~260），然后暂停——拍"战斗中的拾取物"用（README 配图）
+  if (opt('pickups', '0') === '2') {
+    await page.evaluate(() => {
+      const a = window.__neon
+      const w = a.game
+      const p = w.player
+      ;['heal', 'magnet', 'bomb', 'chest', 'cache'].forEach((k, i) => {
+        const ang = -2.4 + i * 1.25
+        const d = 170 + (i % 2) * 70
+        w.addPickup(k, p.x + Math.cos(ang) * d, p.y + Math.sin(ang) * d * 0.8, k === 'cache' ? 30 : 0)
+      })
+      a.autoPilot = false
+      a.paused = true
+    })
+    await sleep(300)
+  }
+  // --pickups 1：清场后在玩家下方一字排开五种拾取物，并暂停（看造型 / 光晕 / 缩放后的辨识度）
+  if (opt('pickups', '0') === '1') {
+    await page.evaluate(() => {
+      const a = window.__neon
+      const w = a.game
+      const p = w.player
+      for (const e of w.enemies) e.alive = false
+      ;['heal', 'magnet', 'bomb', 'chest', 'cache'].forEach((k, i) => w.addPickup(k, p.x + (i - 2) * 56, p.y + 84, k === 'cache' ? 30 : 0))
+      a.autoPilot = false
+      a.paused = true
+    })
+    await sleep(300)
+  }
+  if (opt('clean', '0') === '1') await page.addStyleTag({ content: '.hint,.toasts,.banner,.evo-banner{display:none!important}' })
   // --tele 1：在玩家周围摆几条不同进度的 Boss 预警（直线 / 圆形 / 临出手快闪），看警示带的画法
   if (opt('tele', '0') === '1') {
     await page.evaluate(() => {
@@ -1052,8 +1099,13 @@ async function art(base) {
   const opt = (k, d) => (args.includes(`--${k}`) ? args[args.indexOf(`--${k}`) + 1] : d)
   const scale = Number(opt('scale', '3.4'))
   const hiss = Number(opt('ss', '8'))
+  const sheetH = Number(opt('sheeth', '3300'))
+  // --only pickups,weapons：只排这几组（放大看细节时不必把敌人 / 飞船也排进来）
+  const only = opt('only', '').split(',').filter(Boolean)
+  // --items blade,mine：只排标签以这些开头的条目（配合 --scale 10 逐个放大看）
+  const items = opt('items', '').split(',').filter(Boolean)
   const browser = await launch()
-  const ctx = await browser.newContext({ viewport: { width: 1000, height: 3300 }, deviceScaleFactor: 1 })
+  const ctx = await browser.newContext({ viewport: { width: 1000, height: sheetH }, deviceScaleFactor: 1 })
   const page = await ctx.newPage()
   watch(page, 'art')
   await page.goto(`${base}/?e2e=1&q=high`, { waitUntil: 'load' })
@@ -1065,7 +1117,7 @@ async function art(base) {
   })
   await sleep(500)
   const rects = await page.evaluate(
-    ({ S, SS }) => {
+    ({ S, SS, SH, ONLY, ITEMS }) => {
       const a = window.__neon
       const r = a.renderer
       // 用更高的超采样重新生成一套精灵，放大看细节；游戏里实际用的是 r.bank（ss≈2.5）
@@ -1085,9 +1137,13 @@ async function art(base) {
       })
       const weaponItems = []
       for (const [m, cols] of [
-        ['blade', ['#8fb8ff', '#fff1b8']],
+        ['blade', ['#8fb8ff', '#ffd24d']],
         ['chakram', ['#ff7ae0', '#ffd2f6']],
         ['drone', ['#7dffb0', '#c8ffe0']],
+        ['mine', ['#5dff9e']],
+        ['missile', ['#ff9b3d']],
+        ['bolt', ['#3df2ff', '#7dffb0']],
+        ['plasma', ['#3df2ff']],
         ['glow', ['#3df2ff', '#ff4d8d', '#ffffff']],
         ['bead', ['#ff4d6d', '#3df2ff', '#ffd84a']],
         ['flame', ['#3df2ff']],
@@ -1106,7 +1162,7 @@ async function art(base) {
       })
 
       const W = 1000
-      const H = 3300
+      const H = SH
       const cv = document.createElement('canvas')
       cv.width = W
       cv.height = H
@@ -1124,7 +1180,7 @@ async function art(base) {
       g.textBaseline = 'top'
       const out = []
       let y = 10
-      for (const grp of groups) {
+      for (const grp of groups.filter((g) => ONLY.length === 0 || ONLY.includes(g.id))) {
         const y0 = y
         g.fillStyle = '#7f93c4'
         g.font = '600 15px system-ui'
@@ -1132,7 +1188,7 @@ async function art(base) {
         y += 24
         let x = 14
         let rowH = 0
-        for (const it of grp.items) {
+        for (const it of grp.items.filter((i) => ITEMS.length === 0 || ITEMS.some((p) => i.label.startsWith(p)))) {
           const w = it.sp.w * it.s
           const h = it.sp.h * it.s
           if (x + w + 14 > W) {
@@ -1154,13 +1210,13 @@ async function art(base) {
       }
       return out
     },
-    { S: scale, SS: hiss },
+    { S: scale, SS: hiss, SH: sheetH, ONLY: only, ITEMS: items },
   )
   await sleep(200)
   await shot(page, 'art-sheet')
   for (const r of rects) {
     const file = join(out, `art-${r.id}.png`)
-    await page.screenshot({ path: file, clip: { x: 0, y: r.y, width: 1000, height: Math.min(r.h, 3300 - r.y) } })
+    await page.screenshot({ path: file, clip: { x: 0, y: r.y, width: 1000, height: Math.min(r.h, sheetH - r.y) } })
     console.log('  📸', file.replace(root + '/', ''))
   }
   // 三个 Boss 的"整机"：用游戏里同一套绘制函数拼起来（含阶段色环境光 / 阴影），放大 1.5 倍看

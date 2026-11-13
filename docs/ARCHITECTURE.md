@@ -82,6 +82,33 @@ data ──► game (模拟) ──events──► render / audio / hud
 - 宝石按档位用四种切工（碎晶 / 祖母绿 / 明亮式 / 晶簇），不只是颜色和大小不同。
 - 验证：`node scripts/e2e.mjs art` 现在还会输出 `art-bosses-assembled.png`（用游戏里同一套绘制函数拼出的三个 Boss 整机）；`node scripts/e2e.mjs zoo` 把全部敌人以真实游戏的朝向和比例摆成一排，`--dpr 2 --clip x,y,w,h` 看细节；新造型先在 `zoo` 里过一遍，再进游戏里看人潮中的辨识度。
 
+### 美术方向 v1.6：拾取物与武器小件也先有轮廓
+
+v1.5 只重做了"活物"（敌人 / 飞船 / Boss），场上最常出现的另一批东西还是旧写法：拾取物是"一个彩色圆 / 八边形 + 里面一道白线图标"（回血和磁铁甚至是同一个圆），环绕刃是菱形、飞轮是四尖星、僚机是三角箭头、地雷是一个转动的菱形。v1.6 对它们用同一条原则：**把它涂成纯黑，还能认出是什么吗？**
+
+| 对象 | 造型 | 辨识线索 |
+| --- | --- | --- |
+| 修复包 | 圆角十字医疗箱 + 白色十字嵌板 + 四颗铆钉 | 唯一的十字轮廓 |
+| 磁力核心 | U 形马蹄磁铁，银白磁极，两极之间两道磁力线 | 唯一有"开口"的轮廓 |
+| 脉冲炸弹 | 钢色圆炸弹 + 彩色腰带 + 金属帽 + 绳引信 + 火花 | 圆 + 引信的剪影 |
+| 补给箱 | 弧顶木箱 + 金色包边 + 带钥匙孔的锁；场上另有一道光柱 | 方箱 + 弧盖 |
+| 晶核箱 | 底座上的紫晶 + 两颗碎晶（高光是斜亮斑，**不能画成十字星**，会被当成回血） | 尖顶的晶体 |
+| 环绕刃 | 弯月镰刀：护手 + 刀柄 + 两个斜面（凸脊一侧暗、刃口一侧亮）+ 一道棱 | 弯钩的剪影；进化后是金色 |
+| 回旋飞轮 | 八枚朝转向弯钩的锯齿 + 金属环 + 中心孔 | 钩状锯齿 |
+| 僚机 | 后掠翼微型战机：机头炮管、座舱、尾喷口、翼尖灯 | 带翼的十字剪影 |
+| 磁暴地雷 | 六根尖刺的圆盘 + 中心信号灯；布设中半透明且略小 | 带刺的圆 |
+| 脉冲弹 | 尖头金属弹丸 + 白热弹芯 + 身后一线曳光（进化后的等离子弹是旋涡状能量球） | 有头有尾的弹体 |
+
+代码结构与约定：
+
+- `src/render/props.ts` 只负责"画"（`paintHeal / paintMagnet / paintBomb / paintChest / paintCache / paintBlade / paintChakram / paintDrone / paintMine / paintBolt / paintPlasma`，都接受 `(ctx, 基准半径, 颜色)`，原点在精灵中心）；尺寸、光晕、缓存、`SpriteBank` 的取用方式仍在 `sprites.ts`。想改某个造型，只动 `props.ts` 的对应函数。
+- 拾取物的 ID 与识别色在 `src/data/ids.ts`（`PICKUP_IDS`）与 `src/data/pickups.ts`（`PICKUP_COLOR`）——渲染器和玩法指南页共用同一份；`PickupKind` 是 `PickupId` 的别名。
+- `cut()`（刻面宝石着色）从 `sprites.ts` 搬到了 `parts.ts`，宝石和晶核箱共用。
+- **判定半径一律不变**：这是视觉改动。僚机、地雷画得比原来大一圈，是美术半径变大，不是判定变大。
+- 性能：全部预渲染。脉冲弹由"两条线 + 一团光"换成"一张精灵"，每发多一次 `rotate + drawImage`；以"6 把武器全部进化"为场景做过 A/B（`perf --eval`，软件光栅化 DPR 1），和 v1.5 都在 34–35 fps，没有差别。
+- 玩法指南新增「拾取物」一节（`scripts/gen-pages.ts`，图来自 `gen-sprites.mjs` 导出的 `pickup-*.webp`——**不带光晕的版本**，`SpriteBank.pickupBare()`）；`tests/assets.test.ts` 检查每种拾取物都有识别色、中英文名称和立绘。
+- 验证：`node scripts/e2e.mjs art --scale 8 --only pickups,weapons` 只排这两组；再加 `--items blade,mine` 只放大指定条目（`--sheeth` 调整画布高度）。局内看实物用 `play --gear orbit,chakram,drone,mine --glv 6 [--evo 1] --dpr 3 --clip x,y,w,h`（开局直接发武器）和 `play --pickups 1`（清场后把五种拾取物摆成一排并暂停）。
+
 ### 打击感：伤害数字分档与武器进化演出
 
 分层与前面一致：**参数与纯函数放 `src/engine/feel.ts`**（不依赖 DOM / Canvas），渲染器、音频、HUD、App 共用，并能在 Node 里直接单测；真正"画出来"的部分在 `render/floattext.ts`（飘字池）、`render/numfont.ts`（字形图集）、`renderer.ts`、`app/app.ts`。

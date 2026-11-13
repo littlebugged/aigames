@@ -5,7 +5,7 @@
 ## 1. 发布流程
 
 ```bash
-npm test                      # 84 项测试
+npm test                      # 88 项测试
 npm run build                 # 生成页面 → tsc（应用与脚本两套配置）→ vite build
 node scripts/e2e.mjs smoke    # 无头浏览器冒烟（含音频电平断言）
 node scripts/e2e.mjs mobile   # 改动了界面/触屏时再跑
@@ -13,7 +13,7 @@ node scripts/e2e.mjs pwa      # 改动了 SW / 缓存策略时再跑
 node scripts/e2e.mjs flows    # 改动了菜单/机库/结算/输入流程时再跑（含英文界面与手柄）
 node scripts/e2e.mjs fx       # 改动了伤害数字 / 命中特效 / 进化演出时再跑（截图在 .e2e/fx*.png，需要人看一眼）
 node scripts/e2e.mjs layout   # 改动了 HUD / 样式 / 提示文案 / 新增屏幕元素时再跑（7 种屏幕 × 满配与开局两种状态，0 重叠 0 出屏）
-node scripts/e2e.mjs art      # 改动了精灵 / Boss 绘制 / 着色工具包时再跑（图鉴截图在 .e2e/art-*.png，需要人看一眼）
+node scripts/e2e.mjs art      # 改动了精灵 / Boss 绘制 / 着色工具包时再跑（图鉴截图在 .e2e/art-*.png，需要人看一眼；`--scale 8 --only pickups,weapons --items blade --sheeth 1100` 只放大指定条目）
 git push origin main          # 触发 Cloudflare Pages 构建
 ```
 
@@ -81,6 +81,7 @@ node scripts/e2e.mjs live                           # 线上冒烟 + 关键 URL 
 | 想看某个时间点的画面 | `node scripts/e2e.mjs play --sector <fields\|wasteland\|void> --ff <秒> --wait <秒> --name <文件名>` |
 | 想测性能 | `node scripts/e2e.mjs perf --q high --dpr 2 --gpu 1`（`--gpu 1` 使用 Metal，`0` 为纯软件光栅化的最坏情况）。做 A/B：`--eval "__neon.renderer.bloomPass=()=>{}"` 在采样前往页面里注入一段脚本，软件光栅化下噪声较大，建议新旧版本交替各跑 4 次取平均 |
 | 想看 Boss 预警 / 手机竖屏 / 干净的截图 | `play ... --tele 1`（在玩家周围摆几条不同进度的预警）、`play ... --touch 1 --w 390 --h 844 --dpr 2`（按手机方式开）、`play ... --clean 1`（隐藏教学提示 / Toast / 横幅），`--clip x,y,w,h` 再截一张局部放大图 |
+| 想看武器 / 拾取物的实物 | `play --gear orbit,chakram,drone,mine,missile --glv 6 [--evo 1] --ff 60 --dpr 3 --w 720 --h 440 --clean 1 --clip 215,95,290,250`（开局直接发武器、可指定等级 / 进化）；`play --pickups 1 --ff 30 --dpr 3 --clean 1`（清场后把五种拾取物摆成一排并暂停） |
 
 ## 8. 历史
 
