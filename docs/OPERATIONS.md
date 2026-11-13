@@ -25,6 +25,13 @@ node scripts/e2e.mjs live                           # 线上冒烟 + 关键 URL 
 node scripts/e2e.mjs flows --url https://aigames.de5.net   # 线上跑完整流程；除 pwa 外所有模式都支持 --url（此时不需要 dist/）
 ```
 
+线上 e2e 偶发 `page.goto: Timeout 30000ms`？先别怀疑站点——本机 IPv6 到 Cloudflare 的 TLS 握手会随机挂起（`curl -w '%{remote_ip} %{time_appconnect}\n'` 能看到走 IPv6 的请求握手要好几秒甚至超时，IPv4 始终 0.2 秒）。把域名钉到 IPv4 再跑即可：
+
+```bash
+E2E_CHROME_ARGS="--host-resolver-rules=MAP aigames.de5.net $(dig +short A aigames.de5.net | head -1)" \
+  node scripts/e2e.mjs mobile --url https://aigames.de5.net
+```
+
 推送后 `version.json` 迟迟不变？从 GitHub 一侧能看到 Cloudflare 的构建状态（不需要 Cloudflare 凭据）：
 
 ```bash

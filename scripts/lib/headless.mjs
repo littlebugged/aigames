@@ -64,11 +64,21 @@ export function serveDist({ transform } = {}) {
   return new Promise((r) => server.listen(0, '127.0.0.1', () => r({ server, port: server.address().port })))
 }
 
+/**
+ * 启动无头 Chromium。
+ * 环境变量 E2E_CHROME_ARGS 可追加参数（用 ;; 分隔）。例：本机 IPv6 到 Cloudflare 的 TLS 握手偶尔挂起，
+ * 测线上地址时 goto 会随机超时，可以把域名钉到 IPv4：
+ *   E2E_CHROME_ARGS="--host-resolver-rules=MAP aigames.de5.net $(dig +short A aigames.de5.net | head -1)" node scripts/e2e.mjs mobile --url https://aigames.de5.net
+ */
 export async function launch(extra = []) {
+  const fromEnv = (process.env.E2E_CHROME_ARGS ?? '')
+    .split(';;')
+    .map((s) => s.trim())
+    .filter(Boolean)
   return chromium.launch({
     executablePath: findChrome(),
     headless: true,
-    args: ['--no-sandbox', '--mute-audio', '--autoplay-policy=no-user-gesture-required', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', ...extra],
+    args: ['--no-sandbox', '--mute-audio', '--autoplay-policy=no-user-gesture-required', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', ...extra, ...fromEnv],
   })
 }
 
