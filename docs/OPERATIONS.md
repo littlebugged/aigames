@@ -22,6 +22,7 @@ git push origin main          # 触发 Cloudflare Pages 构建
 ```bash
 curl -s https://aigames.de5.net/version.json      # id 应等于刚推送提交 SHA 的前 8 位
 node scripts/e2e.mjs live                           # 线上冒烟 + 关键 URL 全部 200
+node scripts/e2e.mjs flows --url https://aigames.de5.net   # 线上跑完整流程；除 pwa 外所有模式都支持 --url（此时不需要 dist/）
 ```
 
 推送后 `version.json` 迟迟不变？从 GitHub 一侧能看到 Cloudflare 的构建状态（不需要 Cloudflare 凭据）：

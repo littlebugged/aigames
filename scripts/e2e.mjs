@@ -15,6 +15,7 @@
  *   node scripts/e2e.mjs live [--url URL]   # 对线上地址做冒烟测试（默认 https://aigames.de5.net）
  *
  * 需要先 `npm run build`（本地模式会起一个静态服务器托管 dist/）。
+ * 除 pwa 外，所有模式都可以加 `--url https://aigames.de5.net` 改测线上地址（此时不需要 dist/）。
  * 截图输出到 .e2e/，用图片查看器 / 编辑器直接打开即可。
  */
 import { existsSync, mkdirSync } from 'node:fs'
@@ -1482,12 +1483,17 @@ async function live() {
 let srv = null
 let base = ''
 if (mode !== 'live' && mode !== 'pwa') {
-  if (!existsSync(join(dist, 'index.html'))) {
-    console.error('dist/ 不存在，请先运行 npm run build')
-    process.exit(2)
+  if (urlArg) {
+    // 指定了 --url：直接测线上 / 预览地址，不起本地静态服务器
+    base = urlArg.replace(/\/$/, '')
+  } else {
+    if (!existsSync(join(dist, 'index.html'))) {
+      console.error('dist/ 不存在，请先运行 npm run build')
+      process.exit(2)
+    }
+    srv = await serveDist()
+    base = `http://127.0.0.1:${srv.port}`
   }
-  srv = await serveDist()
-  base = `http://127.0.0.1:${srv.port}`
 }
 
 try {
