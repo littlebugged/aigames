@@ -89,6 +89,7 @@ export function updateEnemies(w: World, dt: number): void {
               for (let k = 0; k < n; k++) {
                 w.spawnEnemyBullet(e.x, e.y, a + (k - (n - 1) / 2) * 0.24, 205, e.dmg * 1.5, {
                   color: '#ffd84a',
+                  kind: 'glob',
                 })
               }
             }

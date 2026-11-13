@@ -3,7 +3,7 @@ import { existsSync, statSync } from 'node:fs'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { ENEMIES } from '../src/data/enemies'
-import { BOSS_IDS, ENEMY_IDS, PICKUP_IDS, SHIP_IDS } from '../src/data/ids'
+import { BOSS_IDS, ENEMY_IDS, HAZARD_IDS, PICKUP_IDS, SHIP_IDS } from '../src/data/ids'
 import { PICKUP_COLOR } from '../src/data/pickups'
 import { tIn } from '../src/i18n'
 import { CREATURES } from '../src/render/creatures'
@@ -38,6 +38,7 @@ test('玩法指南用的立绘齐全（改了美术或新增条目后请运行 n
     ...SHIP_IDS.map((id) => `ship-${id}`),
     ...BOSS_IDS.map((id) => `boss-${id}`),
     ...PICKUP_IDS.map((id) => `pickup-${id}`),
+    ...HAZARD_IDS.map((id) => `hazard-${id}`),
   ]
   for (const name of names) {
     const f = spriteFile(name)

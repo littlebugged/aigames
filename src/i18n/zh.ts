@@ -214,6 +214,13 @@ export const zh = {
   'pickup.bomb': '脉冲炸弹',
   'pickup.chest': '补给箱',
   'pickup.cache': '晶核箱',
+  'hazard.glob': '酸液弹',
+  'hazard.lens': '瞳孔弹',
+  'hazard.needle': '飞镖',
+  'hazard.shard': '晶刺',
+  'hazard.fang': '獠牙',
+  'hazard.beam': '警示射线',
+  'hazard.ring': '扩散冲击环',
 
   // ───── 新手引导 ─────
   'tut.move': 'WASD / 方向键 移动，武器会自动开火',

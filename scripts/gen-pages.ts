@@ -14,9 +14,10 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { ACHIEVEMENTS } from '../src/data/achievements'
 import { ENEMIES } from '../src/data/enemies'
-import { BOSS_IDS, ENEMY_IDS, MAX_PASSIVES, MAX_WEAPONS, META_IDS, PASSIVE_IDS, PICKUP_IDS, SECTOR_IDS, SHIP_IDS, WEAPON_IDS, WEAPON_MAX_LEVEL } from '../src/data/ids'
+import { BOSS_IDS, ENEMY_IDS, HAZARD_IDS, MAX_PASSIVES, MAX_WEAPONS, META_IDS, PASSIVE_IDS, PICKUP_IDS, SECTOR_IDS, SHIP_IDS, WEAPON_IDS, WEAPON_MAX_LEVEL, type HazardId } from '../src/data/ids'
 import { METAS, formatMetaValue, metaCost } from '../src/data/meta'
 import { PASSIVES, formatPassiveValue } from '../src/data/passives'
+import { HAZARD_COLOR } from '../src/data/hazards'
 import { PICKUP_COLOR } from '../src/data/pickups'
 import { SECTORS, THREAT_LEVELS } from '../src/data/sectors'
 import { SHIPS } from '../src/data/ships'
@@ -68,13 +69,15 @@ interface Copy {
     h1: string
     lead: string
     toc: string
-    sections: Record<'weapons' | 'passives' | 'pickups' | 'enemies' | 'bosses' | 'ships' | 'sectors' | 'meta' | 'threat' | 'ach' | 'evo', string>
+    sections: Record<'weapons' | 'passives' | 'pickups' | 'enemies' | 'bosses' | 'hazards' | 'ships' | 'sectors' | 'meta' | 'threat' | 'ach' | 'evo', string>
     evoText: string
     capsText: string
     col: Record<string, string>
     bossTips: Record<string, string>
     pickupText: string
     pickups: Record<string, { effect: string; source: string }>
+    hazardText: string
+    hazards: Record<HazardId, { effect: string; source: string }>
     threatText: string
     metaText: string
     sectorText: string
@@ -153,6 +156,7 @@ const ZH: Copy = {
       pickups: '拾取物',
       enemies: '敌人图鉴',
       bosses: 'Boss 打法',
+      hazards: '弹幕与危险',
       ships: '飞船',
       sectors: '星区',
       threat: '威胁等级与无尽模式',
@@ -208,6 +212,16 @@ const ZH: Copy = {
       chest: { effect: '拾取后获得一次额外的升级选择，也是触发武器进化的机会；箱子上方有一道光柱，远处也看得见。', source: '击败精英必掉；击败 Boss 时掉落两个。不会自行消失。' },
       cache: { effect: '本局结算时额外获得一笔晶核。', source: '与补给箱一同掉落：精英 20 起，Boss 120 起，数量随局内时间增长。' },
     },
+    hazardText: '敌方的攻击都做成了能一眼认出的样子：每种子弹有自己的外形，Boss 的射线和冲击环带着警示纹。冲刺期间无敌，任何一种都可以直接穿过去；脉冲炸弹则会清除场上所有的敌方子弹。',
+    hazards: {
+      glob: { effect: '炮手吐出的黄色液滴，朝你当前所在的位置直线飞来，速度不快，横向走位就能躲开；精英炮手一口吐出三颗，呈扇形散开。', source: '炮手（精英为三连发）' },
+      lens: { effect: '监察者放出的圆睛弹：一阶段 14 颗一圈、二阶段 18 颗一圈，圈上留有缺口，贴着缺口穿过去；三阶段变成一对反向旋转的螺旋。', source: '监察者' },
+      needle: { effect: '瞄准你的扇形飞镖，是场上最快的子弹，用来逼你走位：监察者二阶段三支、三阶段五支；分形核心一阶段单发、二阶段三支、三阶段五支。看到它抬手就横向移动，或者冲刺穿过去。', source: '监察者 / 分形核心' },
+      shard: { effect: '分形核心每隔两秒左右向四周放射的晶刺，每一轮 8～12 颗；站进两颗晶刺之间的缝隙里就能让它们擦身而过。', source: '分形核心' },
+      fang: { effect: '虚空之喉持续旋出的螺旋弹幕：2～4 条旋臂，每 0.16 秒一发。弹与弹之间的缝隙是固定的，跟着缝隙走。', source: '虚空之喉' },
+      beam: { effect: '带斜纹的粗射线。先在地面上标出预警线（约 1 秒），随后落下一道持续 0.7 秒的射线，站在里面每 0.1 秒受一次伤；预警结束前离开，或者冲刺穿过去。', source: '分形核心（二阶段起）' },
+      ring: { effect: '带尖齿的扩散冲击环，一路扩大到很远，被碰到就是一记重击；它是虚空之喉最大的威胁，看着它扩散过来时对着它冲刺穿过去。', source: '虚空之喉' },
+    },
     threatText: '威胁等级影响敌人血量、刷怪量和晶核收益。每个星区的更高威胁等级需要在前一档通关后解锁。至少通关一次某个星区后，可以在出击界面开启「无尽模式」：击败 Boss 后战斗继续，敌人会随时间不断变强。',
     metaText: '晶核是跨局货币：每局结算时获得（击杀、存活时间、等级、进化、击败 Boss 都会加成），可在机库购买永久升级。不满意可以随时全额退款重新分配。',
     sectorText: '每个星区在 10 分钟时迎来该星区的 Boss。通关一个星区会解锁下一个星区。',
@@ -233,6 +247,7 @@ const ZH: Copy = {
     ],
     logH: '更新记录',
     log: [
+      '<strong>v1.7</strong> — 光束与弹幕也有了结构：棱镜激光是带色散细线和流动能量包的硬边光管（进化后是金色的“日冕光矛”），磁轨炮是细白芯加绕芯旋转的双螺旋，进化后留下的灼痕是还在燃烧的裂缝；电弧链改成带分叉和落点星爆的闪电；冲击波是有厚度的波前加旋转的装甲环，敌方的冲击环外缘长着尖齿；爆炸多了一圈炸开的星芒。敌方子弹也不再是同一颗彩球——炮手吐出酸液团，监察者放瞳孔弹和飞镖，分形核心放晶刺，虚空之喉旋出獠牙，Boss 的射线带警示斜纹，远远就能认出是什么在打你。玩法指南新增“弹幕与危险”一节，写明每种弹幕来自谁、怎么躲。判定半径与伤害不变。',
       '<strong>v1.6</strong> — 道具与武器也有了轮廓：五种拾取物不再是“彩色圆里画一道线”——修复包是十字医疗箱，磁力核心是带磁力线的马蹄磁铁，脉冲炸弹是带绳引信和火花的圆炸弹，补给箱是带锁的木箱，晶核箱是立在底座上的紫晶；武器小件也不再是发光的几何块——环绕刃改成带护手的弯月镰刀（两个斜面、一道棱，进化后是金色），回旋飞轮是八枚弯钩的锯盘，僚机是后掠翼的微型战机，磁暴地雷是带尖刺的圆盘，脉冲弹是尖头金属弹丸，进化后的等离子弹是旋涡状的能量球。玩法指南新增“拾取物”一节，写明每种道具的效果和掉落来源。判定半径与性能不变。',
       '<strong>v1.5</strong> — 造型重做，告别“几何体敌人”：十种敌人全部改成部件拼成的生物——无人机是带锯齿翅与毒刺的黄蜂，蜂群体是六足螨，重装巨兽是长钳甲虫，炮手是炮塔虫，裂变体是三叶结合体，冲锋者是长矛头加弯角，自爆怪是十二根尖刺的水雷，护盾者是带弧形盾的八角核心，幽灵拖着破布斗篷，碎片是五棱晶簇；四艘飞船各有独立的机翼与机身结构（先锋号的后掠翼、幽影号的前掠翼、堡垒号的双侧货舱、收割者的新月翼）；三个 Boss 也重画——监察者是带光圈叶片与六条钳臂的机械眼，分形核心是十二瓣晶体星并有碎晶环绕，虚空之喉是双排獠牙的旋涡。遮住颜色只看剪影也能认出是谁。敌人会平滑转向，精英怪的外形会随判定一起放大；经验宝石按档位有四种切工；机库的飞船卡片、结算页和玩法指南的图鉴都换成真实立绘，应用图标也改用真实精灵合成。性能与判定范围不变。',
       '<strong>v1.4</strong> — 画面质感重做：整套美术从“发光的霓虹线框”改为哑光硬表面——敌人、飞船、Boss 和拾取物都是带深色描边与明暗面的实心机体，只在灯位点一小粒自发光；子弹变成实心弹珠、碎片变成实心残骸，敌人脚下有接触阴影；泛光加了阈值，只有爆炸、光束这类真正的强光才会晕开，人潮里不再糊成一团粉雾；背景改为深色点阵地面；Boss 预警改为流动的斜纹警示带；界面去掉所有彩色外发光，按钮、卡片与图标底板改为带高光边和投影的哑光材质，伤害数字的光晕收窄；应用图标与分享图同步换成同一套风格。',
@@ -328,6 +343,7 @@ const EN: Copy = {
       pickups: 'Pickups',
       enemies: 'Bestiary',
       bosses: 'Boss strategies',
+      hazards: 'Bullets & hazards',
       ships: 'Ships',
       sectors: 'Sectors',
       threat: 'Threat levels & endless mode',
@@ -383,6 +399,16 @@ const EN: Copy = {
       chest: { effect: 'Grants one extra upgrade choice, which is also a chance to evolve a weapon. A beam of light marks it from afar.', source: 'Always dropped by elites; the boss drops two. Never despawns.' },
       cache: { effect: 'Adds a bonus stack of cores when the run ends.', source: 'Drops together with the supply crate: from 20 cores for elites and 120 for bosses, growing with run time.' },
     },
+    hazardText: 'Every enemy attack is drawn so you can read it at a glance: each bullet type has its own silhouette, and boss beams and shock rings carry hazard stripes or spikes. You are invincible while dashing, so you can dash straight through any of them; a pulse bomb wipes every enemy bullet on the field.',
+    hazards: {
+      glob: { effect: 'Yellow droplets spat by Gunners. They fly straight at where you were standing and are slow, so a sidestep avoids them; elite Gunners spit three at once in a fan.', source: 'Gunner (elites: triple shot)' },
+      lens: { effect: 'The Overseer’s eyeball bullets: rings of 14 in phase 1 and 18 in phase 2, each with a gap you can thread through; in phase 3 they become a pair of counter-rotating spirals.', source: 'The Overseer' },
+      needle: { effect: 'Aimed fans of darts — the fastest bullets in the game, meant to force you to move. The Overseer fires 3 in phase 2 and 5 in phase 3; the Fractal Core fires 1, 3 and 5 across its phases. Strafe sideways as soon as it winds up, or dash through.', source: 'The Overseer / Fractal Core' },
+      shard: { effect: 'Crystal shards the Fractal Core fires in every direction every couple of seconds, 8 to 12 per burst. Stand in the gap between two shards and they pass you by.', source: 'Fractal Core' },
+      fang: { effect: 'The Maw’s spiral barrage: 2 to 4 rotating arms firing every 0.16 s. The gaps between fangs are fixed — follow them.', source: 'The Maw' },
+      beam: { effect: 'A thick striped beam. A warning line is marked on the floor first (about 1 s), then the beam lands for 0.7 s and hurts every 0.1 s while you stand in it. Leave before the warning ends, or dash through.', source: 'Fractal Core (phase 2 onward)' },
+      ring: { effect: 'A spiked, expanding shock ring that reaches far and hits hard. It is the Maw’s biggest threat — dash straight through it as it passes.', source: 'The Maw' },
+    },
     threatText: 'Threat level scales enemy HP, spawn rate and core rewards. Each higher level of a sector unlocks after clearing the previous one. After clearing a sector once you can enable Endless Mode on the deploy screen: the run continues after the boss and enemies keep scaling up.',
     metaText: 'Cores are the cross-run currency: you earn them at the end of every run (kills, survival time, level, evolutions and boss kills all add up) and spend them on permanent upgrades. You can refund everything at any time and reallocate.',
     sectorText: 'Each sector’s boss arrives at the 10-minute mark. Clearing a sector unlocks the next one.',
@@ -408,6 +434,7 @@ const EN: Copy = {
     ],
     logH: 'Changelog',
     log: [
+      '<strong>v1.7</strong> — Beams and bullets get structure too: the Prism Laser is a hard-edged light tube with dispersion lines and flowing energy packets (golden once evolved), the Railgun is a thin white core wrapped in a counter-rotating double helix and, once evolved, leaves a still-burning crack behind, Arc Chain is forking lightning with a starburst at every hit, Shockwave Nova is a thick wavefront with a rotating armour ring — and enemy shock rings grow spikes — and explosions gain a burst of rays. Enemy bullets are no longer one coloured ball: Gunners spit acid globs, the Overseer fires eye orbs and darts, the Fractal Core shoots crystal shards, the Maw spins out fangs, and boss beams carry hazard stripes, so you can tell what is shooting at you at a glance. The guide gains a “Bullets & hazards” section listing where each one comes from and how to dodge it. Hit radii and damage are unchanged.',
       '<strong>v1.6</strong> — Pickups and weapon pieces get silhouettes too: the five pickups are no longer a coloured circle with a line in it — the repair kit is a medical cross, the magnet core a horseshoe with field lines between its poles, the pulse bomb a round bomb with a rope fuse and a spark, the supply crate a locked chest and the core cache a crystal on a pedestal. Weapon pieces are no longer glowing geometry either: orbit blades are curved sickles with a guard and two bevelled facets (gold once evolved), chakrams are eight-hook saw discs, drones are swept-wing micro fighters, mines are spiked discs, pulse shots are pointed metal slugs and the evolved plasma is a swirling energy orb. The guide gains a Pickups section listing every effect and where it drops. Hit radii and performance are unchanged.',
       '<strong>v1.5</strong> — Shapes, redone: every one of the ten enemies is now a creature built from parts instead of a lone polygon — the drone is a wasp with sawtooth wings and a stinger, the swarmer a six-legged mite, the brute a pincered beetle, the shooter a turret-bug, the splitter a three-lobed cluster, the charger a spearhead with bent horns, the bomber a twelve-spiked sea mine, the shielder an octagonal core with an arc shield, the wraith trails a tattered cloak and the shard is a five-point crystal; the four ships get distinct wing and fuselage structures (swept-back, forward-swept, twin cargo pods, crescent); all three bosses are redrawn — the Overseer is a mechanical eye with iris blades and six pincer arms, the Fractal Core a twelve-point crystal star with orbiting shards, the Maw a vortex with two rows of fangs. Cover the colours and you can still tell who is who. Enemies now turn smoothly, elites scale their art with their hitbox, XP gems come in four distinct cuts by tier, and the hangar ship cards, results screen and guide bestiary use the real sprites; the app icon is composed from them too. Performance and hit radii are unchanged.',
       '<strong>v1.4</strong> — Visual overhaul: the whole art direction moves from glowing neon wireframes to matte hard-surface — enemies, ships, bosses and pickups are now opaque, shaded hulls with dark outlines and only a tiny emissive lamp where a light belongs; bullets are solid beads, debris is solid shrapnel and enemies cast contact shadows; bloom is thresholded so only real bright sources such as explosions and beams bleed light, and big crowds no longer melt into a pink haze; the backdrop becomes a dark dot-grid floor; boss warnings are drawn as flowing hazard stripes; the interface drops every coloured outer glow in favour of highlighted edges, drop shadows and matte tiles, and damage-number glows are tightened; the app icon and share image follow the same style.',
@@ -655,6 +682,12 @@ function guidePage(l: SiteLang): string {
     return `<tr><td>${nm(spr(`pickup-${id}`, 40), T(l, `pickup.${id}`), PICKUP_COLOR[id])}</td><td>${esc(info.effect)}</td><td>${esc(info.source)}</td></tr>`
   })
 
+  // 弹幕与危险
+  const hazardRows = HAZARD_IDS.map((id) => {
+    const info = g.hazards[id]
+    return `<tr><td>${nm(spr(`hazard-${id}`, 40), T(l, `hazard.${id}`), HAZARD_COLOR[id])}</td><td>${esc(info.effect)}</td><td>${esc(info.source)}</td></tr>`
+  })
+
   // 敌人
   const enemyRows = ENEMY_IDS.map((id) => {
     const e = ENEMIES[id]
@@ -703,7 +736,7 @@ function guidePage(l: SiteLang): string {
     return `<tr><td><strong>${esc(T(l, `ach.${a.id}.name`))}</strong></td><td>${esc(T(l, `ach.${a.id}.desc`, { n: n0(a.target) }))}${extra}</td><td>${esc(T(l, 'ach.reward', { n: a.reward }))}</td></tr>`
   })
 
-  const toc = (['evo', 'weapons', 'passives', 'pickups', 'enemies', 'bosses', 'ships', 'sectors', 'threat', 'meta', 'ach'] as const).map((k) => `<a class="pill" href="#${k}">${esc(g.sections[k])}</a>`).join(' ')
+  const toc = (['evo', 'weapons', 'passives', 'pickups', 'enemies', 'bosses', 'hazards', 'ships', 'sectors', 'threat', 'meta', 'ach'] as const).map((k) => `<a class="pill" href="#${k}">${esc(g.sections[k])}</a>`).join(' ')
 
   const body = `<h1>${esc(g.h1)}</h1>
 <p class="lead">${esc(g.lead)}</p>
@@ -732,6 +765,10 @@ ${table([col.name, col.desc, col.hp, col.speed, col.dmg, col.where], enemyRows)}
 <div class="grid-cards">
 ${bossCards.join('\n')}
 </div>
+
+<h2 id="hazards">${esc(g.sections.hazards)}</h2>
+<p>${esc(g.hazardText)}</p>
+${table([col.name, col.effect, col.source], hazardRows)}
 
 <h2 id="ships">${esc(g.sections.ships)}</h2>
 ${table([col.name, col.desc, col.hp, col.speed, col.power, col.crit, col.dash, col.start, col.unlock], shipRows)}

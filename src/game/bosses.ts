@@ -1,4 +1,4 @@
-import type { BossId } from '../data/ids'
+import type { BossId, EBulletKind } from '../data/ids'
 import { TAU, angleTo } from '../engine/math'
 import { Boss, type Telegraph } from './entities'
 import type { World } from './world'
@@ -123,9 +123,10 @@ function radial(
   dmg: number,
   color = '#ff3ea5',
   accel = 0,
+  kind: EBulletKind = 'orb',
 ): void {
   for (let i = 0; i < n; i++) {
-    w.spawnEnemyBullet(x, y, start + (i / n) * TAU, speed, dmg, { color, accel, r: 6.5, life: 8 })
+    w.spawnEnemyBullet(x, y, start + (i / n) * TAU, speed, dmg, { color, accel, r: 6.5, life: 8, kind })
   }
 }
 
@@ -205,7 +206,7 @@ function overseer(w: World, b: Boss, dt: number): void {
 
   if (b.phase === 0) {
     if (b.t1 <= 0) {
-      radial(w, b.x, b.y, 14, b.ang, 175, 12)
+      radial(w, b.x, b.y, 14, b.ang, 175, 12, '#ff3ea5', 0, 'lens')
       b.t1 = 2.6
     }
     if (b.t3 <= 0) {
@@ -217,7 +218,7 @@ function overseer(w: World, b: Boss, dt: number): void {
     }
   } else if (b.phase === 1) {
     if (b.t1 <= 0) {
-      radial(w, b.x, b.y, 18, b.ang, 185, 12)
+      radial(w, b.x, b.y, 18, b.ang, 185, 12, '#ff3ea5', 0, 'lens')
       b.t1 = 2.3
     }
     if (b.t2 <= 0) {
@@ -239,8 +240,8 @@ function overseer(w: World, b: Boss, dt: number): void {
     const cycle = b.spin % 4.2
     if (cycle < 2.6 && b.t1 <= 0) {
       const a = b.age * 2.6
-      w.spawnEnemyBullet(b.x, b.y, a, 165, 12, { color: '#ff3ea5', r: 6.5 })
-      w.spawnEnemyBullet(b.x, b.y, a + Math.PI, 165, 12, { color: '#ff3ea5', r: 6.5 })
+      w.spawnEnemyBullet(b.x, b.y, a, 165, 12, { color: '#ff3ea5', r: 6.5, kind: 'lens' })
+      w.spawnEnemyBullet(b.x, b.y, a + Math.PI, 165, 12, { color: '#ff3ea5', r: 6.5, kind: 'lens' })
       b.t1 = 0.1
     }
     if (b.t2 <= 0) {
@@ -276,7 +277,7 @@ function fractal(w: World, b: Boss, dt: number): void {
 
   if (b.t1 <= 0) {
     const n = 8 + b.phase * 2
-    radial(w, b.x, b.y, n, b.ang * 1.7, 190 + b.phase * 12, 11, '#9dff4d')
+    radial(w, b.x, b.y, n, b.ang * 1.7, 190 + b.phase * 12, 11, '#9dff4d', 0, 'shard')
     b.t1 = 2.4 - b.phase * 0.25
   }
 
@@ -347,6 +348,7 @@ function maw(w: World, b: Boss, dt: number): void {
         color: '#c9a0ff',
         r: 6,
         life: 9,
+        kind: 'fang',
       })
     }
     b.t1 = 0.16
@@ -399,6 +401,7 @@ export function runTelegraph(w: World, tl: Telegraph): void {
     bm.dmg = 18
     bm.color = tl.color
     bm.warn = 0
+    bm.style = 'boss'
   } else if (tl.action === 'blast') {
     w.addBlast(tl.x, tl.y, tl.r, tl.color, 0.4)
     w.emit({ t: 'blast', x: tl.x, y: tl.y, r: tl.r, color: tl.color })

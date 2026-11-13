@@ -109,6 +109,44 @@ v1.5 只重做了"活物"（敌人 / 飞船 / Boss），场上最常出现的另
 - 玩法指南新增「拾取物」一节（`scripts/gen-pages.ts`，图来自 `gen-sprites.mjs` 导出的 `pickup-*.webp`——**不带光晕的版本**，`SpriteBank.pickupBare()`）；`tests/assets.test.ts` 检查每种拾取物都有识别色、中英文名称和立绘。
 - 验证：`node scripts/e2e.mjs art --scale 8 --only pickups,weapons` 只排这两组；再加 `--items blade,mine` 只放大指定条目（`--sheeth` 调整画布高度）。局内看实物用 `play --gear orbit,chakram,drone,mine --glv 6 [--evo 1] --dpr 3 --clip x,y,w,h`（开局直接发武器）和 `play --pickups 1`（清场后把五种拾取物摆成一排并暂停）。
 
+### 美术方向 v1.7：光束与弹幕也先有结构
+
+v1.6 之后，场上还剩两类东西是旧写法：**光束类武器**（棱镜激光 / 磁轨炮 / 电弧链 / 冲击波）全是"一条渐变光带 + 一圈辉光"，边缘是糊的、一粗就是一片白，四把武器看上去是同一种东西；**敌人和 Boss 的子弹**全是同一颗带描边的实心球，炮手的黄球、监察者的粉球、分形核心的绿球只有颜色不同——躲弹幕靠的是颜色而不是形状。v1.7 用同一条原则处理：**先有结构，再谈光**。
+
+光束类（运行时每帧画，长度 / 粗细都在变，没法预渲染；全部在 `lighter` 混合下画，除了墨色的边没有任何 `shadowBlur`）：
+
+| 对象 | 结构 | 辨识线索 |
+| --- | --- | --- |
+| 棱镜激光（`laser`） | 硬边管体 + 两条边轨 + 内层亮带 + 白芯；沿光束向外流动的能量包；管体外各有一条偏色 ±48° 的色散细线；枪口是一枚棱镜 | 有色散、有流动的"管子"；进化后的奶油色会被拉回金色（`tone()`），不再是一根白柱 |
+| 磁轨炮（`rail`） | 极细的白芯 + 绕着它反向旋转的双螺旋尾流；出膛时一圈冲击弧 + 四角星芒，随寿命收缩 | 细芯 + 螺旋 |
+| 磁轨灼痕（`scar`，进化后留在原地） | 一道每帧重新抖动的裂缝 + 乱跳的火星 | 还在烧的裂缝 |
+| 电弧链（`paintBolt`） | 同一条抖动路径叠三层（宽光 / 主线 / 白芯——旧版三层各抖各的，白线总是错位）+ 分叉的小枝 + 每个落点的星爆 | 分叉的闪电 + 节点星爆 |
+| 冲击波（`paintRing`） | 有厚度的波前（外缘亮、向内渐隐）+ 分段旋转的装甲环 + 向内的速度线；**敌方的环外缘长一圈朝外的尖齿**、饱和度更高 | 友方光滑 / 敌方带齿 |
+| Boss 射线（`boss`） | 红 / 绿的警戒管体 + 沿光束流动的斜纹危险条 + 白芯 | 带斜纹的就是"别站进去" |
+| 爆炸（`drawBlasts`） | 原来的闪光芯 + 冲击环之外，加十道长短不一的星芒，随寿命外扩淡出 | 有"炸开"的剪影 |
+
+敌方子弹（预渲染精灵，朝 +x，原点 = 判定圆心，画布 `EBULLET_BOX` 40×26，按 `b.r / 6` 缩放，不透明 + 墨色描边）：
+
+| 谁发射 | `kind` | 造型 |
+| --- | --- | --- |
+| 炮手 | `glob` | 酸液团：水滴形头部 + 拖尾 + 一滴分离的小液滴 |
+| 监察者 | `lens` | 瞳孔弹：虹膜渐变 + 深色瞳孔 + 高光；是圆的，不随弹道旋转 |
+| 监察者 / 分形核心 | `needle` | 飞镖：三角箭头 + 金属杆 + 后掠尾翼（场上最快的子弹） |
+| 分形核心 | `shard` | 晶刺：六点刻面晶体 |
+| 虚空之喉 | `fang` | 獠牙：弯曲的牙，根部圆钝、尖端象牙白 |
+| —（后备） | `orb` | 通用实心弹珠；游戏里已没有人发射，保留作为新增弹种时的后备造型 |
+
+约定：
+
+- **敌方弹一律是带墨色描边的不透明体（危险），玩家弹丸是加色的光（友好）**——这条分界线不要打破，否则弹幕里分不清哪些是自己的。
+- `src/data/ids.ts` 登记 `EBULLET_KINDS / EBulletKind`、`BEAM_STYLES / BeamStyle`、`HAZARD_IDS`。`EnemyBullet.kind`、`Beam.style` 是**纯外观字段**，不参与判定：子弹的判定半径 `b.r`、光束的判定宽度 `width / 2` 都没变。发射方在 `spawnEnemyBullet(..., { kind })` / `addBeam().style = …` 里指定。
+- `src/render/bullets.ts` 只负责"画"五种子弹（`EBULLET_PAINT`）；缓存与取用在 `SpriteBank.ebullet(kind, color)`；`ebulletHi(kind, color, ss)` 只给导出指南小图用。新增弹种：在 `EBULLET_KINDS` 加一项 → 在 `bullets.ts` 写画法 → 发射处传 `kind` → `HAZARD_IDS` / `HAZARD_COLOR` / i18n（`hazard.*`）/ 指南文案补一行 → 重跑 `node scripts/gen-sprites.mjs`。`tests/hazards.test.ts`（每种造型有画法、画得干净、不超出精灵画布、Boss / 炮手确实在用）和 `tests/assets.test.ts`（立绘齐全）会拦住漏掉的大部分步骤。
+- `src/render/beams.ts` 画光束 / 电弧 / 冲击环（`paintBeam / paintBolt / paintRing`），`Renderer.paint` 把它们暴露给导出脚本，`renderer.ts` 的 `drawBeams / drawBolts / drawRings` 只负责算出强度、宽度再调用。
+- 敌方子弹直接写屏幕矩阵（`setTransform`，和绘制敌人同一个办法），不用 `save / translate / rotate / scale / restore`——弹幕战里一屏上百颗，这一项省下的比造型本身多出来的还多。
+- 玩法指南新增「弹幕与危险」一节（五种子弹 + Boss 射线 + 冲击环；图来自 `gen-sprites.mjs`，子弹用 8× 超采样单独再画一份，射线 / 冲击环直接调 `renderer.paint` 画到透明画布上）。
+- 性能：最坏情况的合成场景（7 条常驻光束 + 3 个冲击环 + 3 条长电弧 + 220 颗敌方子弹，软件光栅化 DPR 1，`perf --eval`）渲染 ≈ 22 ms → 26 ms（34 → 30 fps），逐类测：子弹 ≈ +0.5 ms / 220 颗，光束 ≈ +0.2 ms / 条；真实对局里同屏光束不超过三五条。GPU（Metal，DPR 2）同一场景两个版本都是 60 fps，JS 录制时间 0.5 → 0.6–0.7 ms。
+- 验证：`play --lab fx --w 1280 --h 720 [--dpr 3 --clip x,y,w,h]` 摆一张"样张"（激光 / 磁轨 / 灼痕 / 电弧 / 冲击波 / 敌方环 / 全部子弹 / 敌方射线 / 三个寿命阶段的爆炸）；`play --catch beams|bolts|rings|ebullets|hbeams|hrings [--skip N]` 在真实对局里等到该效果出现再定格（`--ff` 取小一点，避开进化白闪）；`art --only bullets` 排出子弹图鉴。
+
 ### 打击感：伤害数字分档与武器进化演出
 
 分层与前面一致：**参数与纯函数放 `src/engine/feel.ts`**（不依赖 DOM / Canvas），渲染器、音频、HUD、App 共用，并能在 Node 里直接单测；真正"画出来"的部分在 `render/floattext.ts`（飘字池）、`render/numfont.ts`（字形图集）、`renderer.ts`、`app/app.ts`。

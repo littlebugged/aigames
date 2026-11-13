@@ -1,5 +1,5 @@
 import type { EnemyDef } from '../data/enemies'
-import type { BossId, PassiveId, WeaponId } from '../data/ids'
+import type { BeamStyle, BossId, EBulletKind, PassiveId, WeaponId } from '../data/ids'
 import type { WStats } from '../data/weapons'
 import type { GridItem } from '../engine/grid'
 import type { PickupKind } from './events'
@@ -181,7 +181,7 @@ export class EnemyBullet {
   color = '#ff3ea5'
   /** 轻微加速（弹幕用） */
   accel = 0
-  kind: 'orb' | 'needle' = 'orb'
+  kind: EBulletKind = 'orb'
 }
 
 export class Gem {
@@ -239,6 +239,8 @@ export class Beam {
   fixed = false
   /** true=瞬发"重炮"：起手最亮、随即快速衰减（磁轨炮） */
   punch = false
+  /** 画法：棱镜激光 / 磁轨 / 灼痕 / Boss 光束（只影响外观） */
+  style: BeamStyle = 'laser'
 }
 
 export class Ring {

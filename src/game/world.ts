@@ -1,5 +1,5 @@
 import { ENEMIES } from '../data/enemies'
-import type { EnemyId, SectorId, ShipId, WeaponId } from '../data/ids'
+import type { EBulletKind, EnemyId, SectorId, ShipId, WeaponId } from '../data/ids'
 import { SECTORS, THREAT_LEVELS, type SectorDef } from '../data/sectors'
 import { SHIPS } from '../data/ships'
 import { EVOLVE_SHOCK, TUNE } from '../data/tuning'
@@ -509,7 +509,7 @@ export class World {
     ang: number,
     speed: number,
     dmg: number,
-    o: { r?: number; life?: number; color?: string; accel?: number; kind?: 'orb' | 'needle' } = {},
+    o: { r?: number; life?: number; color?: string; accel?: number; kind?: EBulletKind } = {},
   ): void {
     const b = this.ebPool.get()
     b.alive = true
@@ -572,6 +572,7 @@ export class World {
     b.warn = 0
     b.fixed = false
     b.punch = false
+    b.style = 'laser'
     b.tickT = 0
     b.slot = 0
     this.beams.push(b)

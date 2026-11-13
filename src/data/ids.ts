@@ -45,6 +45,17 @@ export type BossId = (typeof BOSS_IDS)[number]
 export const PICKUP_IDS = ['heal', 'magnet', 'bomb', 'chest', 'cache'] as const
 export type PickupId = (typeof PICKUP_IDS)[number]
 
+/** 敌方子弹的造型：打出来的是谁一眼分得清（炮手的唾液团、监察者的镜片弹、分形核心的晶片、虚空之喉的獠牙、各 Boss 的瞄准飞镖） */
+export const EBULLET_KINDS = ['orb', 'needle', 'glob', 'lens', 'shard', 'fang'] as const
+export type EBulletKind = (typeof EBULLET_KINDS)[number]
+
+/** 光束的样式：棱镜激光 / 磁轨炮 / 磁轨进化后留下的灼痕 / Boss 的警戒光束 */
+export const BEAM_STYLES = ['laser', 'rail', 'scar', 'boss'] as const
+export type BeamStyle = (typeof BEAM_STYLES)[number]
+/** 玩法指南「弹幕与危险」收录的条目：五种敌方子弹 + Boss 射线 + 扩散冲击环 */
+export const HAZARD_IDS = ['glob', 'lens', 'needle', 'shard', 'fang', 'beam', 'ring'] as const
+export type HazardId = (typeof HAZARD_IDS)[number]
+
 export const META_IDS = [
   'm_power',
   'm_hull',

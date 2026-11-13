@@ -7,6 +7,7 @@ import type { GameEvent } from '../game/events'
 import type { World } from '../game/world'
 import { Background } from './background'
 import { BossArt } from './bossart'
+import { paintBeam, paintBolt, paintRing } from './beams'
 import { Camera } from './camera'
 import { FloatTexts } from './floattext'
 import { NumberFont } from './numfont'
@@ -83,6 +84,8 @@ export class Renderer {
   private readonly ctx: CanvasRenderingContext2D
   private readonly bank = new SpriteBank(2.5)
   private readonly bossArt = new BossArt(2.5)
+  /** 光束类的画法：运行时每帧用，导出指南小图的脚本（scripts/gen-sprites.mjs）也直接调用同一套 */
+  readonly paint = { beam: paintBeam, bolt: paintBolt, ring: paintRing }
   private readonly bg = new Background()
   private readonly parts: Particles
   private readonly texts = new FloatTexts()
@@ -1123,43 +1126,37 @@ export class Renderer {
   private drawEnemyBullets(w: World): void {
     const ctx = this.ctx
     const bank = this.bank
-    ctx.lineCap = 'round'
+    const { k, ox, oy } = this
+    // 有造型的弹丸直接写屏幕矩阵（比 save / translate / rotate / scale / restore 便宜得多，弹幕战里一屏上百颗）
+    let screen = false
     for (const b of w.ebullets) {
-      if (!b.alive || !this.inView(b.x, b.y, 20)) continue
-      if (b.kind === 'needle') {
-        // 针弹：深色衬边 + 彩色弹体 + 白色亮芯，全是实心描绘，密集时也分得清
-        const tx = b.x - b.vx * 0.05
-        const ty = b.y - b.vy * 0.05
-        ctx.strokeStyle = ink(0.85)
-        ctx.lineWidth = b.r * 2.7
-        ctx.beginPath()
-        ctx.moveTo(b.x, b.y)
-        ctx.lineTo(tx, ty)
-        ctx.stroke()
-        ctx.strokeStyle = b.color
-        ctx.lineWidth = b.r * 1.6
-        ctx.beginPath()
-        ctx.moveTo(b.x, b.y)
-        ctx.lineTo(tx, ty)
-        ctx.stroke()
-        ctx.strokeStyle = 'rgba(255,255,255,0.95)'
-        ctx.lineWidth = b.r * 0.6
-        ctx.beginPath()
-        ctx.moveTo(b.x, b.y)
-        ctx.lineTo(b.x - b.vx * 0.032, b.y - b.vy * 0.032)
-        ctx.stroke()
-      } else {
+      if (!b.alive || !this.inView(b.x, b.y, 24)) continue
+      if (b.kind === 'orb') {
         // 圆弹：带墨色描边的实心球。和玩家那种"加色光弹"一眼分得开：描边的是危险的
+        if (screen) {
+          this.worldT()
+          screen = false
+        }
         const s = bank.bead(b.color)
         const d = s.w * ((b.r * 1.35) / 8)
         ctx.drawImage(s.c, b.x - d / 2, b.y - d / 2, d, d)
+        continue
       }
+      // 有造型的弹丸（酸液 / 瞳孔 / 飞镖 / 晶刺 / 獠牙）：精灵朝 +x，按弹道旋转，按碰撞半径缩放
+      const s = bank.ebullet(b.kind, b.color)
+      const sc = (b.r / 6) * k
+      const ang = b.kind === 'lens' ? 0 : Math.atan2(b.vy, b.vx)
+      const c = Math.cos(ang) * sc
+      const sn = Math.sin(ang) * sc
+      ctx.setTransform(c, sn, -sn, c, ox + b.x * k, oy + b.y * k)
+      screen = true
+      ctx.drawImage(s.c, -s.w / 2, -s.h / 2, s.w, s.h)
     }
+    if (screen) this.worldT()
   }
 
   private drawBeams(w: World): void {
     const ctx = this.ctx
-    const bank = this.bank
     ctx.globalCompositeOperation = 'lighter'
     for (const bm of w.beams) {
       if (!bm.alive) continue
@@ -1177,27 +1174,8 @@ export class Renderer {
       ctx.save()
       ctx.translate(bm.ox, bm.oy)
       ctx.rotate(bm.ang)
-      const vw = width * 0.78
-      // 光束的横截面一次画完：中间一条细而白热的芯，往两侧过渡到彩色光体，再柔和地淡出
-      // （旧版是三层叠起来的矩形，粗白条一多就糊成白板）
-      const e = env * flick
-      const body = ctx.createLinearGradient(0, -vw * 0.85, 0, vw * 0.85)
-      body.addColorStop(0, rgba(bm.color, 0))
-      body.addColorStop(0.26, rgba(bm.color, 0.22 * e))
-      body.addColorStop(0.42, rgba(bm.color, 0.62 * e))
-      body.addColorStop(0.47, rgba('#ffffff', 0.92 * e))
-      body.addColorStop(0.53, rgba('#ffffff', 0.92 * e))
-      body.addColorStop(0.58, rgba(bm.color, 0.62 * e))
-      body.addColorStop(0.74, rgba(bm.color, 0.22 * e))
-      body.addColorStop(1, rgba(bm.color, 0))
-      ctx.fillStyle = body
-      ctx.fillRect(0, -vw * 0.85, bm.len, vw * 1.7)
+      paintBeam(ctx, bm.style, bm.len, bm.color, { env: env * flick, width, life, vt: this.vt })
       ctx.restore()
-      const g = bank.glow(bm.color)
-      const gs = vw * 1.9
-      ctx.globalAlpha = Math.min(0.6, env)
-      ctx.drawImage(g.c, bm.ox - gs / 2, bm.oy - gs / 2, gs, gs)
-      ctx.globalAlpha = 1
     }
     ctx.globalCompositeOperation = 'source-over'
   }
@@ -1205,91 +1183,21 @@ export class Renderer {
   private drawRings(w: World): void {
     const ctx = this.ctx
     ctx.globalCompositeOperation = 'lighter'
-    ctx.lineCap = 'butt'
     for (const rg of w.rings) {
       if (!rg.alive || rg.delay > 0) continue
-      if (!this.inView(rg.x, rg.y, rg.r + 30)) continue
-      const p = clamp01(rg.r / rg.maxR)
-      const a = 1 - p * 0.75
-      if (rg.hostile) {
-        ctx.strokeStyle = rgba(rg.color, 0.17 * a)
-        ctx.lineWidth = 18
-        ctx.beginPath()
-        ctx.arc(rg.x, rg.y, rg.r, 0, TAU)
-        ctx.stroke()
-        ctx.strokeStyle = rgba(rg.color, 0.9 * a)
-        ctx.lineWidth = 6
-        ctx.stroke()
-        ctx.strokeStyle = rgba('#ffffff', 0.95 * a)
-        ctx.lineWidth = 2
-        ctx.stroke()
-      } else {
-        ctx.strokeStyle = rgba(rg.color, 0.13 * a)
-        ctx.lineWidth = 15
-        ctx.beginPath()
-        ctx.arc(rg.x, rg.y, rg.r, 0, TAU)
-        ctx.stroke()
-        ctx.strokeStyle = rgba(rg.color, 0.78 * a)
-        ctx.lineWidth = 4.5
-        ctx.stroke()
-        ctx.strokeStyle = rgba('#ffffff', 0.9 * a)
-        ctx.lineWidth = 1.8
-        ctx.stroke()
-      }
+      if (!this.inView(rg.x, rg.y, rg.r + 40)) continue
+      paintRing(ctx, rg.x, rg.y, rg.r, rg.maxR, rg.color, rg.hostile, this.vt)
     }
     ctx.globalCompositeOperation = 'source-over'
+    ctx.lineCap = 'round'
   }
 
   private drawBolts(w: World): void {
     const ctx = this.ctx
     ctx.globalCompositeOperation = 'lighter'
-    ctx.lineCap = 'round'
-    ctx.lineJoin = 'round'
     for (const bt of w.bolts) {
       if (!bt.alive) continue
-      const f = clamp01(bt.life / bt.maxLife)
-      const pts = bt.pts
-      // 抖动折线：每段在中点处加一个随机偏移
-      const path = (): void => {
-        ctx.beginPath()
-        ctx.moveTo(pts[0], pts[1])
-        for (let i = 2; i < pts.length; i += 2) {
-          const x0 = pts[i - 2]
-          const y0 = pts[i - 1]
-          const x1 = pts[i]
-          const y1 = pts[i + 1]
-          const dx = x1 - x0
-          const dy = y1 - y0
-          const len = Math.hypot(dx, dy) || 1
-          const nx = -dy / len
-          const ny = dx / len
-          const j = Math.min(14, len * 0.16)
-          const o1 = (Math.random() - 0.5) * 2 * j
-          const o2 = (Math.random() - 0.5) * 2 * j
-          ctx.lineTo(x0 + dx * 0.33 + nx * o1, y0 + dy * 0.33 + ny * o1)
-          ctx.lineTo(x0 + dx * 0.66 + nx * o2, y0 + dy * 0.66 + ny * o2)
-          ctx.lineTo(x1, y1)
-        }
-      }
-      path()
-      ctx.strokeStyle = rgba(bt.color, 0.18 * f)
-      ctx.lineWidth = 8
-      ctx.stroke()
-      path()
-      ctx.strokeStyle = rgba(bt.color, 0.9 * f)
-      ctx.lineWidth = 3
-      ctx.stroke()
-      path()
-      ctx.strokeStyle = rgba('#ffffff', 0.95 * f)
-      ctx.lineWidth = 1.2
-      ctx.stroke()
-      // 命中点的小闪光
-      const g = this.bank.glow(bt.color)
-      ctx.globalAlpha = f
-      for (let i = 2; i < pts.length; i += 2) {
-        ctx.drawImage(g.c, pts[i] - 11, pts[i + 1] - 11, 22, 22)
-      }
-      ctx.globalAlpha = 1
+      paintBolt(ctx, bt.pts, bt.color, clamp01(bt.life / bt.maxLife))
     }
     ctx.globalCompositeOperation = 'source-over'
   }
@@ -1319,6 +1227,19 @@ export class Renderer {
       ctx.beginPath()
       ctx.arc(b.x, b.y, rr, 0, TAU)
       ctx.stroke()
+      // 星芒：十道长短不一的尖刺向外炸开——"爆炸"该有的剪影，而不只是一个圈
+      const rot = b.x * 0.013 + b.y * 0.007
+      const reach = (0.4 + 0.6 * grow) * rr
+      ctx.fillStyle = rgba(lighten(b.color, 0.7), 0.6 * lp)
+      ctx.beginPath()
+      for (let i = 0; i < 10; i++) {
+        const a = rot + (i / 10) * TAU
+        const len = reach * (0.6 + 0.4 * (((i * 7) % 5) / 4))
+        ctx.moveTo(b.x + Math.cos(a - 0.12) * rr * 0.26, b.y + Math.sin(a - 0.12) * rr * 0.26)
+        ctx.lineTo(b.x + Math.cos(a) * len, b.y + Math.sin(a) * len)
+        ctx.lineTo(b.x + Math.cos(a + 0.12) * rr * 0.26, b.y + Math.sin(a + 0.12) * rr * 0.26)
+      }
+      ctx.fill()
     }
     ctx.globalCompositeOperation = 'source-over'
   }

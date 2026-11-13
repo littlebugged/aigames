@@ -5,7 +5,7 @@
 ## 1. 发布流程
 
 ```bash
-npm test                      # 88 项测试
+npm test                      # 102 项测试
 npm run build                 # 生成页面 → tsc（应用与脚本两套配置）→ vite build
 node scripts/e2e.mjs smoke    # 无头浏览器冒烟（含音频电平断言）
 node scripts/e2e.mjs mobile   # 改动了界面/触屏时再跑
@@ -81,6 +81,7 @@ node scripts/e2e.mjs live                           # 线上冒烟 + 关键 URL 
 | 想看某个时间点的画面 | `node scripts/e2e.mjs play --sector <fields\|wasteland\|void> --ff <秒> --wait <秒> --name <文件名>` |
 | 想测性能 | `node scripts/e2e.mjs perf --q high --dpr 2 --gpu 1`（`--gpu 1` 使用 Metal，`0` 为纯软件光栅化的最坏情况）。做 A/B：`--eval "__neon.renderer.bloomPass=()=>{}"` 在采样前往页面里注入一段脚本，软件光栅化下噪声较大，建议新旧版本交替各跑 4 次取平均 |
 | 想看 Boss 预警 / 手机竖屏 / 干净的截图 | `play ... --tele 1`（在玩家周围摆几条不同进度的预警）、`play ... --touch 1 --w 390 --h 844 --dpr 2`（按手机方式开）、`play ... --clean 1`（隐藏教学提示 / Toast / 横幅），`--clip x,y,w,h` 再截一张局部放大图 |
+| 想看光束 / 电弧 / 冲击波 / 敌方子弹 / 爆炸 | `play --lab fx --w 1280 --h 720 --clean 1`（清场后摆一张定格样张；`--dpr 3 --clip x,y,w,h` 放大看细节）；真实对局里等某个效果出现再定格：`play --ff 25 --gear laser,rail,arc,nova --glv 8 --evo 1 --catch beams --clean 1`（`--catch` 可取 `beams / bolts / rings / ebullets / hbeams / hrings`，`--skip N` 跳过前 N 次命中）；子弹图鉴：`art --scale 5 --only bullets --sheeth 700` |
 | 想看武器 / 拾取物的实物 | `play --gear orbit,chakram,drone,mine,missile --glv 6 [--evo 1] --ff 60 --dpr 3 --w 720 --h 440 --clean 1 --clip 215,95,290,250`（开局直接发武器、可指定等级 / 进化）；`play --pickups 1 --ff 30 --dpr 3 --clean 1`（清场后把五种拾取物摆成一排并暂停） |
 
 ## 8. 历史

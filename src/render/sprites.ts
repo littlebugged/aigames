@@ -1,11 +1,12 @@
 import { ENEMIES, type EnemyDef } from '../data/enemies'
-import { ENEMY_IDS, PICKUP_IDS, SHIP_IDS, type EnemyId, type ShipId } from '../data/ids'
+import { ENEMY_IDS, PICKUP_IDS, SHIP_IDS, type EBulletKind, type EnemyId, type ShipId } from '../data/ids'
 import { PICKUP_COLOR } from '../data/pickups'
 import { SHIPS } from '../data/ships'
 import { TAU } from '../engine/math'
 import type { PickupKind } from '../game/events'
 import { ink, tonesOf } from './matte'
 import { lighten, mixHex, rgba } from './palette'
+import { EBULLET_BOX, EBULLET_PAINT } from './bullets'
 import { CREATURES } from './creatures'
 import { cut } from './parts'
 import { paintBlade, paintBolt, paintBomb, paintCache, paintChakram, paintChest, paintDrone, paintHeal, paintMagnet, paintMine, paintPlasma } from './props'
@@ -286,6 +287,13 @@ function beadSprite(color: string, ss: number): Sprite {
   })
 }
 
+/** 有朝向的敌方子弹（唾液团 / 镜片弹 / 飞镖 / 晶片 / 獠牙）：朝 +x，渲染时按弹道旋转 */
+function ebulletSprite(kind: EBulletKind, color: string, ss: number): Sprite {
+  const paint = EBULLET_PAINT[kind]
+  if (!paint) return beadSprite(color, ss)
+  return make(EBULLET_BOX.w, EBULLET_BOX.h, ss, (ctx) => paint(ctx, color))
+}
+
 /** 导弹：金属弹体 + 彩色弹头带 + 尾翼，车头朝 +x */
 function missileSprite(color: string, ss: number): Sprite {
   const w = 28
@@ -408,6 +416,7 @@ export class SpriteBank {
   private readonly drones = new Map<string, Sprite>()
   private readonly chakrams = new Map<string, Sprite>()
   private readonly beads = new Map<string, Sprite>()
+  private readonly ebullets = new Map<string, Sprite>()
   private readonly flames = new Map<string, Sprite>()
   private readonly missiles = new Map<string, Sprite>()
   private readonly mines = new Map<string, Sprite>()
@@ -464,6 +473,23 @@ export class SpriteBank {
   /** 圆点子弹 */
   bead(color: string): Sprite {
     return this.cached(this.beads, color, beadSprite)
+  }
+
+  /** 指定超采样倍率的敌方子弹（导出指南页的小图用：游戏里的 2.5× 放大后会发软，局内不走这里） */
+  ebulletHi(kind: EBulletKind, color: string, ss: number): Sprite {
+    return kind === 'orb' ? beadSprite(color, ss) : ebulletSprite(kind, color, ss)
+  }
+
+  /** 敌方子弹（按造型 + 颜色缓存） */
+  ebullet(kind: EBulletKind, color: string): Sprite {
+    if (kind === 'orb') return this.bead(color)
+    const key = `${kind}${color}`
+    let s = this.ebullets.get(key)
+    if (!s) {
+      s = ebulletSprite(kind, color, this.ss)
+      this.ebullets.set(key, s)
+    }
+    return s
   }
 
   /** 引擎火焰 */

@@ -213,6 +213,13 @@ export const en: Record<Key, string> = {
   'pickup.bomb': 'Pulse bomb',
   'pickup.chest': 'Supply crate',
   'pickup.cache': 'Core cache',
+  'hazard.glob': 'Acid glob',
+  'hazard.lens': 'Eye orb',
+  'hazard.needle': 'Dart',
+  'hazard.shard': 'Crystal shard',
+  'hazard.fang': 'Fang',
+  'hazard.beam': 'Hazard beam',
+  'hazard.ring': 'Shock ring',
 
   // ───── Tutorial ─────
   'tut.move': 'WASD / arrow keys to move — your weapons fire automatically',

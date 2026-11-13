@@ -533,6 +533,7 @@ function fireRail(w: World, wi: WeaponInst, ang: number): void {
   const b = w.addBeam()
   b.fixed = true
   b.punch = true
+  b.style = 'rail'
   b.ox = ox
   b.oy = oy
   b.ang = ang
@@ -548,6 +549,7 @@ function fireRail(w: World, wi: WeaponInst, ang: number): void {
   if (wi.evolved) {
     const sc = w.addBeam()
     sc.fixed = true
+    sc.style = 'scar'
     sc.ox = ox
     sc.oy = oy
     sc.ang = ang

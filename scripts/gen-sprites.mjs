@@ -1,6 +1,6 @@
 /**
  * 把游戏里的真实精灵导出成静态页面（玩法指南）用的小图：public/img/sprites/*.webp
- * 图片已提交到仓库，只有改了敌人 / 飞船 / Boss / 拾取物的美术或新增了条目才需要重跑：
+ * 图片已提交到仓库，只有改了敌人 / 飞船 / Boss / 拾取物 / 弹幕的美术或新增了条目才需要重跑：
  *
  *   npm run build && node scripts/gen-sprites.mjs
  *
@@ -72,6 +72,33 @@ const files = await page.evaluate(() => {
   for (const id of Object.keys(r.bank.ship)) out[`ship-${id}`] = bake(r.bank.ship[id].n.c, -Math.PI / 2, 96, 5)
   // 拾取物：不带光晕的版本，方向不转（本来就是正立的）
   for (const id of Object.keys(r.bank.pickup)) out[`pickup-${id}`] = bake(r.bank.pickupBare(id).c, 0, 96, 5)
+
+  // 敌方弹幕：游戏里按 2.5× 超采样，放大到指南里会发软，所以按 8× 单独再画一份（朝右上角；瞳孔弹是圆的不用转）
+  const HAZ = { glob: '#ffd84a', lens: '#ff3ea5', needle: '#ff6a8a', shard: '#9dff4d', fang: '#c9a0ff' }
+  for (const [kind, color] of Object.entries(HAZ)) {
+    out[`hazard-${kind}`] = bake(r.bank.ebulletHi(kind, color, 8).c, kind === 'lens' ? 0 : -Math.PI / 4, 96, 8)
+  }
+  // Boss 射线 / 扩散冲击环：用运行时同一套画法（r.paint）画到透明画布上，再裁边缩放
+  const hazardCanvas = (draw) => {
+    const c = document.createElement('canvas')
+    c.width = c.height = 420
+    const g = c.getContext('2d')
+    g.translate(210, 210)
+    g.globalCompositeOperation = 'lighter'
+    draw(g)
+    return c
+  }
+  out['hazard-beam'] = bake(
+    hazardCanvas((g) => {
+      g.rotate(-0.55)
+      g.translate(-100, 0)
+      r.paint.beam(g, 'boss', 200, '#9dff4d', { env: 1, width: 70, life: 0.6, vt: 0.25 })
+    }),
+    0,
+    96,
+    8,
+  )
+  out['hazard-ring'] = bake(hazardCanvas((g) => r.paint.ring(g, 0, 0, 42, 640, '#c9a0ff', true, 0.3)), 0, 96, 8)
 
   // Boss：整机（8× 超采样的部件 → 缩到 320 像素画布）
   const bossArt = new r.bossArt.constructor(4)

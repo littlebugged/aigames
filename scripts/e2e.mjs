@@ -116,6 +116,7 @@ async function desktop(base) {
     const a = window.__neon
     a.autoPilot = false // 机器人会立刻替玩家选卡，这里要让面板真正停留
     a.game.player.xp = a.game.player.xpNext
+    a.game.addXp(0) // 经验只在 addXp 里结算；不主动结算就要等玩家下一次捡到宝石，8 秒窗口内偶尔等不到
   })
   try {
     await page.waitForSelector('.overlay.levelup:not([hidden])', { timeout: 8000 })
@@ -195,6 +196,7 @@ async function mobile(base) {
     await page.evaluate(() => {
       const w = window.__neon.game
       w.player.xp = w.player.xpNext
+      w.addXp(0)
     })
     await page.waitForSelector('.overlay.levelup:not([hidden])', { timeout: 8000 }).catch(() => {})
     await sleep(1000)
@@ -261,6 +263,137 @@ async function play(base) {
     [sector, ship, threat, ff, gear, glv, evo],
   )
   await sleep(wait * 1000)
+  // --catch beams|bolts|rings|ebullets|hbeams|hrings：一小步一小步往前跑，直到场上出现这种特效的那一帧，再暂停截图
+  // （武器是自动开火的，直接截图常常拍不到光束 / 电弧 / 冲击环）。--skip N 再多跑 N 小步（0.03 秒一步）
+  const catchWhat = opt('catch', '')
+  if (catchWhat) {
+    const skip = Number(opt('skip', '0'))
+    const got = await page.evaluate(
+      ([what, skip]) => {
+        const a = window.__neon
+        const w = a.game
+        const has = () => {
+          if (what === 'beams') return w.beams.some((b) => b.alive && !b.hostile)
+          if (what === 'bolts') return w.bolts.some((b) => b.alive)
+          if (what === 'rings') return w.rings.some((r) => r.alive && !r.hostile && r.delay <= 0 && r.r > 40)
+          if (what === 'ebullets') return w.ebullets.length > 12
+          if (what === 'hbeams') return w.beams.some((b) => b.alive && b.hostile)
+          if (what === 'hrings') return w.rings.some((r) => r.alive && r.hostile && r.r > 120)
+          return false
+        }
+        let n = 0
+        while (!has() && n++ < 1500) a.fastForward(0.03)
+        for (let i = 0; i < skip; i++) a.fastForward(0.03)
+        a.paused = true
+        return { n, ok: has() }
+      },
+      [catchWhat, skip],
+    )
+    console.log('  catch:', JSON.stringify(got))
+    await sleep(200)
+  }
+  // --lab fx：清场后把激光 / 磁轨 / 电弧 / 冲击波 / 敌方子弹 / 敌方光束各摆一份定格样张并暂停
+  // （看光束类特效和弹幕的造型；效果都是相对屏幕中心摆的，配合 --w 1280 --h 720 时 1 世界单位 = 1 像素）
+  if (opt('lab', '') === 'fx') {
+    // 敌方子弹样张：[kind, 颜色, 半径]；新增子弹造型后在这里补一行就能在样张里看到
+    const labBullets = [
+      ['orb', '#ff3ea5', 6.5],
+      ['glob', '#ffd84a', 6],
+      ['lens', '#ff3ea5', 6.5],
+      ['shard', '#9dff4d', 6.5],
+      ['fang', '#c9a0ff', 6],
+      ['needle', '#ff6a8a', 5.5],
+      ['needle', '#c8ff66', 5.5],
+    ]
+    await page.evaluate((BUL) => {
+      const a = window.__neon
+      const w = a.game
+      const p = w.player
+      a.autoPilot = false
+      a.godMode = true
+      for (const e of w.enemies) e.alive = false
+      for (const b of w.ebullets) b.alive = false
+      for (const b of w.beams) b.alive = false
+      for (const r of w.rings) r.alive = false
+      for (const t of w.bolts) t.alive = false
+      p.vx = p.vy = 0
+      a.renderer.cam.reset(p.x, p.y)
+      const cx = p.x
+      const cy = p.y
+      // 光束：life 取中段，保证画出来是"满威力"的样子
+      const beam = (x, y, len, width, color, o = {}) => {
+        const b = w.addBeam()
+        b.fixed = true
+        b.hostile = !!o.hostile
+        b.punch = !!o.punch
+        b.style = o.style ?? 'laser'
+        b.warn = o.warn ?? 0
+        b.ox = cx + x
+        b.oy = cy + y
+        b.ang = o.ang ?? 0
+        b.len = len
+        b.width = width
+        b.maxLife = o.maxLife ?? 1
+        b.life = b.maxLife * (o.k ?? 0.6)
+        b.tick = 99
+        b.dmg = 0
+        b.color = color
+        return b
+      }
+      beam(-610, -225, 250, 16, '#c9a0ff') // 激光
+      beam(-310, -225, 250, 26, '#ffe8a8') // 激光（进化）
+      beam(0, -225, 300, 17, '#ff4d6d', { punch: true, style: 'rail', maxLife: 0.32, k: 0.8 }) // 磁轨
+      beam(340, -225, 300, 14, '#ffb3c1', { style: 'scar' }) // 磁轨进化的灼痕
+      beam(340, -225, 300, 28, '#ff8aa0', { punch: true, style: 'rail', maxLife: 0.32, k: 0.8 }) // 磁轨（进化）
+      // 电弧：沿一条折线连跳
+      const arc = (x0, y0, n, step, color) => {
+        const pts = [x0, y0]
+        for (let i = 1; i <= n; i++) pts.push(x0 + i * step, y0 + (i % 2 ? -26 : 22) + (i % 3) * 8)
+        w.addBolt(pts.map((v, i) => v + (i % 2 ? cy : cx)), color, 0.22)
+        const t = w.bolts[w.bolts.length - 1]
+        t.life = t.maxLife * 0.9
+      }
+      arc(-600, -105, 3, 90, '#ffe66b')
+      arc(-290, -105, 8, 66, '#fff7b0')
+      // 冲击波
+      const ring = (x, y, r, maxR, color, hostile) => {
+        const g = w.addRing()
+        g.x = cx + x
+        g.y = cy + y
+        g.r = r
+        g.maxR = maxR
+        g.color = color
+        g.hostile = !!hostile
+        g.delay = 0
+        return g
+      }
+      ring(-440, 100, 105, 290, '#e8fbff')
+      ring(-160, 100, 105, 290, '#ffe0a0')
+      ring(120, 100, 105, 290, '#c9a0ff', true)
+      // 敌方子弹：(kind, color, r)
+      BUL.forEach(([kind, color, r], i) => {
+        const x = 330 + (i % 4) * 70
+        const y = 20 + Math.floor(i / 4) * 52
+        w.spawnEnemyBullet(cx + x, cy + y, -0.5 + (i % 4) * 0.35, 220, 10, { kind, color, r, life: 99 })
+      })
+      // 敌方光束：预警（暗而细）与生效
+      beam(-610, 235, 330, 22, '#ff4d6d', { hostile: true, style: 'boss', warn: 1 })
+      beam(-250, 235, 330, 22, '#ff4d6d', { hostile: true, style: 'boss' })
+      // 爆炸：同一颗在三个寿命阶段 + 换色两颗（星芒 / 冲击环 / 白热芯）
+      const blast = (x, y, r, color, k) => {
+        w.addBlast(cx + x, cy + y, r, color, 1)
+        const b = w.blasts[w.blasts.length - 1]
+        b.life = b.maxLife * k
+      }
+      blast(-110, 215, 72, '#ffb347', 0.85)
+      blast(40, 215, 72, '#ffb347', 0.55)
+      blast(190, 215, 72, '#ffb347', 0.3)
+      blast(340, 215, 72, '#5dff9e', 0.55)
+      blast(490, 215, 72, '#4dd8ff', 0.55)
+      a.paused = true
+    }, labBullets)
+    await sleep(300)
+  }
   // --pickups 2：不清场，把五种拾取物撒在玩家四周（距离 150~260），然后暂停——拍"战斗中的拾取物"用（README 配图）
   if (opt('pickups', '0') === '2') {
     await page.evaluate(() => {
@@ -566,6 +699,7 @@ async function flows(base) {
       n.fastForward(150)
       n.autoPilot = false
       n.game.player.xp = n.game.player.xpNext
+      n.game.addXp(0)
     })
     await page.waitForSelector('.overlay.levelup:not([hidden])', { timeout: 8000 }).catch(() => problems.push('[flows/en] 升级面板没有出现'))
     await sleep(600)
@@ -1153,6 +1287,20 @@ async function art(base) {
       }
       if (isSprite(bank.shadow)) weaponItems.push({ label: 'shadow', sp: bank.shadow, s: 1.5, light: true })
       groups.push({ id: 'weapons', name: '武器件 / 子弹 / 光斑', items: weaponItems })
+      // 敌方子弹：[造型, 颜色]（和战斗里各 Boss / 敌人用的配色一致）
+      groups.push({
+        id: 'bullets',
+        name: '敌方子弹',
+        items: [
+          ['orb', '#ff4d6d'],
+          ['glob', '#ffd84a'],
+          ['lens', '#ff3ea5'],
+          ['shard', '#9dff4d'],
+          ['fang', '#c9a0ff'],
+          ['needle', '#ff6a8a'],
+          ['needle', '#c8ff66'],
+        ].map(([k, c]) => ({ label: `${k} ${c}`, sp: bank.ebullet(k, c), s: S * 0.9 })),
+      })
       groups.push({
         id: 'bosses',
         name: 'Boss 部件',
