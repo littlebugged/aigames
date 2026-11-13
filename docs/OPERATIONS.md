@@ -24,6 +24,17 @@ curl -s https://aigames.de5.net/version.json      # id 应等于刚推送提交 
 node scripts/e2e.mjs live                           # 线上冒烟 + 关键 URL 全部 200
 ```
 
+推送后 `version.json` 迟迟不变？从 GitHub 一侧能看到 Cloudflare 的构建状态（不需要 Cloudflare 凭据）：
+
+```bash
+gh api repos/littlebugged/aigames/commits/<sha>/check-suites \
+  --jq '.check_suites[] | select(.app.name=="Cloudflare Workers and Pages") | "\(.status)/\(.conclusion) runs=\(.latest_check_runs_count)"'
+```
+
+- `completed/success runs=1`：已部署（正常约 30 秒）。
+- `queued/null runs=0` 停留超过几分钟：构建在 Cloudflare 一侧排队或被卡住，代码本身没问题。先看 <https://www.cloudflarestatus.com/> 有没有 Workers / Pages 相关故障，再到 Pages → Deployments 点 *Retry deployment*；没有 Cloudflare 凭据时，再推一个提交也能重新触发构建。
+- 开发机上先用干净克隆验证提交本身可构建：`git clone . /tmp/x && cd /tmp/x && npm ci && npm run build`。
+
 调试时一律用无头浏览器（`scripts/lib/headless.mjs` 里 `headless: true`），不会弹出窗口。
 
 ## 2. 回滚
