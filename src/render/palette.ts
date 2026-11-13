@@ -32,3 +32,40 @@ export function mixHex(a: string, b: string, t: number): string {
 
 export const lighten = (hex: string, t: number): string => mixHex(hex, '#ffffff', t)
 export const darken = (hex: string, t: number): string => mixHex(hex, '#000000', t)
+
+/** hex → HSL（h: 0~360, s/l: 0~1） */
+export function toHsl(hex: string): [number, number, number] {
+  const [r8, g8, b8] = hexToRgb(hex)
+  const r = r8 / 255
+  const g = g8 / 255
+  const b = b8 / 255
+  const max = Math.max(r, g, b)
+  const min = Math.min(r, g, b)
+  const l = (max + min) / 2
+  const d = max - min
+  if (d === 0) return [0, 0, l]
+  const s = d / (1 - Math.abs(2 * l - 1))
+  let h: number
+  if (max === r) h = ((g - b) / d) % 6
+  else if (max === g) h = (b - r) / d + 2
+  else h = (r - g) / d + 4
+  return [(h * 60 + 360) % 360, s, l]
+}
+
+/** HSL → hex */
+export function fromHsl(h: number, s: number, l: number): string {
+  const hh = (((h % 360) + 360) % 360) / 60
+  const c = (1 - Math.abs(2 * l - 1)) * Math.max(0, Math.min(1, s))
+  const x = c * (1 - Math.abs((hh % 2) - 1))
+  const m = l - c / 2
+  let r = 0
+  let g = 0
+  let b = 0
+  if (hh < 1) [r, g, b] = [c, x, 0]
+  else if (hh < 2) [r, g, b] = [x, c, 0]
+  else if (hh < 3) [r, g, b] = [0, c, x]
+  else if (hh < 4) [r, g, b] = [0, x, c]
+  else if (hh < 5) [r, g, b] = [x, 0, c]
+  else [r, g, b] = [c, 0, x]
+  return `#${toHex((r + m) * 255)}${toHex((g + m) * 255)}${toHex((b + m) * 255)}`
+}

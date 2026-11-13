@@ -1,11 +1,16 @@
 import type { BossId } from '../data/ids'
 import { TAU, clamp01 } from '../engine/math'
 import type { Boss } from '../game/entities'
-import { lighten, rgba } from './palette'
+import { groove, hull, ink, lamp, plate, rivet, tonesOf, type Trace } from './matte'
+import { lighten, mixHex, rgba } from './palette'
 import { polygon } from './shapes'
-import { make, neon, type Sprite, type SpriteBank } from './sprites'
+import { make, type Sprite, type SpriteBank } from './sprites'
 
-/** 三个 Boss 的预渲染美术 + 绘制。每个 Boss 只有十来次 drawImage，所以直接用 save/restore。 */
+/**
+ * 三个 Boss 的预渲染美术 + 绘制。
+ * 和普通单位一样走「哑光硬表面」路线：不透明的金属机体 + 墨线描边，
+ * 只有眼睛、核心这些真正该发光的部位才亮。每个 Boss 只有十来次 drawImage，所以直接用 save/restore。
+ */
 
 const PHASE_COLOR: Record<BossId, [string, string, string]> = {
   overseer: ['#ff4d6d', '#ff8a3d', '#ff2a2a'],
@@ -31,105 +36,204 @@ export class BossArt {
     // ── 监察者：机械之眼 ──
     this.ovFrame = make(180, 180, ss, (ctx) => {
       const r = 58
-      ctx.beginPath()
-      polygon(ctx, 6, r, Math.PI / 6)
-      ctx.fillStyle = rgba(OV, 0.1)
-      ctx.fill()
-      neon(ctx, OV, ss, 3.4, 18, 0.8)
-      ctx.beginPath()
-      polygon(ctx, 6, r * 0.8, Math.PI / 6)
-      ctx.strokeStyle = rgba(OV, 0.55)
-      ctx.lineWidth = 1.6
-      ctx.stroke()
-      // 顶点外侧的尖刺
+      const t = tonesOf(OV, -0.04)
+      // 先画六根尖刺（压在机体下面，根部被机体盖住）
       for (let i = 0; i < 6; i++) {
         const a = Math.PI / 6 + (i / 6) * TAU
         const ax = Math.cos(a)
         const ay = Math.sin(a)
-        ctx.beginPath()
-        ctx.moveTo(ax * r * 0.98 - ay * 7, ay * r * 0.98 + ax * 7)
-        ctx.lineTo(ax * (r + 15), ay * (r + 15))
-        ctx.lineTo(ax * r * 0.98 + ay * 7, ay * r * 0.98 - ax * 7)
-        ctx.closePath()
-        ctx.fillStyle = rgba(OV, 0.5)
-        ctx.shadowColor = OV
-        ctx.shadowBlur = 10 * ss
+        const spike: Trace = () => {
+          ctx.beginPath()
+          ctx.moveTo(ax * r * 0.9 - ay * 8, ay * r * 0.9 + ax * 8)
+          ctx.lineTo(ax * (r + 16), ay * (r + 16))
+          ctx.lineTo(ax * r * 0.9 + ay * 8, ay * r * 0.9 - ax * 8)
+          ctx.closePath()
+        }
+        spike()
+        ctx.lineWidth = 5
+        ctx.strokeStyle = ink(0.95)
+        ctx.stroke()
+        const g = ctx.createLinearGradient(ax * r * 0.9, ay * r * 0.9, ax * (r + 16), ay * (r + 16))
+        g.addColorStop(0, t.lo)
+        g.addColorStop(0.6, t.mid)
+        g.addColorStop(1, lighten(OV, 0.4))
+        spike()
+        ctx.fillStyle = g
         ctx.fill()
-        ctx.shadowBlur = 0
-        ctx.strokeStyle = rgba('#ffffff', 0.7)
-        ctx.lineWidth = 1
-        ctx.stroke()
-        // 连向中心的支撑线
+        // 尖刺一侧的受光棱
         ctx.beginPath()
-        ctx.moveTo(ax * r * 0.8, ay * r * 0.8)
-        ctx.lineTo(ax * r * 0.5, ay * r * 0.5)
-        ctx.strokeStyle = rgba(OV, 0.4)
-        ctx.lineWidth = 1.4
+        ctx.moveTo(ax * r * 0.9 - ay * 7, ay * r * 0.9 + ax * 7)
+        ctx.lineTo(ax * (r + 14.5), ay * (r + 14.5))
+        ctx.lineWidth = 0.9
+        ctx.strokeStyle = rgba('#ffffff', 0.45)
         ctx.stroke()
+      }
+      const hex = (k: number): Trace => () => {
+        ctx.beginPath()
+        polygon(ctx, 6, r * k, Math.PI / 6)
+      }
+      hull(ctx, hex(1), r, t, { radial: true, facets: 6, phase: Math.PI / 6, line: 2.6, facetK: 1.1 })
+      // 连向中心的支撑缝
+      groove(
+        ctx,
+        () => {
+          ctx.beginPath()
+          for (let i = 0; i < 6; i++) {
+            const a = Math.PI / 6 + (i / 6) * TAU
+            ctx.moveTo(Math.cos(a) * r * 0.5, Math.sin(a) * r * 0.5)
+            ctx.lineTo(Math.cos(a) * r * 0.95, Math.sin(a) * r * 0.95)
+          }
+        },
+        1.3,
+      )
+      // 内嵌的暗色装甲环
+      plate(ctx, hex(0.8), r, mixHex(t.lo, t.mid, 0.3), t.deep, { line: 1.4 })
+      plate(ctx, hex(0.58), r, t.deep, mixHex(t.deep, '#000000', 0.5), { line: 1.2 })
+      for (let i = 0; i < 6; i++) {
+        const a = Math.PI / 6 + (i / 6) * TAU
+        rivet(ctx, Math.cos(a) * r * 0.9, Math.sin(a) * r * 0.9, 2.1)
+        // 边中点的小灯
+        const am = a + Math.PI / 6
+        lamp(ctx, Math.cos(am) * r * 0.69, Math.sin(am) * r * 0.69, 2.2, OV, 0.8)
       }
     })
     this.ovRing = make(140, 140, ss, (ctx) => {
-      ctx.beginPath()
-      ctx.arc(0, 0, 40, 0, TAU)
-      ctx.setLineDash([9, 7])
-      neon(ctx, lighten(OV, 0.25), ss, 2, 8, 0.6)
-      ctx.setLineDash([])
+      const t = tonesOf(OV, 0.02)
+      const R = 40
+      const n = 10
+      for (let i = 0; i < n; i++) {
+        const a0 = (i / n) * TAU + 0.09
+        const a1 = ((i + 1) / n) * TAU - 0.09
+        const seg = (): void => {
+          ctx.beginPath()
+          ctx.arc(0, 0, R, a0, a1)
+        }
+        seg()
+        ctx.lineWidth = 8.4
+        ctx.strokeStyle = ink(0.95)
+        ctx.stroke()
+        seg()
+        ctx.lineWidth = 5.4
+        ctx.strokeStyle = t.mid
+        ctx.stroke()
+        ctx.beginPath()
+        ctx.arc(0, 0, R + 1.6, a0 + 0.02, a1 - 0.02)
+        ctx.lineWidth = 1.3
+        ctx.strokeStyle = rgba(lighten(OV, 0.55), 0.7)
+        ctx.stroke()
+        ctx.beginPath()
+        ctx.arc(0, 0, R - 1.7, a0 + 0.02, a1 - 0.02)
+        ctx.lineWidth = 1.1
+        ctx.strokeStyle = rgba('#000000', 0.4)
+        ctx.stroke()
+      }
     })
     this.ovIris = make(80, 80, ss, (ctx) => {
-      const g = ctx.createRadialGradient(0, 0, 2, 0, 0, 26)
-      g.addColorStop(0, '#2a0510')
-      g.addColorStop(0.55, rgba(OV, 0.55))
-      g.addColorStop(1, rgba(OV, 0.95))
+      const r = 26
+      // 眼球：深红的球体，外圈带一道金属眼眶
       ctx.beginPath()
-      ctx.arc(0, 0, 26, 0, TAU)
+      ctx.arc(0, 0, r + 2.4, 0, TAU)
+      ctx.fillStyle = ink(0.95)
+      ctx.fill()
+      const g = ctx.createRadialGradient(-r * 0.25, -r * 0.3, 1, 0, 0, r)
+      g.addColorStop(0, '#7a1630')
+      g.addColorStop(0.45, '#4a0c1e')
+      g.addColorStop(0.85, '#1f0410')
+      g.addColorStop(1, '#0d0207')
+      ctx.beginPath()
+      ctx.arc(0, 0, r, 0, TAU)
       ctx.fillStyle = g
       ctx.fill()
-      neon(ctx, OV, ss, 2.4, 14, 0.8)
+      // 虹膜纹理：同心环 + 放射纤维
+      ctx.save()
+      ctx.beginPath()
+      ctx.arc(0, 0, r, 0, TAU)
+      ctx.clip()
+      ctx.lineWidth = 1.1
+      ctx.strokeStyle = rgba(lighten(OV, 0.1), 0.16)
+      for (let i = 0; i < 14; i++) {
+        const a = (i / 14) * TAU + 0.1
+        ctx.beginPath()
+        ctx.moveTo(Math.cos(a) * r * 0.42, Math.sin(a) * r * 0.42)
+        ctx.lineTo(Math.cos(a) * r * 0.9, Math.sin(a) * r * 0.9)
+        ctx.stroke()
+      }
+      for (const k of [0.4, 0.88]) {
+        ctx.beginPath()
+        ctx.arc(0, 0, r * k, 0, TAU)
+        ctx.lineWidth = k > 0.8 ? 2.2 : 1
+        ctx.strokeStyle = rgba(OV, k > 0.8 ? 0.85 : 0.35)
+        ctx.stroke()
+      }
+      // 受光的高光弧
+      ctx.beginPath()
+      ctx.arc(0, 0, r * 0.9, Math.PI * 1.1, Math.PI * 1.55)
+      ctx.lineWidth = 1.8
+      ctx.strokeStyle = rgba('#ffffff', 0.4)
+      ctx.stroke()
+      ctx.restore()
     })
     this.ovPupil = make(40, 50, ss, (ctx) => {
+      // 瞳孔：竖直的白热狭缝，只有它发光
+      const grad = ctx.createRadialGradient(0, 0, 1, 0, 0, 22)
+      grad.addColorStop(0, rgba('#ff9aa8', 0.5))
+      grad.addColorStop(1, rgba(OV, 0))
+      ctx.save()
+      ctx.globalCompositeOperation = 'lighter'
+      ctx.fillStyle = grad
       ctx.beginPath()
-      ctx.ellipse(0, 0, 5.5, 15, 0, 0, TAU)
-      ctx.fillStyle = '#ffffff'
-      ctx.shadowColor = '#ffb3c0'
-      ctx.shadowBlur = 14 * ss
+      ctx.arc(0, 0, 22, 0, TAU)
       ctx.fill()
-      ctx.shadowBlur = 0
+      ctx.restore()
+      ctx.beginPath()
+      ctx.ellipse(0, 0, 7, 16.5, 0, 0, TAU)
+      ctx.fillStyle = ink(0.9)
+      ctx.fill()
+      const sl = ctx.createLinearGradient(0, -15, 0, 15)
+      sl.addColorStop(0, '#ffe3e8')
+      sl.addColorStop(0.5, '#ffffff')
+      sl.addColorStop(1, '#ffc2cc')
+      ctx.beginPath()
+      ctx.ellipse(0, 0, 5, 14.6, 0, 0, TAU)
+      ctx.fillStyle = sl
+      ctx.fill()
     })
 
     // ── 分形核心：嵌套谢尔宾斯基三角 ──
     this.frTri = make(130, 130, ss, (ctx) => {
       const r = 50
+      const t = tonesOf(FR, -0.05)
       const v = (i: number, rad: number): [number, number] => [
         Math.cos((i / 3) * TAU - Math.PI / 2) * rad,
         Math.sin((i / 3) * TAU - Math.PI / 2) * rad,
       ]
-      ctx.beginPath()
-      for (let i = 0; i < 3; i++) {
-        const [x, y] = v(i, r)
-        if (i === 0) ctx.moveTo(x, y)
-        else ctx.lineTo(x, y)
+      const tri = (rad: number): Trace => () => {
+        ctx.beginPath()
+        for (let i = 0; i < 3; i++) {
+          const [x, y] = v(i, rad)
+          if (i === 0) ctx.moveTo(x, y)
+          else ctx.lineTo(x, y)
+        }
+        ctx.closePath()
       }
-      ctx.closePath()
-      ctx.fillStyle = rgba(FR, 0.08)
-      ctx.fill()
-      neon(ctx, FR, ss, 3, 16, 0.75)
-      // 内部倒三角（中点连线）
+      hull(ctx, tri(r), r, t, { radial: true, facets: 3, phase: -Math.PI / 2, line: 2.6, facetK: 1.1 })
       const mid = (i: number): [number, number] => {
         const [x1, y1] = v(i, r)
         const [x2, y2] = v((i + 1) % 3, r)
         return [(x1 + x2) / 2, (y1 + y2) / 2]
       }
-      ctx.beginPath()
-      for (let i = 0; i < 3; i++) {
-        const [x, y] = mid(i)
-        if (i === 0) ctx.moveTo(x, y)
-        else ctx.lineTo(x, y)
+      // 中点连线构成的倒三角：向内凹陷的暗色底板
+      const inv: Trace = () => {
+        ctx.beginPath()
+        for (let i = 0; i < 3; i++) {
+          const [x, y] = mid(i)
+          if (i === 0) ctx.moveTo(x, y)
+          else ctx.lineTo(x, y)
+        }
+        ctx.closePath()
       }
-      ctx.closePath()
-      ctx.strokeStyle = rgba(FR, 0.7)
-      ctx.lineWidth = 1.8
-      ctx.stroke()
-      // 三个角各自再细分一层
+      plate(ctx, inv, r, t.lo, t.deep, { line: 1.6 })
+      // 三个角各自再细分一层：凸起的小三角板，中心一盏灯
       for (let i = 0; i < 3; i++) {
         const [cx, cy] = v(i, r)
         const a = mid(i)
@@ -137,77 +241,132 @@ export class BossArt {
         const m1: [number, number] = [(cx + a[0]) / 2, (cy + a[1]) / 2]
         const m2: [number, number] = [(cx + b[0]) / 2, (cy + b[1]) / 2]
         const m3: [number, number] = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]
-        ctx.beginPath()
-        ctx.moveTo(m1[0], m1[1])
-        ctx.lineTo(m2[0], m2[1])
-        ctx.lineTo(m3[0], m3[1])
-        ctx.closePath()
-        ctx.strokeStyle = rgba(FR, 0.5)
-        ctx.lineWidth = 1.2
-        ctx.stroke()
+        // 这三个点围成的是中间的倒三角；真正的"角落小三角"用顶点 + 两个中点
+        const corner: Trace = () => {
+          ctx.beginPath()
+          ctx.moveTo(cx * 0.86, cy * 0.86)
+          ctx.lineTo(a[0], a[1])
+          ctx.lineTo(b[0], b[1])
+          ctx.closePath()
+        }
+        plate(ctx, corner, r, t.hi, t.mid, { raised: true, line: 1.2 })
+        // 小三角里再嵌一个更小的凹槽
+        const sub: Trace = () => {
+          ctx.beginPath()
+          ctx.moveTo(m1[0], m1[1])
+          ctx.lineTo(m2[0], m2[1])
+          ctx.lineTo(m3[0], m3[1])
+          ctx.closePath()
+        }
+        groove(ctx, sub, 0.9)
+        const gx = (cx + a[0] + b[0]) / 3
+        const gy = (cy + a[1] + b[1]) / 3
+        lamp(ctx, gx * 0.92, gy * 0.92, 2.4, FR, 0.9)
       }
     })
     this.frCore = make(60, 60, ss, (ctx) => {
-      ctx.beginPath()
-      polygon(ctx, 6, 11, Math.PI / 6)
-      ctx.fillStyle = rgba('#ffffff', 0.9)
-      ctx.shadowColor = FR
-      ctx.shadowBlur = 18 * ss
-      ctx.fill()
-      ctx.shadowBlur = 0
-      neon(ctx, FR, ss, 2, 10, 0.6)
+      const hex: Trace = () => {
+        ctx.beginPath()
+        polygon(ctx, 6, 12, Math.PI / 6)
+      }
+      hull(ctx, hex, 12, tonesOf(FR, -0.1), { radial: true, facets: 6, phase: Math.PI / 6, line: 1.6 })
+      lamp(ctx, 0, 0, 6.2, FR, 1.3)
     })
 
     // ── 虚空之喉：吞噬一切的黑洞 ──
     this.mwBody = make(190, 190, ss, (ctx) => {
       const r = 64
-      const g = ctx.createRadialGradient(0, 0, 4, 0, 0, r)
+      const t = tonesOf(MW, 0.04)
+      const disc = (k: number): Trace => () => {
+        ctx.beginPath()
+        ctx.arc(0, 0, r * k, 0, TAU)
+      }
+      // 金属外圈
+      hull(ctx, disc(1), r, t, { radial: true, line: 2.8, rim: 1 })
+      // 内部的虚空：近乎纯黑，只在边缘透出一点紫
+      disc(0.76)()
+      ctx.lineWidth = 3
+      ctx.strokeStyle = ink(0.95)
+      ctx.stroke()
+      const g = ctx.createRadialGradient(0, 0, 3, 0, 0, r * 0.76)
       g.addColorStop(0, '#000000')
-      g.addColorStop(0.6, 'rgba(6,0,18,0.97)')
-      g.addColorStop(0.88, 'rgba(46,16,90,0.8)')
-      g.addColorStop(1, 'rgba(120,70,200,0.55)')
-      ctx.beginPath()
-      ctx.arc(0, 0, r, 0, TAU)
+      g.addColorStop(0.62, '#04010c')
+      g.addColorStop(0.9, '#1a0b38')
+      g.addColorStop(1, '#3a1d72')
+      disc(0.76)()
       ctx.fillStyle = g
       ctx.fill()
-      neon(ctx, MW, ss, 3.2, 20, 0.7)
-      ctx.beginPath()
-      ctx.arc(0, 0, r * 0.74, 0, TAU)
-      ctx.strokeStyle = rgba(MW, 0.35)
-      ctx.lineWidth = 1.4
+      // 吸积环：虚空边缘一圈细亮线
+      disc(0.76)()
+      ctx.lineWidth = 1.6
+      ctx.strokeStyle = rgba(lighten(MW, 0.25), 0.75)
       ctx.stroke()
-      // 内指的獠牙
+      disc(0.7)()
+      ctx.lineWidth = 0.8
+      ctx.strokeStyle = rgba('#ffffff', 0.25)
+      ctx.stroke()
+      // 内指的獠牙：金属尖牙，根部在外圈上
       for (let i = 0; i < 12; i++) {
         const a = (i / 12) * TAU
         const ax = Math.cos(a)
         const ay = Math.sin(a)
-        ctx.beginPath()
-        ctx.moveTo(ax * r * 0.97 - ay * 6, ay * r * 0.97 + ax * 6)
-        ctx.lineTo(ax * r * 0.62, ay * r * 0.62)
-        ctx.lineTo(ax * r * 0.97 + ay * 6, ay * r * 0.97 - ax * 6)
-        ctx.closePath()
-        ctx.fillStyle = rgba(MW, 0.22)
+        const fang: Trace = () => {
+          ctx.beginPath()
+          ctx.moveTo(ax * r * 0.97 - ay * 6.5, ay * r * 0.97 + ax * 6.5)
+          ctx.lineTo(ax * r * 0.6, ay * r * 0.6)
+          ctx.lineTo(ax * r * 0.97 + ay * 6.5, ay * r * 0.97 - ax * 6.5)
+          ctx.closePath()
+        }
+        fang()
+        ctx.lineWidth = 3.2
+        ctx.strokeStyle = ink(0.95)
+        ctx.stroke()
+        const fg = ctx.createLinearGradient(ax * r * 0.97, ay * r * 0.97, ax * r * 0.6, ay * r * 0.6)
+        fg.addColorStop(0, t.lo)
+        fg.addColorStop(0.5, t.mid)
+        fg.addColorStop(1, lighten(MW, 0.55))
+        fang()
+        ctx.fillStyle = fg
         ctx.fill()
-        ctx.strokeStyle = rgba(lighten(MW, 0.4), 0.75)
-        ctx.lineWidth = 1.1
+        ctx.beginPath()
+        ctx.moveTo(ax * r * 0.95 - ay * 5.2, ay * r * 0.95 + ax * 5.2)
+        ctx.lineTo(ax * r * 0.62, ay * r * 0.62)
+        ctx.lineWidth = 0.8
+        ctx.strokeStyle = rgba('#ffffff', 0.45)
         ctx.stroke()
       }
     })
     this.mwArcs = make(230, 230, ss, (ctx) => {
       ctx.lineCap = 'round'
+      const t = tonesOf(MW, 0.02)
+      const plateArc = (R: number, a0: number, a1: number, w: number): void => {
+        const seg = (): void => {
+          ctx.beginPath()
+          ctx.arc(0, 0, R, a0, a1)
+        }
+        seg()
+        ctx.lineWidth = w + 3.2
+        ctx.strokeStyle = ink(0.95)
+        ctx.stroke()
+        seg()
+        ctx.lineWidth = w
+        ctx.strokeStyle = t.mid
+        ctx.stroke()
+        ctx.beginPath()
+        ctx.arc(0, 0, R + w * 0.2, a0 + 0.04, a1 - 0.04)
+        ctx.lineWidth = Math.max(0.9, w * 0.22)
+        ctx.strokeStyle = rgba(lighten(MW, 0.55), 0.75)
+        ctx.stroke()
+      }
       for (let i = 0; i < 4; i++) {
         const a = (i / 4) * TAU
-        ctx.beginPath()
-        ctx.arc(0, 0, 78, a, a + 1.05)
-        neon(ctx, MW, ss, 3, 14, 0.6)
+        plateArc(78, a, a + 1.05, 6.5)
+        const e = a + 0.5
+        lamp(ctx, Math.cos(e) * 78, Math.sin(e) * 78, 1.8, MW, 0.8)
       }
       for (let i = 0; i < 3; i++) {
         const a = (i / 3) * TAU + 0.5
-        ctx.beginPath()
-        ctx.arc(0, 0, 94, a, a + 0.62)
-        ctx.strokeStyle = rgba(lighten(MW, 0.3), 0.55)
-        ctx.lineWidth = 2
-        ctx.stroke()
+        plateArc(94, a, a + 0.62, 3.6)
       }
     })
   }
@@ -226,11 +385,17 @@ export class BossArt {
     ctx.translate(b.x, b.y)
     ctx.globalAlpha = fade
 
-    // 底部辉光
+    // 脚下的接触阴影：让庞然大物"压"在地面上
+    const sh = bank.shadow
+    const ss = b.r * 3.6
+    ctx.globalAlpha = fade * 0.7
+    ctx.drawImage(sh.c, -ss / 2 + b.r * 0.12, -ss / 2 + b.r * 0.3, ss, ss)
+
+    // 阶段色的环境光：比旧版收得紧很多，只在机体周围一圈，蓄力时才明显
     ctx.globalCompositeOperation = 'lighter'
     const glow = bank.glow(col)
-    const gs = b.r * (charging ? 5 : 4) * (1 + pulse * 0.08)
-    ctx.globalAlpha = fade * (0.5 + pulse * 0.2 + (charging ? 0.3 : 0))
+    const gs = b.r * (charging ? 3.8 : 2.7) * (1 + pulse * 0.06)
+    ctx.globalAlpha = fade * (0.2 + pulse * 0.08 + (charging ? 0.3 : 0))
     ctx.drawImage(glow.c, -gs / 2, -gs / 2, gs, gs)
     ctx.globalCompositeOperation = 'source-over'
     ctx.globalAlpha = fade
@@ -253,11 +418,11 @@ export class BossArt {
     this.drawBody(ctx, b, px, py, vt, bank)
 
     // 受击 / 阶段转换闪白
-    const hot = b.flash > 0 ? 0.5 : intro ? 0.25 + 0.25 * Math.sin(vt * 30) : 0
+    const hot = b.flash > 0 ? 0.4 : intro ? 0.2 + 0.2 * Math.sin(vt * 30) : 0
     if (hot > 0) {
       ctx.globalCompositeOperation = 'lighter'
       const w = bank.glow('#ffffff')
-      const ws = b.r * 2.8
+      const ws = b.r * 2.3
       ctx.globalAlpha = hot
       ctx.drawImage(w.c, -ws / 2, -ws / 2, ws, ws)
     }
@@ -280,21 +445,17 @@ export class BossArt {
         const p = this.ovPupil
         ctx.drawImage(p.c, -p.w / 2, -p.h / 2, p.w, p.h)
         ctx.restore()
-        // 护盾球
+        // 护盾球：实心的带描边球体（和玩家那种加色光弹一眼分得开）
+        const bead = bank.bead('#ff9aa8')
         for (const o of b.orbs) {
-          const g = bank.glow('#ff9aa8')
-          const gs = o.r * 4.2
-          ctx.save()
-          ctx.translate(o.x - b.x, o.y - b.y)
-          ctx.globalCompositeOperation = 'lighter'
-          ctx.drawImage(g.c, -gs / 2, -gs / 2, gs, gs)
-          ctx.restore()
+          const bs = bead.w * ((o.r * 1.2) / 8)
+          ctx.drawImage(bead.c, o.x - b.x - bs / 2, o.y - b.y - bs / 2, bs, bs)
         }
         break
       }
       case 'fractal': {
         const t = b.ang
-        ctx.globalAlpha *= 0.95
+        ctx.globalAlpha *= 0.97
         this.rot(ctx, this.frTri, t * 1.1, 1)
         this.rot(ctx, this.frTri, -t * 1.7 + 0.5, 0.66)
         this.rot(ctx, this.frTri, t * 2.4, 0.36)

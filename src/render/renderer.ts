@@ -11,9 +11,10 @@ import { Camera } from './camera'
 import { FloatTexts } from './floattext'
 import { NumberFont } from './numfont'
 import { Particles } from './particles'
+import { ink } from './matte'
 import { lighten, rgba } from './palette'
 import { FACES_MOTION } from './shapes'
-import { GEM_COLORS, PICKUP_COLOR, SpriteBank } from './sprites'
+import { GEM_COLORS, PICKUP_COLOR, SpriteBank, engineMounts } from './sprites'
 
 export type Quality = 'high' | 'medium' | 'low'
 
@@ -32,12 +33,14 @@ interface QualityCfg {
   density: number
   cap: number
   nebula: boolean
+  /** 敌人 / 飞船脚下的接触阴影 */
+  shadows: boolean
 }
 
 const QUALITY: Record<Quality, QualityCfg> = {
-  high: { pixels: 3.4e6, dprMax: 2, bloom: true, density: 1, cap: 2000, nebula: true },
-  medium: { pixels: 2.1e6, dprMax: 1.5, bloom: true, density: 0.65, cap: 1200, nebula: true },
-  low: { pixels: 1.2e6, dprMax: 1, bloom: false, density: 0.35, cap: 600, nebula: false },
+  high: { pixels: 3.4e6, dprMax: 2, bloom: true, density: 1, cap: 2000, nebula: true, shadows: true },
+  medium: { pixels: 2.1e6, dprMax: 1.5, bloom: true, density: 0.65, cap: 1200, nebula: true, shadows: true },
+  low: { pixels: 1.2e6, dprMax: 1, bloom: false, density: 0.35, cap: 600, nebula: false, shadows: false },
 }
 
 interface Ghost {
@@ -134,11 +137,15 @@ export class Renderer {
   private bhC: CanvasRenderingContext2D | null = null
   private bqC: CanvasRenderingContext2D | null = null
   private beC: CanvasRenderingContext2D | null = null
+  /** 阈值化用的半分辨率暂存（把画面和自己相乘时不能原地读写） */
+  private bloomTmp: HTMLCanvasElement | null = null
+  private btC: CanvasRenderingContext2D | null = null
 
   private readonly hurtVig: HTMLCanvasElement
   /** 聚焦暗角（进化演出时把视线收向飞船）与它的强度（0..1，由 App 按时间流速给出） */
   private readonly focusVig: HTMLCanvasElement
   private focusV = 0
+  private shadowsOn = true
 
   /** 最近一帧 CPU 耗时（毫秒，指数平滑），用于自适应画质 */
   frameMs = 0
@@ -183,6 +190,7 @@ export class Renderer {
     const q = QUALITY[this.settings.quality]
     this.parts.density = q.density
     this.bg.nebulaOn = q.nebula
+    this.shadowsOn = q.shadows
   }
 
   setQuality(q: Quality): void {
@@ -237,6 +245,7 @@ export class Renderer {
     ;[this.bloomHalf, this.bhC] = mk(this.W >> 1, this.H >> 1)
     ;[this.bloomQuarter, this.bqC] = mk(this.W >> 2, this.H >> 2)
     ;[this.bloomEighth, this.beC] = mk(this.W >> 3, this.H >> 3)
+    ;[this.bloomTmp, this.btC] = mk(this.W >> 2, this.H >> 2)
   }
 
   // ───────────────────────── 生命周期 ─────────────────────────
@@ -793,24 +802,54 @@ export class Renderer {
     }
   }
 
+  /** 斜纹警示带：只填进调用方已经裁好的矩形里（整组平行四边形一次 fill，条纹缓慢流动） */
+  private hatch(x0: number, y0: number, w: number, h: number, color: string, alpha: number): void {
+    const ctx = this.ctx
+    const period = 24
+    const sw = 8
+    const off = (this.vt * 28) % period
+    ctx.fillStyle = rgba(color, alpha)
+    ctx.beginPath()
+    for (let x = x0 - h - sw - period + off; x < x0 + w; x += period) {
+      ctx.moveTo(x, y0 + h)
+      ctx.lineTo(x + sw, y0 + h)
+      ctx.lineTo(x + sw + h, y0)
+      ctx.lineTo(x + h, y0)
+      ctx.closePath()
+    }
+    ctx.fill()
+  }
+
+  /**
+   * Boss 预警：工业"危险区"的画法——淡底色 + 斜纹警示带 + 利落的边线，不用任何加色光。
+   * 前半程平稳，临近出手（p > 0.78）整块快闪，让玩家知道"现在就要打下来了"。
+   */
   private drawTelegraphs(w: World): void {
     const ctx = this.ctx
     for (const tl of w.teles) {
       if (!tl.alive) continue
       const p = 1 - tl.t / tl.maxT
+      const fl = p > 0.78 ? (Math.sin(this.vt * 55) > 0 ? 1 : 0.6) : 1
       if (tl.kind === 'circle') {
         if (!this.inView(tl.x, tl.y, tl.r + 40)) continue
-        ctx.fillStyle = rgba(tl.color, 0.05 + 0.15 * p)
+        ctx.save()
         ctx.beginPath()
         ctx.arc(tl.x, tl.y, tl.r, 0, TAU)
-        ctx.fill()
-        ctx.strokeStyle = rgba(tl.color, 0.5 + 0.4 * p)
+        ctx.clip()
+        ctx.fillStyle = rgba(tl.color, (0.04 + 0.1 * p) * fl)
+        ctx.fillRect(tl.x - tl.r, tl.y - tl.r, tl.r * 2, tl.r * 2)
+        this.hatch(tl.x - tl.r, tl.y - tl.r, tl.r * 2, tl.r * 2, tl.color, (0.08 + 0.18 * p) * fl)
+        ctx.restore()
+        ctx.beginPath()
+        ctx.arc(tl.x, tl.y, tl.r, 0, TAU)
+        ctx.strokeStyle = rgba(tl.color, (0.55 + 0.4 * p) * fl)
         ctx.lineWidth = 2
         ctx.setLineDash([8, 6])
         ctx.stroke()
         ctx.setLineDash([])
+        // 收拢的实线圈：画到边线上就是出手的一刻
         ctx.strokeStyle = rgba(tl.color, 0.9)
-        ctx.lineWidth = 3
+        ctx.lineWidth = 2.5
         ctx.beginPath()
         ctx.arc(tl.x, tl.y, tl.r * p, 0, TAU)
         ctx.stroke()
@@ -824,24 +863,31 @@ export class Renderer {
         ctx.save()
         ctx.translate(tl.x, tl.y)
         ctx.rotate(Math.atan2(dy, dx))
-        ctx.fillStyle = rgba(tl.color, 0.05 + 0.17 * p)
+        ctx.fillStyle = rgba(tl.color, (0.04 + 0.08 * p) * fl)
         ctx.fillRect(0, -tl.r, len, tl.r * 2)
-        ctx.strokeStyle = rgba(tl.color, 0.35 + 0.5 * p)
-        ctx.lineWidth = 1.6
+        ctx.save()
+        ctx.beginPath()
+        ctx.rect(0, -tl.r, len, tl.r * 2)
+        ctx.clip()
+        this.hatch(0, -tl.r, len, tl.r * 2, tl.color, (0.1 + 0.2 * p) * fl)
+        ctx.restore()
+        ctx.strokeStyle = rgba(tl.color, (0.55 + 0.4 * p) * fl)
+        ctx.lineWidth = 1.5
         ctx.beginPath()
         ctx.moveTo(0, -tl.r)
         ctx.lineTo(len, -tl.r)
         ctx.moveTo(0, tl.r)
         ctx.lineTo(len, tl.r)
         ctx.stroke()
-        // 中心线随时间变亮
-        ctx.globalCompositeOperation = 'lighter'
-        ctx.strokeStyle = rgba(tl.color, 0.15 + 0.7 * p)
-        ctx.lineWidth = 2 + 4 * p
+        // 中线：先是虚线（还在瞄准），越接近出手越实、越亮、越粗
+        ctx.strokeStyle = rgba('#ffffff', (0.22 + 0.6 * p) * fl)
+        ctx.lineWidth = 1 + 2.2 * p
+        ctx.setLineDash(p < 0.7 ? [16, 10] : [])
         ctx.beginPath()
         ctx.moveTo(0, 0)
         ctx.lineTo(len, 0)
         ctx.stroke()
+        ctx.setLineDash([])
         ctx.restore()
       }
     }
@@ -867,19 +913,28 @@ export class Renderer {
       const bob = Math.sin(this.vt * 3 + pk.x * 0.1) * 2.2
       const s = bank.pickup[pk.kind]
       const special = pk.kind === 'chest' || pk.kind === 'cache'
-      // 光晕
-      const g = bank.glow(col)
-      const gs = special ? 62 : 44
-      ctx.globalCompositeOperation = 'lighter'
-      ctx.globalAlpha = 0.45 + 0.2 * Math.sin(this.vt * 4 + pk.y * 0.1)
-      ctx.drawImage(g.c, pk.x - gs / 2, pk.y + bob - gs / 2, gs, gs)
+      // 光晕：普通拾取物的淡光已经画进精灵里；宝箱 / 补给箱再加一圈呼吸光
+      if (special) {
+        const g = bank.glow(col)
+        const gs = 50
+        ctx.globalCompositeOperation = 'lighter'
+        ctx.globalAlpha = 0.26 + 0.12 * Math.sin(this.vt * 4 + pk.y * 0.1)
+        ctx.drawImage(g.c, pk.x - gs / 2, pk.y + bob - gs / 2, gs, gs)
+      }
       if (pk.kind === 'chest') {
-        // 宝箱的光柱，远处也能看见
-        ctx.globalAlpha = 0.5
-        ctx.fillStyle = rgba(col, 0.35)
-        ctx.fillRect(pk.x - 2, pk.y - 90, 4, 90)
-        ctx.fillStyle = rgba('#ffffff', 0.5)
-        ctx.fillRect(pk.x - 0.8, pk.y - 90, 1.6, 90)
+        // 宝箱的光柱：渐隐的一束光，远处也能看见
+        const beam = ctx.createLinearGradient(0, pk.y - 96, 0, pk.y)
+        beam.addColorStop(0, rgba(col, 0))
+        beam.addColorStop(1, rgba(col, 0.42))
+        ctx.globalCompositeOperation = 'lighter'
+        ctx.globalAlpha = 1
+        ctx.fillStyle = beam
+        ctx.fillRect(pk.x - 2.5, pk.y - 96, 5, 96)
+        const core = ctx.createLinearGradient(0, pk.y - 96, 0, pk.y)
+        core.addColorStop(0, 'rgba(255,255,255,0)')
+        core.addColorStop(1, 'rgba(255,255,255,0.5)')
+        ctx.fillStyle = core
+        ctx.fillRect(pk.x - 0.8, pk.y - 96, 1.6, 96)
       }
       ctx.globalAlpha = 1
       ctx.globalCompositeOperation = 'source-over'
@@ -954,6 +1009,21 @@ export class Renderer {
     const k = this.k
     const ox = this.ox
     const oy = this.oy
+    // 接触阴影：先把所有阴影画完再画机体，状态切换最少
+    if (this.shadowsOn) {
+      const sh = bank.shadow
+      ctx.setTransform(1, 0, 0, 1, 0, 0)
+      for (const e of w.enemies) {
+        // 小个子（蜂群 / 碎片）的影子看不出来，却占了一半的张数：跳过
+        if (!e.alive || e.r < 9 || !this.inView(e.x, e.y, 40)) continue
+        let a = 0.55
+        if (e.spawnT > 0) a *= 0.15 + 0.85 * clamp01(1 - e.spawnT / ENEMY_SPAWN_FADE)
+        if (e.def.ai === 'wraith' && e.state !== 0) a *= 0.12 + 0.88 * e.aux
+        const sz = e.r * 2.8 * k
+        ctx.globalAlpha = a
+        ctx.drawImage(sh.c, ox + (e.x + e.r * 0.2) * k - sz / 2, oy + (e.y + e.r * 0.36) * k - sz / 2, sz, sz)
+      }
+    }
     for (const e of w.enemies) {
       if (!e.alive || !this.inView(e.x, e.y, 40)) continue
       const def = e.def
@@ -1052,16 +1122,24 @@ export class Renderer {
   private drawEnemyBullets(w: World): void {
     const ctx = this.ctx
     const bank = this.bank
-    ctx.globalCompositeOperation = 'lighter'
+    ctx.lineCap = 'round'
     for (const b of w.ebullets) {
       if (!b.alive || !this.inView(b.x, b.y, 20)) continue
       if (b.kind === 'needle') {
-        ctx.strokeStyle = rgba(b.color, 0.85)
-        ctx.lineWidth = b.r * 1.5
-        ctx.lineCap = 'round'
+        // 针弹：深色衬边 + 彩色弹体 + 白色亮芯，全是实心描绘，密集时也分得清
+        const tx = b.x - b.vx * 0.05
+        const ty = b.y - b.vy * 0.05
+        ctx.strokeStyle = ink(0.85)
+        ctx.lineWidth = b.r * 2.7
         ctx.beginPath()
         ctx.moveTo(b.x, b.y)
-        ctx.lineTo(b.x - b.vx * 0.05, b.y - b.vy * 0.05)
+        ctx.lineTo(tx, ty)
+        ctx.stroke()
+        ctx.strokeStyle = b.color
+        ctx.lineWidth = b.r * 1.6
+        ctx.beginPath()
+        ctx.moveTo(b.x, b.y)
+        ctx.lineTo(tx, ty)
         ctx.stroke()
         ctx.strokeStyle = 'rgba(255,255,255,0.95)'
         ctx.lineWidth = b.r * 0.6
@@ -1070,12 +1148,12 @@ export class Renderer {
         ctx.lineTo(b.x - b.vx * 0.032, b.y - b.vy * 0.032)
         ctx.stroke()
       } else {
-        const g = bank.glow(b.color)
-        const s = b.r * 4
-        ctx.drawImage(g.c, b.x - s / 2, b.y - s / 2, s, s)
+        // 圆弹：带墨色描边的实心球。和玩家那种"加色光弹"一眼分得开：描边的是危险的
+        const s = bank.bead(b.color)
+        const d = s.w * ((b.r * 1.35) / 8)
+        ctx.drawImage(s.c, b.x - d / 2, b.y - d / 2, d, d)
       }
     }
-    ctx.globalCompositeOperation = 'source-over'
   }
 
   private drawBeams(w: World): void {
@@ -1099,16 +1177,24 @@ export class Renderer {
       ctx.translate(bm.ox, bm.oy)
       ctx.rotate(bm.ang)
       const vw = width * 0.78
-      ctx.fillStyle = rgba(bm.color, 0.12 * env * flick)
-      ctx.fillRect(0, -vw * 0.95, bm.len, vw * 1.9)
-      ctx.fillStyle = rgba(bm.color, 0.4 * env * flick)
-      ctx.fillRect(0, -vw * 0.45, bm.len, vw * 0.9)
-      ctx.fillStyle = rgba('#ffffff', 0.72 * env * flick)
-      ctx.fillRect(0, -vw * 0.13, bm.len, vw * 0.26)
+      // 光束的横截面一次画完：中间一条细而白热的芯，往两侧过渡到彩色光体，再柔和地淡出
+      // （旧版是三层叠起来的矩形，粗白条一多就糊成白板）
+      const e = env * flick
+      const body = ctx.createLinearGradient(0, -vw * 0.85, 0, vw * 0.85)
+      body.addColorStop(0, rgba(bm.color, 0))
+      body.addColorStop(0.26, rgba(bm.color, 0.22 * e))
+      body.addColorStop(0.42, rgba(bm.color, 0.62 * e))
+      body.addColorStop(0.47, rgba('#ffffff', 0.92 * e))
+      body.addColorStop(0.53, rgba('#ffffff', 0.92 * e))
+      body.addColorStop(0.58, rgba(bm.color, 0.62 * e))
+      body.addColorStop(0.74, rgba(bm.color, 0.22 * e))
+      body.addColorStop(1, rgba(bm.color, 0))
+      ctx.fillStyle = body
+      ctx.fillRect(0, -vw * 0.85, bm.len, vw * 1.7)
       ctx.restore()
       const g = bank.glow(bm.color)
-      const gs = vw * 2.6
-      ctx.globalAlpha = Math.min(0.75, env)
+      const gs = vw * 1.9
+      ctx.globalAlpha = Math.min(0.6, env)
       ctx.drawImage(g.c, bm.ox - gs / 2, bm.oy - gs / 2, gs, gs)
       ctx.globalAlpha = 1
     }
@@ -1125,28 +1211,28 @@ export class Renderer {
       const p = clamp01(rg.r / rg.maxR)
       const a = 1 - p * 0.75
       if (rg.hostile) {
-        ctx.strokeStyle = rgba(rg.color, 0.28 * a)
-        ctx.lineWidth = 26
+        ctx.strokeStyle = rgba(rg.color, 0.17 * a)
+        ctx.lineWidth = 18
         ctx.beginPath()
         ctx.arc(rg.x, rg.y, rg.r, 0, TAU)
         ctx.stroke()
         ctx.strokeStyle = rgba(rg.color, 0.9 * a)
-        ctx.lineWidth = 8
+        ctx.lineWidth = 6
         ctx.stroke()
         ctx.strokeStyle = rgba('#ffffff', 0.95 * a)
-        ctx.lineWidth = 2.4
+        ctx.lineWidth = 2
         ctx.stroke()
       } else {
-        ctx.strokeStyle = rgba(rg.color, 0.22 * a)
-        ctx.lineWidth = 22
+        ctx.strokeStyle = rgba(rg.color, 0.13 * a)
+        ctx.lineWidth = 15
         ctx.beginPath()
         ctx.arc(rg.x, rg.y, rg.r, 0, TAU)
         ctx.stroke()
-        ctx.strokeStyle = rgba(rg.color, 0.75 * a)
-        ctx.lineWidth = 6
+        ctx.strokeStyle = rgba(rg.color, 0.78 * a)
+        ctx.lineWidth = 4.5
         ctx.stroke()
         ctx.strokeStyle = rgba('#ffffff', 0.9 * a)
-        ctx.lineWidth = 2
+        ctx.lineWidth = 1.8
         ctx.stroke()
       }
     }
@@ -1185,22 +1271,22 @@ export class Renderer {
         }
       }
       path()
-      ctx.strokeStyle = rgba(bt.color, 0.28 * f)
-      ctx.lineWidth = 11
+      ctx.strokeStyle = rgba(bt.color, 0.18 * f)
+      ctx.lineWidth = 8
       ctx.stroke()
       path()
       ctx.strokeStyle = rgba(bt.color, 0.9 * f)
-      ctx.lineWidth = 3.6
+      ctx.lineWidth = 3
       ctx.stroke()
       path()
       ctx.strokeStyle = rgba('#ffffff', 0.95 * f)
-      ctx.lineWidth = 1.4
+      ctx.lineWidth = 1.2
       ctx.stroke()
       // 命中点的小闪光
       const g = this.bank.glow(bt.color)
       ctx.globalAlpha = f
       for (let i = 2; i < pts.length; i += 2) {
-        ctx.drawImage(g.c, pts[i] - 16, pts[i + 1] - 16, 32, 32)
+        ctx.drawImage(g.c, pts[i] - 11, pts[i + 1] - 11, 22, 22)
       }
       ctx.globalAlpha = 1
     }
@@ -1215,15 +1301,23 @@ export class Renderer {
       if (!b.alive || !this.inView(b.x, b.y, b.r + 40)) continue
       const lp = clamp01(b.life / b.maxLife)
       const grow = 1 - lp * lp
+      // 白热的闪光芯：很快收缩熄灭
       const g = bank.glow(b.color)
-      const gs = b.r * 2.6 * (0.55 + 0.45 * grow)
-      ctx.globalAlpha = Math.min(0.72, lp * 1.0)
+      const gs = b.r * 1.9 * (0.5 + 0.5 * grow)
+      ctx.globalAlpha = Math.min(0.85, lp * 1.15)
       ctx.drawImage(g.c, b.x - gs / 2, b.y - gs / 2, gs, gs)
-      ctx.fillStyle = rgba(b.color, 0.16 * lp)
-      ctx.beginPath()
-      ctx.arc(b.x, b.y, b.r * (0.4 + 0.6 * grow), 0, TAU)
-      ctx.fill()
+      // 淡淡的范围底色 + 向外扩散的冲击环（环越走越细）
+      const rr = b.r * (0.4 + 0.6 * grow)
       ctx.globalAlpha = 1
+      ctx.fillStyle = rgba(b.color, 0.09 * lp)
+      ctx.beginPath()
+      ctx.arc(b.x, b.y, rr, 0, TAU)
+      ctx.fill()
+      ctx.strokeStyle = rgba(lighten(b.color, 0.55), 0.7 * lp)
+      ctx.lineWidth = 0.8 + 3.2 * lp
+      ctx.beginPath()
+      ctx.arc(b.x, b.y, rr, 0, TAU)
+      ctx.stroke()
     }
     ctx.globalCompositeOperation = 'source-over'
   }
@@ -1277,8 +1371,8 @@ export class Renderer {
         // 拖尾：每片光刃后面一道淡淡的弧
         if (wi.pts.length > 0) {
           ctx.globalCompositeOperation = 'lighter'
-          ctx.strokeStyle = rgba(col, 0.18)
-          ctx.lineWidth = 3
+          ctx.strokeStyle = rgba(col, 0.14)
+          ctx.lineWidth = 2.6
           const p = w.player
           for (const pt of wi.pts) {
             const rr = Math.hypot(pt.x - p.x, pt.y - p.y)
@@ -1308,7 +1402,7 @@ export class Renderer {
           ctx.globalCompositeOperation = 'lighter'
           for (let k = 1; k <= 3; k++) {
             const gs = pt.r * (3.4 - k * 0.5)
-            ctx.globalAlpha = 0.34 / k
+            ctx.globalAlpha = 0.24 / k
             ctx.drawImage(gl.c, pt.x - dx * k * 11 - gs / 2, pt.y - dy * k * 11 - gs / 2, gs, gs)
           }
           ctx.globalAlpha = 1
@@ -1347,56 +1441,60 @@ export class Renderer {
       switch (b.kind) {
         case 'bolt':
         case 'drone': {
+          // 曳光弹：彩色尾迹 + 白热弹芯 + 弹头一点亮斑
           const len = b.kind === 'bolt' ? 20 + b.r * 2 : 14
-          ctx.strokeStyle = rgba(b.color, 0.5)
-          ctx.lineWidth = b.r * 2.4
+          ctx.strokeStyle = rgba(b.color, 0.55)
+          ctx.lineWidth = b.r * 1.7
           ctx.beginPath()
           ctx.moveTo(b.x, b.y)
           ctx.lineTo(b.x - dx * len, b.y - dy * len)
           ctx.stroke()
           ctx.strokeStyle = 'rgba(255,255,255,0.95)'
-          ctx.lineWidth = b.r * 0.9
+          ctx.lineWidth = b.r * 0.8
           ctx.beginPath()
           ctx.moveTo(b.x, b.y)
           ctx.lineTo(b.x - dx * len * 0.6, b.y - dy * len * 0.6)
           ctx.stroke()
           const g = bank.glow(b.color)
-          const gs = b.r * 5.5
+          const gs = b.r * 3.4
           ctx.drawImage(g.c, b.x - gs / 2, b.y - gs / 2, gs, gs)
           break
         }
         case 'plasma': {
+          // 等离子球：白热核心 + 一圈收得很紧的彩色光
           const g = bank.glow(b.color)
-          const gs = b.r * 7
-          ctx.strokeStyle = rgba(b.color, 0.45)
-          ctx.lineWidth = b.r * 1.6
+          const gs = b.r * 4.6
+          ctx.strokeStyle = rgba(b.color, 0.4)
+          ctx.lineWidth = b.r * 1.2
           ctx.beginPath()
           ctx.moveTo(b.x, b.y)
           ctx.lineTo(b.x - dx * 26, b.y - dy * 26)
           ctx.stroke()
           ctx.drawImage(g.c, b.x - gs / 2, b.y - gs / 2, gs, gs)
+          ctx.fillStyle = 'rgba(255,255,255,0.95)'
+          ctx.beginPath()
+          ctx.arc(b.x, b.y, b.r * 0.5, 0, TAU)
+          ctx.fill()
           break
         }
         case 'missile': {
-          // 尾焰
-          const fl = bank.glow('#ffb347')
-          const fs = 22 + 6 * Math.sin(this.vt * 60 + b.x)
-          ctx.drawImage(fl.c, b.x - dx * 8 - fs / 2, b.y - dy * 8 - fs / 2, fs, fs)
+          const ang = Math.atan2(dy, dx)
+          // 尾焰：水滴形火舌（白芯 → 橙），随速度闪烁
+          const fl = bank.flame('#ffb347')
+          const len = 15 + 5 * Math.sin(this.vt * 60 + b.x)
+          ctx.save()
+          ctx.translate(b.x - dx * 4.5, b.y - dy * 4.5)
+          ctx.rotate(ang + Math.PI)
+          ctx.scale(len / 36, 5.2 / 12)
+          ctx.drawImage(fl.c, 17 - fl.w / 2, -fl.h / 2, fl.w, fl.h)
+          ctx.restore()
+          // 弹体：不透明的金属弹头
           ctx.globalCompositeOperation = 'source-over'
+          const ms = bank.missile(b.color)
           ctx.save()
           ctx.translate(b.x, b.y)
-          ctx.rotate(Math.atan2(dy, dx))
-          ctx.beginPath()
-          ctx.moveTo(8, 0)
-          ctx.lineTo(-5, 4.2)
-          ctx.lineTo(-2.5, 0)
-          ctx.lineTo(-5, -4.2)
-          ctx.closePath()
-          ctx.fillStyle = rgba(b.color, 0.9)
-          ctx.fill()
-          ctx.strokeStyle = '#ffffff'
-          ctx.lineWidth = 1.2
-          ctx.stroke()
+          ctx.rotate(ang)
+          ctx.drawImage(ms.c, -ms.w / 2, -ms.h / 2, ms.w, ms.h)
           ctx.restore()
           ctx.globalCompositeOperation = 'lighter'
           // 烟迹
@@ -1407,8 +1505,12 @@ export class Renderer {
         }
         case 'shard': {
           const g = bank.glow(b.color)
-          const gs = b.r * 5
+          const gs = b.r * 3.8
           ctx.drawImage(g.c, b.x - gs / 2, b.y - gs / 2, gs, gs)
+          ctx.fillStyle = 'rgba(255,255,255,0.9)'
+          ctx.beginPath()
+          ctx.arc(b.x, b.y, b.r * 0.45, 0, TAU)
+          ctx.fill()
           break
         }
       }
@@ -1444,8 +1546,8 @@ export class Renderer {
     const vt = this.vt
     ctx.globalCompositeOperation = 'lighter'
     const g = this.bank.glow('#ffd84a')
-    const gs = 92 + n * 7 + 10 * Math.sin(vt * 3.2)
-    ctx.globalAlpha = Math.min(0.62, 0.28 + n * 0.07)
+    const gs = 78 + n * 6 + 8 * Math.sin(vt * 3.2)
+    ctx.globalAlpha = Math.min(0.4, 0.17 + n * 0.05)
     ctx.drawImage(g.c, p.x - gs / 2, p.y - gs / 2, gs, gs)
     ctx.globalAlpha = 1
     const span = Math.min(1.9, (TAU / n) * 0.7)
@@ -1454,8 +1556,8 @@ export class Renderer {
       const a0 = rot + (i / n) * TAU
       const r = 31 + Math.sin(vt * 3 + i * 1.7) * 1.2
       // 弧线底下垫一层宽而淡的同色光
-      ctx.strokeStyle = rgba(cols[i], 0.22)
-      ctx.lineWidth = 8
+      ctx.strokeStyle = rgba(cols[i], 0.15)
+      ctx.lineWidth = 5.5
       ctx.beginPath()
       ctx.arc(p.x, p.y, r, a0, a0 + span)
       ctx.stroke()
@@ -1491,32 +1593,30 @@ export class Renderer {
     const speed = Math.hypot(p.vx, p.vy)
     const dashing = p.dashT > 0
 
-    // 尾焰
-    const fx = p.x - Math.cos(p.face) * 11
-    const fy = p.y - Math.sin(p.face) * 11
-    const fl = 14 + speed * 0.075 + (dashing ? 26 : 0) + Math.sin(this.vt * 55) * 2.2
+    // 接触阴影：让机身"浮"在地面之上
+    if (this.shadowsOn) {
+      ctx.globalAlpha = 0.5
+      ctx.drawImage(bank.shadow.c, p.x - 22 + 3, p.y - 22 + 5, 44, 44)
+      ctx.globalAlpha = 1
+    }
+
+    // 尾焰：从每个喷口各喷一道水滴形火舌，长度随速度 / 冲刺变化
+    const fcos = Math.cos(p.face)
+    const fsin = Math.sin(p.face)
+    const fl = 10 + speed * 0.05 + (dashing ? 18 : 0) + Math.sin(this.vt * 55) * 1.6
+    const flame = bank.flame(ship.color)
     ctx.globalCompositeOperation = 'lighter'
-    const g1 = bank.glow(ship.accent)
-    ctx.globalAlpha = 0.85
-    ctx.drawImage(g1.c, fx - Math.cos(p.face) * fl * 0.25 - fl, fy - Math.sin(p.face) * fl * 0.25 - fl, fl * 2, fl * 2)
-    ctx.globalAlpha = 0.9
-    const g2 = bank.glow('#ffffff')
-    const f2 = fl * 0.7
-    ctx.drawImage(g2.c, fx - f2 / 2, fy - f2 / 2, f2, f2)
-    ctx.globalAlpha = 1
+    for (const [mx, my] of engineMounts(w.cfg.ship)) {
+      ctx.save()
+      ctx.translate(p.x + fcos * mx - fsin * my, p.y + fsin * mx + fcos * my)
+      ctx.rotate(p.face + Math.PI)
+      ctx.scale(fl / 36, (dashing ? 6.2 : 5) / 12)
+      ctx.drawImage(flame.c, 17 - flame.w / 2, -flame.h / 2, flame.w, flame.h)
+      ctx.restore()
+    }
     ctx.globalCompositeOperation = 'source-over'
 
     this.drawEvoAura(p)
-
-    // 衬底：深色柔边圆，让机身在明亮的特效里依然清晰
-    const plate = ctx.createRadialGradient(p.x, p.y, 2, p.x, p.y, 24)
-    plate.addColorStop(0, 'rgba(2,4,12,0.62)')
-    plate.addColorStop(0.55, 'rgba(2,4,12,0.34)')
-    plate.addColorStop(1, 'rgba(2,4,12,0)')
-    ctx.fillStyle = plate
-    ctx.beginPath()
-    ctx.arc(p.x, p.y, 24, 0, TAU)
-    ctx.fill()
 
     // 机身
     let alpha = 1
@@ -1535,9 +1635,13 @@ export class Renderer {
     ctx.globalAlpha = 1
 
     // 判定核心：小白点，让玩家知道真正会被打中的位置
-    ctx.fillStyle = 'rgba(255,255,255,0.95)'
+    ctx.fillStyle = ink(0.8)
     ctx.beginPath()
-    ctx.arc(p.x, p.y, 2.2, 0, TAU)
+    ctx.arc(p.x, p.y, 3.4, 0, TAU)
+    ctx.fill()
+    ctx.fillStyle = 'rgba(255,255,255,0.97)'
+    ctx.beginPath()
+    ctx.arc(p.x, p.y, 2.1, 0, TAU)
     ctx.fill()
 
     // 无敌护罩（复活后等较长的无敌）
@@ -1554,6 +1658,13 @@ export class Renderer {
 
   // ───────────────────────── 后处理与 HUD 层 ─────────────────────────
 
+  /**
+   * 泛光：只让"真正很亮"的东西（弹芯、爆炸、灯、激光）向外晕开。
+   * 先降到 1/4 分辨率，再把它和自己相乘两次（c⁴ 会把中间调压得很暗、只留高光），
+   * 然后继续降到 1/8，两层用 screen 叠回去。旧版没有阈值，整张画面都被加亮，人群里就成了一团粉雾。
+   * 阈值放在 1/4 分辨率做：像素数只有半分辨率的 1/4，纯软件光栅化下省下约一半的泛光耗时；
+   * 代价是几像素大的小亮点（单颗子弹）在阈值里被压没了——正好符合"克制"：只有爆炸 / 光束 / 大面积的亮才会晕。
+   */
   private bloomPass(): void {
     const half = this.bloomHalf
     const quarter = this.bloomQuarter
@@ -1561,18 +1672,28 @@ export class Renderer {
     const hc = this.bhC
     const qc = this.bqC
     const ec = this.beC
-    if (!half || !quarter || !eighth || !hc || !qc || !ec) return
+    const tmp = this.bloomTmp
+    const tc = this.btC
+    if (!half || !quarter || !eighth || !hc || !qc || !ec || !tmp || !tc) return
     hc.globalCompositeOperation = 'copy'
     hc.drawImage(this.canvas, 0, 0, half.width, half.height)
     qc.globalCompositeOperation = 'copy'
     qc.drawImage(half, 0, 0, quarter.width, quarter.height)
+    // 阈值：c² 两次近似 c⁴（高光 0.9→0.66，中间调 0.5→0.06）
+    for (let i = 0; i < 2; i++) {
+      tc.globalCompositeOperation = 'copy'
+      tc.drawImage(quarter, 0, 0)
+      qc.globalCompositeOperation = 'multiply'
+      qc.drawImage(tmp, 0, 0)
+    }
+    qc.globalCompositeOperation = 'source-over'
     ec.globalCompositeOperation = 'copy'
     ec.drawImage(quarter, 0, 0, eighth.width, eighth.height)
     const ctx = this.ctx
     ctx.globalCompositeOperation = 'screen'
-    ctx.globalAlpha = 0.42
+    ctx.globalAlpha = 0.9
     ctx.drawImage(quarter, 0, 0, this.W, this.H)
-    ctx.globalAlpha = 0.36
+    ctx.globalAlpha = 0.8
     ctx.drawImage(eighth, 0, 0, this.W, this.H)
     ctx.globalAlpha = 1
     ctx.globalCompositeOperation = 'source-over'

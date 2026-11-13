@@ -13,6 +13,7 @@ node scripts/e2e.mjs pwa      # 改动了 SW / 缓存策略时再跑
 node scripts/e2e.mjs flows    # 改动了菜单/机库/结算/输入流程时再跑（含英文界面与手柄）
 node scripts/e2e.mjs fx       # 改动了伤害数字 / 命中特效 / 进化演出时再跑（截图在 .e2e/fx*.png，需要人看一眼）
 node scripts/e2e.mjs layout   # 改动了 HUD / 样式 / 提示文案 / 新增屏幕元素时再跑（7 种屏幕 × 满配与开局两种状态，0 重叠 0 出屏）
+node scripts/e2e.mjs art      # 改动了精灵 / Boss 绘制 / 着色工具包时再跑（图鉴截图在 .e2e/art-*.png，需要人看一眼）
 git push origin main          # 触发 Cloudflare Pages 构建
 ```
 
@@ -63,7 +64,7 @@ node scripts/e2e.mjs live                           # 线上冒烟 + 关键 URL 
 
 - 在 Google Search Console、Bing Webmaster Tools 验证站点并提交 `https://aigames.de5.net/sitemap.xml`。
 - **Cloudflare 的"托管 robots.txt"会在边缘叠加规则**（拦截 AI 爬虫，有的账号还会拦截百度爬虫），这是 Cloudflare 控制台里的开关（AI Crawl Control / 机器人相关设置），不是仓库里的 `robots.txt`。如果希望百度等搜索引擎收录，请在控制台里关闭对应规则，然后用 `curl -s https://aigames.de5.net/robots.txt` 核对。
-- 更换分享图：改 `scripts/gen-assets.mjs` 后 `npm run build && node scripts/gen-assets.mjs`，提交 `public/` 下的新素材。社交平台缓存分享图较久，需要在各平台的调试工具里刷新。
+- 更换图标 / 分享图：图标（SVG，哑光硬表面风格，不使用 filter）与分享图都在 `scripts/gen-assets.mjs` 里程序化绘制；改后 `npm run build && node scripts/gen-assets.mjs`，提交 `public/` 下的新素材（分享图用的是真实游戏画面，美术大改后要重新生成）。社交平台缓存分享图较久，需要在各平台的调试工具里刷新。
 
 ## 6. 统计与隐私
 
@@ -77,7 +78,8 @@ node scripts/e2e.mjs live                           # 线上冒烟 + 关键 URL 
 | 存档丢失 | 存档只在玩家浏览器里（清除站点数据会丢失）；设置 → 导出存档可以备份，导入存档可以迁移 |
 | 构建失败 | 先本地 `npm run build` 复现；常见原因是新增 id 后某个词典/数据表没补齐（类型检查会报错） |
 | 想看某个时间点的画面 | `node scripts/e2e.mjs play --sector <fields\|wasteland\|void> --ff <秒> --wait <秒> --name <文件名>` |
-| 想测性能 | `node scripts/e2e.mjs perf --q high --dpr 2 --gpu 1`（`--gpu 1` 使用 Metal，`0` 为纯软件光栅化的最坏情况） |
+| 想测性能 | `node scripts/e2e.mjs perf --q high --dpr 2 --gpu 1`（`--gpu 1` 使用 Metal，`0` 为纯软件光栅化的最坏情况）。做 A/B：`--eval "__neon.renderer.bloomPass=()=>{}"` 在采样前往页面里注入一段脚本，软件光栅化下噪声较大，建议新旧版本交替各跑 4 次取平均 |
+| 想看 Boss 预警 / 手机竖屏 / 干净的截图 | `play ... --tele 1`（在玩家周围摆几条不同进度的预警）、`play ... --touch 1 --w 390 --h 844 --dpr 2`（按手机方式开）、`play ... --clean 1`（隐藏教学提示 / Toast / 横幅），`--clip x,y,w,h` 再截一张局部放大图 |
 
 ## 8. 历史
 

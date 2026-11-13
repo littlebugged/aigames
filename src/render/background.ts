@@ -56,7 +56,7 @@ function nebulaTile(pal: SectorPalette): HTMLCanvasElement {
       const x = r() * TILE
       const y = r() * TILE
       const rad = 170 + r() * 230
-      const col = mixHex(pal.accent, pal.gridMajor, r())
+      const col = mixHex(pal.accent, pal.gridMajor, 0.35 + r() * 0.65)
       // 在四个方向各画一份，保证平铺无缝
       for (const ox of [-TILE, 0, TILE]) {
         for (const oy of [-TILE, 0, TILE]) {
@@ -64,7 +64,7 @@ function nebulaTile(pal: SectorPalette): HTMLCanvasElement {
           const cy = y + oy
           if (cx < -rad || cx > TILE + rad || cy < -rad || cy > TILE + rad) continue
           const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, rad)
-          g.addColorStop(0, rgba(col, 0.1 + r() * 0.03))
+          g.addColorStop(0, rgba(col, 0.055 + r() * 0.025))
           g.addColorStop(1, rgba(col, 0))
           ctx.fillStyle = g
           ctx.fillRect(cx - rad, cy - rad, rad * 2, rad * 2)
@@ -82,12 +82,14 @@ export class Background {
   private bossVig: HTMLCanvasElement
   private gradKey = ''
   private grad: CanvasGradient | null = null
+  private poolKey = ''
+  private pool: CanvasGradient | null = null
   /** 低画质关闭星云 */
   nebulaOn = true
 
   constructor() {
     this.vignette = this.makeVignette('#02020c', 0.82)
-    this.bossVig = this.makeVignette('#ff2b4e', 0.9)
+    this.bossVig = this.makeVignette('#9c1235', 0.8)
   }
 
   private makeVignette(color: string, edge: number): HTMLCanvasElement {
@@ -145,6 +147,20 @@ export class Background {
     ctx.fillStyle = this.grad
     ctx.fillRect(0, 0, W, H)
 
+    // 玩家脚下的一片微光：在深色背景上托出主角，也让画面有纵深（比整体加亮要克制得多）
+    const pk = `${W}x${H}|${pal.accent}`
+    if (pk !== this.poolKey || !this.pool) {
+      const R = Math.hypot(W, H) * 0.42
+      const g = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, R)
+      g.addColorStop(0, rgba(pal.accent, 0.075))
+      g.addColorStop(0.55, rgba(pal.accent, 0.025))
+      g.addColorStop(1, rgba(pal.accent, 0))
+      this.pool = g
+      this.poolKey = pk
+    }
+    ctx.fillStyle = this.pool
+    ctx.fillRect(0, 0, W, H)
+
     // 星云（极慢视差）
     if (this.nebulaOn && this.nebula) {
       this.drawTiled(ctx, this.nebula, camX, camY, W, H, k, 0.06, 1)
@@ -158,7 +174,7 @@ export class Background {
     ctx.globalAlpha = 1
     ctx.drawImage(this.vignette, 0, 0, W, H)
     if (bossMix > 0.01) {
-      ctx.globalAlpha = bossMix * (0.55 + 0.25 * Math.sin(time * 3))
+      ctx.globalAlpha = bossMix * (0.44 + 0.14 * Math.sin(time * 3))
       ctx.drawImage(this.bossVig, 0, 0, W, H)
       ctx.globalAlpha = 1
     }
@@ -187,6 +203,11 @@ export class Background {
     ctx.globalAlpha = 1
   }
 
+  /**
+   * 点阵地面：每格一个小点，每 4 格一个十字标记，像工程蓝图。
+   * 旧版是整张霓虹网格线，满屏发亮很"复古合成波"，还会和战斗特效抢眼；
+   * 点阵安静得多，但依然能清楚看出自己在移动。
+   */
   private drawGrid(
     ctx: CanvasRenderingContext2D,
     pal: SectorPalette,
@@ -195,48 +216,65 @@ export class Background {
     W: number,
     H: number,
     k: number,
-    time: number,
+    _time: number,
   ): void {
     const minor = 64
     const halfW = W / (2 * k)
     const halfH = H / (2 * k)
     const x0 = Math.floor((camX - halfW) / minor) * minor
     const y0 = Math.floor((camY - halfH) / minor) * minor
-    const breathe = 0.85 + 0.15 * Math.sin(time * 1.4)
+    const x1 = camX + halfW + minor
+    const y1 = camY + halfH + minor
 
-    // 细网格
-    ctx.lineWidth = Math.max(1, k * 0.9)
-    ctx.strokeStyle = rgba(pal.grid, 0.5 * breathe)
+    // 大格接缝：极淡的细线，给地面一点"拼板"的结构感
+    ctx.lineWidth = 1
+    ctx.strokeStyle = rgba(pal.gridMajor, 0.07)
     ctx.beginPath()
-    for (let gx = x0; gx < camX + halfW + minor; gx += minor) {
-      if (Math.round(gx / minor) % 4 === 0) continue
+    for (let gx = x0; gx < x1; gx += minor) {
+      if (Math.round(gx / minor) % 4 !== 0) continue
       const sx = Math.round((gx - camX) * k + W / 2) + 0.5
       ctx.moveTo(sx, 0)
       ctx.lineTo(sx, H)
     }
-    for (let gy = y0; gy < camY + halfH + minor; gy += minor) {
-      if (Math.round(gy / minor) % 4 === 0) continue
+    for (let gy = y0; gy < y1; gy += minor) {
+      if (Math.round(gy / minor) % 4 !== 0) continue
       const sy = Math.round((gy - camY) * k + H / 2) + 0.5
       ctx.moveTo(0, sy)
       ctx.lineTo(W, sy)
     }
     ctx.stroke()
 
-    // 粗网格
-    ctx.lineWidth = Math.max(1.4, k * 1.5)
-    ctx.strokeStyle = rgba(pal.gridMajor, 0.62 * breathe)
+    // 小点
+    const dot = Math.max(1.5, k * 1.4)
+    ctx.fillStyle = rgba(pal.grid, 0.95)
     ctx.beginPath()
-    for (let gx = x0; gx < camX + halfW + minor; gx += minor) {
+    for (let gx = x0; gx < x1; gx += minor) {
+      const ix = Math.round(gx / minor)
+      const sx = Math.round((gx - camX) * k + W / 2)
+      for (let gy = y0; gy < y1; gy += minor) {
+        if (ix % 4 === 0 && Math.round(gy / minor) % 4 === 0) continue
+        const sy = Math.round((gy - camY) * k + H / 2)
+        ctx.rect(sx - dot / 2, sy - dot / 2, dot, dot)
+      }
+    }
+    ctx.fill()
+
+    // 十字标记
+    const arm = 5.5 * k
+    ctx.lineWidth = Math.max(1, k * 1.1)
+    ctx.strokeStyle = rgba(pal.gridMajor, 0.75)
+    ctx.beginPath()
+    for (let gx = x0; gx < x1; gx += minor) {
       if (Math.round(gx / minor) % 4 !== 0) continue
       const sx = Math.round((gx - camX) * k + W / 2) + 0.5
-      ctx.moveTo(sx, 0)
-      ctx.lineTo(sx, H)
-    }
-    for (let gy = y0; gy < camY + halfH + minor; gy += minor) {
-      if (Math.round(gy / minor) % 4 !== 0) continue
-      const sy = Math.round((gy - camY) * k + H / 2) + 0.5
-      ctx.moveTo(0, sy)
-      ctx.lineTo(W, sy)
+      for (let gy = y0; gy < y1; gy += minor) {
+        if (Math.round(gy / minor) % 4 !== 0) continue
+        const sy = Math.round((gy - camY) * k + H / 2) + 0.5
+        ctx.moveTo(sx - arm, sy)
+        ctx.lineTo(sx + arm, sy)
+        ctx.moveTo(sx, sy - arm)
+        ctx.lineTo(sx, sy + arm)
+      }
     }
     ctx.stroke()
   }

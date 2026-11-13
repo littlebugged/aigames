@@ -8,6 +8,7 @@
  *   node scripts/e2e.mjs pwa                # Service Worker：激活、离线可玩、新版本提示、清单与图标
  *   node scripts/e2e.mjs fx                 # 手感：伤害数字 8 档梯度 + 武器进化演出（蓄力 → 爆发 → 慢动作 → 横幅 → 光环），逐帧截图
  *   node scripts/e2e.mjs layout [--only 名]  # 版面审计：手机竖/横屏、平板、桌面，满配 HUD 元素互不遮挡、不出屏
+ *   node scripts/e2e.mjs art [--scale N]    # 美术样张：把全部预渲染精灵（敌人/飞船/宝石/拾取物/武器件/Boss 部件）放大排在一张图上，逐个检查质感
  *   node scripts/e2e.mjs play [选项]        # 直接开一局并快进截图：--sector --ship --threat --ff --wait --name --q --audio 1
  *   node scripts/e2e.mjs perf [选项]        # 性能探针：--q high|medium|low|auto --dpr 2 --gpu 1 --secs 6
  *   node scripts/e2e.mjs live [--url URL]   # 对线上地址做冒烟测试（默认 https://aigames.de5.net）
@@ -216,8 +217,16 @@ async function play(base) {
   const vh = Number(opt('h', '810'))
   const quality = opt('q', 'high')
   const dpr = Number(opt('dpr', '1'))
+  // --touch 1：按手机的方式开（触屏 HUD、移动端 UA），配合 --w 390 --h 844 --dpr 2；--clean 1：截图前隐藏教学提示 / Toast / 横幅
+  const touch = opt('touch', '0') === '1'
   const browser = await launch()
-  const ctx = await browser.newContext({ viewport: { width: vw, height: vh }, deviceScaleFactor: dpr })
+  const ctx = await browser.newContext({
+    viewport: { width: vw, height: vh },
+    deviceScaleFactor: dpr,
+    ...(touch
+      ? { isMobile: true, hasTouch: true, userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1' }
+      : {}),
+  })
   const page = await ctx.newPage()
   watch(page, 'play')
   await page.goto(`${base}/?e2e=1&q=${quality}`, { waitUntil: 'load' })
@@ -233,7 +242,33 @@ async function play(base) {
     [sector, ship, threat, ff],
   )
   await sleep(wait * 1000)
+  if (opt('clean', '0') === '1') await page.addStyleTag({ content: '.hint,.toasts,.banner{display:none!important}' })
+  // --tele 1：在玩家周围摆几条不同进度的 Boss 预警（直线 / 圆形 / 临出手快闪），看警示带的画法
+  if (opt('tele', '0') === '1') {
+    await page.evaluate(() => {
+      const w = window.__neon.game
+      const p = w.player
+      const mk = (kind, x, y, prog, o) => {
+        const tl = w.addTele(kind, x, y, 1000, '', o)
+        tl.t = tl.maxT * (1 - prog)
+      }
+      mk('line', p.x - 420, p.y - 150, 0.2, { x2: p.x + 420, y2: p.y - 150, r: 15, color: '#9dff4d' })
+      mk('line', p.x - 420, p.y + 10, 0.6, { x2: p.x + 420, y2: p.y + 10, r: 15, color: '#9dff4d' })
+      mk('line', p.x - 420, p.y + 170, 0.9, { x2: p.x + 420, y2: p.y + 170, r: 15, color: '#9dff4d' })
+      mk('circle', p.x - 260, p.y - 20, 0.55, { r: 80, color: '#ff3ea5' })
+      mk('circle', p.x + 230, p.y - 20, 0.9, { r: 80, color: '#ff4a6a' })
+    })
+    await sleep(500)
+  }
   await shot(page, name)
+  // --clip x,y,w,h：按 CSS 像素再截一张局部放大图（配合 --dpr 2 看细节）
+  const clip = opt('clip', '')
+  if (clip) {
+    const [x, y, w, h] = clip.split(',').map(Number)
+    const file = join(out, `${name}-clip.png`)
+    await page.screenshot({ path: file, clip: { x, y, width: w, height: h } })
+    console.log('  📸', file.replace(root + '/', ''))
+  }
   console.log('  debug:', JSON.stringify(await dbg(page)))
   if (opt('audio', '0') === '1') await checkAudio(page, 'play')
   await browser.close()
@@ -273,6 +308,9 @@ async function perf(base) {
       for (const c of [r.ctx, r.bhC, r.bqC, r.beC]) c.imageSmoothingQuality = v
     }, smooth)
   }
+  // --eval "js"：采样前在页面里执行一段脚本（做 A/B 实验用，例：--eval "__neon.renderer.bloomPass=()=>{}"）
+  const pre = opt('eval', '')
+  if (pre) await page.evaluate(pre)
   await sleep(1500)
   // --hits N：采样期间每帧额外灌入 N 次重击（T3–T7、含暴击），压测伤害数字 / 命中特效的限流
   const hits = Number(opt('hits', '0'))
@@ -950,6 +988,128 @@ async function layout(base) {
   await browser.close()
 }
 
+/**
+ * 美术样张：把预渲染精灵放大排成一张图（.e2e/art-sheet.png），逐个检查质感、描边、渐变与光晕。
+ * 精灵取自渲染器私有的 SpriteBank / BossArt（?e2e=1 时可访问），不依赖战局状态。
+ */
+async function art(base) {
+  const opt = (k, d) => (args.includes(`--${k}`) ? args[args.indexOf(`--${k}`) + 1] : d)
+  const scale = Number(opt('scale', '3.4'))
+  const hiss = Number(opt('ss', '8'))
+  const browser = await launch()
+  const ctx = await browser.newContext({ viewport: { width: 1000, height: 3300 }, deviceScaleFactor: 1 })
+  const page = await ctx.newPage()
+  watch(page, 'art')
+  await page.goto(`${base}/?e2e=1&q=high`, { waitUntil: 'load' })
+  await waitReady(page)
+  await page.evaluate(() => {
+    const a = window.__neon
+    a.startRun({ ship: 'vanguard', sector: 'fields', threat: 0, endless: false })
+    a.paused = true
+  })
+  await sleep(500)
+  const rects = await page.evaluate(
+    ({ S, SS }) => {
+      const a = window.__neon
+      const r = a.renderer
+      // 用更高的超采样重新生成一套精灵，放大看细节；游戏里实际用的是 r.bank（ss≈2.5）
+      const bank = new r.bank.constructor(SS)
+      const boss = new r.bossArt.constructor(SS)
+      const isSprite = (v) => v && v.c instanceof HTMLCanvasElement && typeof v.w === 'number'
+      const groups = []
+      groups.push({ id: 'enemies', name: '敌人', items: Object.entries(bank.enemy).map(([k, v]) => ({ label: k, sp: v.n, s: S })) })
+      groups.push({ id: 'ships', name: '飞船', items: Object.entries(bank.ship).map(([k, v]) => ({ label: k, sp: v.n, s: S })) })
+      groups.push({
+        id: 'pickups',
+        name: '宝石 / 拾取物',
+        items: [
+          ...bank.gem.map((v, i) => ({ label: `gem${i}`, sp: v, s: S + 1 })),
+          ...Object.entries(bank.pickup).map(([k, v]) => ({ label: k, sp: v, s: S })),
+        ],
+      })
+      const weaponItems = []
+      for (const [m, cols] of [
+        ['blade', ['#8fb8ff', '#fff1b8']],
+        ['chakram', ['#ff7ae0', '#ffd2f6']],
+        ['drone', ['#7dffb0', '#c8ffe0']],
+        ['glow', ['#3df2ff', '#ff4d8d', '#ffffff']],
+        ['bead', ['#ff4d6d', '#3df2ff', '#ffd84a']],
+        ['flame', ['#3df2ff']],
+      ]) {
+        if (typeof bank[m] !== 'function') continue
+        for (const c of cols) weaponItems.push({ label: `${m} ${c}`, sp: bank[m](c), s: m === 'glow' ? 1.5 : S })
+      }
+      if (isSprite(bank.shadow)) weaponItems.push({ label: 'shadow', sp: bank.shadow, s: 1.5, light: true })
+      groups.push({ id: 'weapons', name: '武器件 / 子弹 / 光斑', items: weaponItems })
+      groups.push({
+        id: 'bosses',
+        name: 'Boss 部件',
+        items: Object.entries(boss)
+          .filter(([, v]) => isSprite(v))
+          .map(([k, v]) => ({ label: k, sp: v, s: 1.2 })),
+      })
+
+      const W = 1000
+      const H = 3300
+      const cv = document.createElement('canvas')
+      cv.width = W
+      cv.height = H
+      cv.style.cssText = 'position:fixed;left:0;top:0;z-index:99999;background:#080c18'
+      document.body.appendChild(cv)
+      const g = cv.getContext('2d')
+      // 背景接近游戏里的底色，右侧叠一块亮色，检查在亮背景上的轮廓
+      g.fillStyle = '#0a0f1f'
+      g.fillRect(0, 0, W, H)
+      const lg = g.createLinearGradient(0, 0, W, 0)
+      lg.addColorStop(0.62, 'rgba(46,60,100,0)')
+      lg.addColorStop(1, 'rgba(70,86,140,0.55)')
+      g.fillStyle = lg
+      g.fillRect(0, 0, W, H)
+      g.textBaseline = 'top'
+      const out = []
+      let y = 10
+      for (const grp of groups) {
+        const y0 = y
+        g.fillStyle = '#7f93c4'
+        g.font = '600 15px system-ui'
+        g.fillText(grp.name, 14, y)
+        y += 24
+        let x = 14
+        let rowH = 0
+        for (const it of grp.items) {
+          const w = it.sp.w * it.s
+          const h = it.sp.h * it.s
+          if (x + w + 14 > W) {
+            x = 14
+            y += rowH + 30
+            rowH = 0
+          }
+          g.drawImage(it.sp.c, x, y, w, h)
+          // 1× 实际大小各画一次：看缩小后的辨识度
+          g.drawImage(it.sp.c, x + w * 0.5 - it.sp.w * 0.5, y + h + 4, it.sp.w, it.sp.h)
+          g.fillStyle = '#a7b6dd'
+          g.font = '11px system-ui'
+          g.fillText(it.label, x, y + h + it.sp.h + 8)
+          x += Math.max(w, 70) + 16
+          rowH = Math.max(rowH, h + it.sp.h + 16)
+        }
+        y += rowH + 36
+        out.push({ id: grp.id, y: Math.max(0, y0 - 6), h: Math.min(H, y - y0 + 4) })
+      }
+      return out
+    },
+    { S: scale, SS: hiss },
+  )
+  await sleep(200)
+  await shot(page, 'art-sheet')
+  for (const r of rects) {
+    const file = join(out, `art-${r.id}.png`)
+    await page.screenshot({ path: file, clip: { x: 0, y: r.y, width: 1000, height: Math.min(r.h, 3300 - r.y) } })
+    console.log('  📸', file.replace(root + '/', ''))
+  }
+  await browser.close()
+}
+
 async function smoke(base) {
   const browser = await launch()
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } })
@@ -1042,6 +1202,7 @@ try {
   else if (mode === 'flows') await flows(base)
   else if (mode === 'fx') await fx(base)
   else if (mode === 'layout') await layout(base)
+  else if (mode === 'art') await art(base)
   else throw new Error(`未知模式 ${mode}`)
 } finally {
   srv?.server.close()

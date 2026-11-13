@@ -10,7 +10,8 @@ const SHARD = 3
 
 /**
  * 池化粒子系统（结构数组，零分配）。
- * 全部用叠加混合绘制，所以顺序无关，死亡粒子用"与末尾交换"的方式 O(1) 移除。
+ * 火花 / 光点 / 冲击环用叠加混合绘制，所以顺序无关；碎片是实心的，单独用普通混合再画一遍。
+ * 死亡粒子用"与末尾交换"的方式 O(1) 移除。
  */
 export class Particles {
   n = 0
@@ -193,7 +194,7 @@ export class Particles {
     }
   }
 
-  /** 叠加混合绘制；调用方需已设置好世界坐标变换 */
+  /** 调用方需已设置好世界坐标变换 */
   draw(ctx: CanvasRenderingContext2D, bank: SpriteBank): void {
     ctx.globalCompositeOperation = 'lighter'
     for (let i = 0; i < this.n; i++) {
@@ -212,7 +213,7 @@ export class Particles {
         }
         case DOT: {
           const s = bank.glow(color)
-          const k = this.size[i] * (1 - t * 0.55) * 2.2
+          const k = this.size[i] * (1 - t * 0.55) * 1.9
           ctx.globalAlpha = Math.min(1, (1 - t) * 1.4)
           ctx.drawImage(s.c, this.x[i] - k / 2, this.y[i] - k / 2, k, k)
           break
@@ -228,22 +229,29 @@ export class Particles {
           ctx.stroke()
           break
         }
-        case SHARD: {
-          const s = this.size[i] * (1 - t * 0.6)
-          const c = Math.cos(this.rot[i])
-          const sn = Math.sin(this.rot[i])
-          ctx.fillStyle = rgba(color, (1 - t) * 0.9)
-          ctx.beginPath()
-          ctx.moveTo(this.x[i] + c * s * 1.6, this.y[i] + sn * s * 1.6)
-          ctx.lineTo(this.x[i] - c * s * 0.8 - sn * s, this.y[i] - sn * s * 0.8 + c * s)
-          ctx.lineTo(this.x[i] - c * s * 0.8 + sn * s, this.y[i] - sn * s * 0.8 - c * s)
-          ctx.closePath()
-          ctx.fill()
-          break
-        }
       }
     }
-    ctx.globalAlpha = 1
+    // 碎片：实心的小金属片，带一圈暗边，用普通混合再画一遍
     ctx.globalCompositeOperation = 'source-over'
+    ctx.lineWidth = 0.9
+    ctx.lineJoin = 'round'
+    for (let i = 0; i < this.n; i++) {
+      if (this.kind[i] !== SHARD) continue
+      const t = 1 - this.life[i] / this.maxLife[i]
+      const a = Math.min(1, (1 - t) * 1.6)
+      const s = this.size[i] * (1 - t * 0.6)
+      const c = Math.cos(this.rot[i])
+      const sn = Math.sin(this.rot[i])
+      ctx.fillStyle = rgba(this.colors[this.col[i]], a * 0.95)
+      ctx.strokeStyle = rgba('#04060d', a * 0.7)
+      ctx.beginPath()
+      ctx.moveTo(this.x[i] + c * s * 1.6, this.y[i] + sn * s * 1.6)
+      ctx.lineTo(this.x[i] - c * s * 0.8 - sn * s, this.y[i] - sn * s * 0.8 + c * s)
+      ctx.lineTo(this.x[i] - c * s * 0.8 + sn * s, this.y[i] - sn * s * 0.8 - c * s)
+      ctx.closePath()
+      ctx.fill()
+      ctx.stroke()
+    }
+    ctx.globalAlpha = 1
   }
 }

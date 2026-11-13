@@ -152,8 +152,7 @@ export class NumberFont {
       ctx.shadowColor = look.glow
       ctx.shadowBlur = E * look.glowK
       ctx.fillStyle = look.glow
-      ctx.globalAlpha = 0.95
-      ctx.fillText(ch, tx, oy)
+      ctx.globalAlpha = 0.85
       ctx.fillText(ch, tx, oy)
       ctx.shadowBlur = 0
       ctx.shadowColor = 'transparent'

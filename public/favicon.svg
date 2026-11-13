@@ -1,27 +1,44 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
 <defs>
-  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0d1538"/><stop offset="1" stop-color="#04050b"/></linearGradient>
-  <radialGradient id="halo" cx=".5" cy=".55" r=".62"><stop offset="0" stop-color="#3df2ff" stop-opacity=".26"/><stop offset=".6" stop-color="#7a5cff" stop-opacity=".07"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
-  <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
-    <feGaussianBlur in="SourceGraphic" stdDeviation="13" result="b1"/>
-    <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="b2"/>
-    <feMerge><feMergeNode in="b1"/><feMergeNode in="b1"/><feMergeNode in="b2"/><feMergeNode in="SourceGraphic"/></feMerge>
-  </filter>
+  <linearGradient id="bg" x1="0" y1="0" x2="0.6" y2="1"><stop offset="0" stop-color="#1b2342"/><stop offset="1" stop-color="#070a15"/></linearGradient>
+  <pattern id="dots" width="48" height="48" patternUnits="userSpaceOnUse"><circle cx="24" cy="24" r="2.2" fill="#8fb0ff" fill-opacity=".14"/></pattern>
+  <radialGradient id="vig" cx=".5" cy=".5" r=".72"><stop offset=".55" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".45"/></radialGradient>
+  <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff" stop-opacity=".28"/><stop offset=".5" stop-color="#ffffff" stop-opacity=".04"/><stop offset="1" stop-color="#ffffff" stop-opacity=".1"/></linearGradient>
+  <linearGradient id="hullR" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8396b8"/><stop offset="1" stop-color="#2e3b5a"/></linearGradient>
+  <linearGradient id="hullL" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4f9ff"/><stop offset=".55" stop-color="#b3c4e0"/><stop offset="1" stop-color="#6f83aa"/></linearGradient>
+  <radialGradient id="lamp" cx=".4" cy=".35" r=".75"><stop offset="0" stop-color="#ffffff"/><stop offset=".45" stop-color="#8ff6ff"/><stop offset="1" stop-color="#1ea9cf"/></radialGradient>
+  <linearGradient id="flame" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e8feff"/><stop offset=".35" stop-color="#3de6ff"/><stop offset="1" stop-color="#3de6ff" stop-opacity="0"/></linearGradient>
+  <radialGradient id="shadow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#000" stop-opacity=".55"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
 </defs>
-<rect x="8" y="8" width="496" height="496" rx="116" fill="url(#bg)"/><rect x="8" y="8" width="496" height="496" rx="116" fill="url(#halo)"/><rect x="11" y="11" width="490" height="490" rx="113" fill="none" stroke="#3df2ff" stroke-opacity=".38" stroke-width="3"/>
+<rect x="8" y="8" width="496" height="496" rx="116" fill="url(#bg)"/><rect x="8" y="8" width="496" height="496" rx="116" fill="url(#dots)"/><rect x="8" y="8" width="496" height="496" rx="116" fill="url(#vig)"/><rect x="10" y="10" width="492" height="492" rx="114" fill="none" stroke="url(#rim)" stroke-width="3"/>
 <g transform="translate(256 256) scale(1) translate(-256 -256)">
-  <g stroke-linecap="round" fill="none">
-    <circle cx="256" cy="262" r="206" stroke="#3df2ff" stroke-opacity=".12" stroke-width="2"/>
-    <circle cx="256" cy="262" r="206" stroke="#ff4fd8" stroke-width="11" stroke-dasharray="170 124" transform="rotate(-62 256 262)" filter="url(#glow)" opacity=".9"/>
+  <g fill="none" stroke-linecap="round">
+    <circle cx="256" cy="262" r="206" stroke="#04060d" stroke-opacity=".55" stroke-width="20"/>
+    <circle cx="256" cy="262" r="206" stroke="#26335a" stroke-width="10"/>
+    <circle cx="256" cy="262" r="206" stroke="#04060d" stroke-width="22" stroke-dasharray="170 124" transform="rotate(-62 256 262)"/>
+    <circle cx="256" cy="262" r="206" stroke="#3df2ff" stroke-width="11" stroke-dasharray="170 124" transform="rotate(-62 256 262)"/>
+    <circle cx="256" cy="262" r="206" stroke="#e6fdff" stroke-opacity=".75" stroke-width="3" stroke-dasharray="170 124" stroke-dashoffset="0" transform="rotate(-62 256 258)"/>
   </g>
-  <g filter="url(#glow)">
-    <circle cx="388.4" cy="104.2" r="17" fill="#ffd84a"/>
-    <polygon points="124,122 146,164 102,164" fill="none" stroke="#ff4a6a" stroke-width="8" stroke-linejoin="round" opacity=".95"/>
-    <rect x="386" y="428" width="24" height="24" fill="none" stroke="#ff4a6a" stroke-width="8" stroke-linejoin="round" transform="rotate(45 398 440)" opacity=".95"/>
+  <g stroke-linejoin="round">
+    <circle cx="388.4" cy="104.2" r="21" fill="#04060d"/>
+    <circle cx="388.4" cy="104.2" r="16" fill="#ffd84a"/>
+    <circle cx="383.4" cy="99.2" r="6" fill="#fff6c9"/>
+    <polygon points="124,116 152,170 96,170" fill="#04060d" stroke="#04060d" stroke-width="14"/>
+    <polygon points="124,116 152,170 96,170" fill="#ff4a6a"/>
+    <polygon points="124,116 124,170 96,170" fill="#ff8da0"/>
+    <g transform="rotate(45 398 440)"><rect x="378" y="420" width="40" height="40" fill="#04060d" stroke="#04060d" stroke-width="14"/><rect x="378" y="420" width="40" height="40" fill="#ff8a3d"/><rect x="378" y="420" width="40" height="20" fill="#ffb07a"/></g>
   </g>
-  <g filter="url(#glow)">
-    <polygon points="256.0,134.0 390.3,382.2 299.8,335.5 256.0,364.7 212.2,335.5 121.7,382.2" fill="#3df2ff" fill-opacity=".2" stroke="#3df2ff" stroke-width="15" stroke-linejoin="round"/>
+  <ellipse cx="274" cy="404" rx="104" ry="24" fill="url(#shadow)"/>
+  <g>
+    <polygon points="226,360 246,360 236,424" fill="url(#flame)"/>
+    <polygon points="266,360 286,360 276,424" fill="url(#flame)"/>
+    <polygon points="256.0,134.0 390.3,382.2 299.8,335.5 256.0,364.7 212.2,335.5 121.7,382.2" fill="#04060d" stroke="#04060d" stroke-width="30" stroke-linejoin="round"/>
+    <polygon points="256.0,134.0 390.3,382.2 299.8,335.5 256.0,364.7 212.2,335.5 121.7,382.2" fill="url(#hullR)"/>
+    <polygon points="256.0,134.0 121.7,382.2 212.2,335.5 256.0,364.7" fill="url(#hullL)"/>
+    <polyline points="256.0,134.0 121.7,382.2" fill="none" stroke="#ffffff" stroke-opacity=".7" stroke-width="4" stroke-linecap="round"/>
+    <rect x="224" y="344" width="22" height="18" rx="3" fill="#161d33" stroke="#04060d" stroke-width="5"/>
+    <rect x="266" y="344" width="22" height="18" rx="3" fill="#161d33" stroke="#04060d" stroke-width="5"/>
+    <ellipse cx="256" cy="236" rx="17" ry="32" fill="url(#lamp)" stroke="#04060d" stroke-width="7"/>
   </g>
-  <polygon points="256.0,134.0 390.3,382.2 299.8,335.5 256.0,364.7 212.2,335.5 121.7,382.2" fill="none" stroke="#eafcff" stroke-width="4.5" stroke-linejoin="round" opacity=".95"/>
 </g>
 </svg>
