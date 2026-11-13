@@ -1,5 +1,6 @@
 import type { SectorId, WeaponId } from '../data/ids'
 import type { GameEvent } from '../game/events'
+import { EVOLVE_CHARGE, dmgTier } from './feel'
 import { clamp } from './math'
 
 /**
@@ -333,8 +334,20 @@ export class AudioEngine {
     switch (e.t) {
       case 'shot':
         this.shot(e.w, pan(e.x))
+        if (e.evo) this.evoShot(e.w, pan(e.x))
         break
-      case 'hit':
+      case 'hit': {
+        // 重击：低频"咚" + 金属感高频；越重越沉、越亮。档位 ≥ 4 才有，且限频，不会糊成一团
+        const tier = dmgTier(e.dmg, e.crit)
+        if (tier >= 4) {
+          if (this.ok('hitBig', 0.09)) {
+            const k = tier - 3
+            this.tone(128 - k * 9, 0.14 + k * 0.035, { type: 'sine', f1: 44, vol: 0.1 + k * 0.03, pan: pan(e.x) })
+            this.noise(0.07 + k * 0.012, { type: 'bandpass', f0: 2800, f1: 900, q: 1.1, vol: 0.06 + k * 0.012, pan: pan(e.x) })
+            if (tier >= 6) this.tone(mtof(88 + (tier - 6) * 4), 0.35, { type: 'sine', vol: 0.05, delay: 0.02, pan: pan(e.x) })
+          }
+          break
+        }
         if (e.boss) {
           if (this.ok('hitB', 0.08)) {
             this.tone(150, 0.09, { type: 'triangle', f1: 90, vol: 0.09, pan: pan(e.x) })
@@ -348,6 +361,7 @@ export class AudioEngine {
           this.noise(0.025, { type: 'highpass', f0: 3200, vol: 0.045, pan: pan(e.x) })
         }
         break
+      }
       case 'kill':
         if (e.elite || e.big) {
           if (this.ok('killB', 0.12)) {
@@ -416,10 +430,7 @@ export class AudioEngine {
         this.arp([69, 73, 76, 81, 85], 0.08, { type: 'triangle', vol: 0.12 }, 0.35)
         break
       case 'evolve':
-        this.arp([72, 76, 79, 83, 86, 91, 95], 0.065, { type: 'sine', vol: 0.12 })
-        this.arp([84, 88, 91, 95], 0.065, { type: 'triangle', vol: 0.06 }, 0.1)
-        this.tone(70, 0.7, { type: 'sine', f1: 40, vol: 0.28 })
-        this.noise(0.6, { type: 'highpass', f0: 2000, f1: 9000, vol: 0.08, attack: 0.3 })
+        this.evolveSting()
         break
       case 'end':
         if (e.won) this.fanfare()
@@ -481,6 +492,32 @@ export class AudioEngine {
       default:
         break
     }
+  }
+
+  /** 进化武器每轮开火：在原本的音色下面垫一层低频"闷响"，上面再叠一点闪亮的高频 */
+  private evoShot(w: WeaponId, pan: number): void {
+    if (!this.ok(`e:${w}`, 0.2)) return
+    this.tone(96, 0.22, { type: 'sine', f1: 42, vol: 0.14, pan })
+    this.tone(mtof(91), 0.2, { type: 'triangle', vol: 0.035, pan })
+    this.noise(0.12, { type: 'highpass', f0: 5000, vol: 0.04, pan })
+  }
+
+  /**
+   * 武器进化：先是一小段上扬的"蓄力"（扫频 + 噪声上冲），EVOLVE_CHARGE 秒后一记重低音炸开，
+   * 随后是上行琶音和长长的余韵。时间点与画面的"蓄力 → 爆发"对齐。
+   */
+  private evolveSting(): void {
+    const T = EVOLVE_CHARGE
+    this.tone(160, T, { type: 'sawtooth', f1: 1500, vol: 0.09, lp: 3400, attack: 0.05 })
+    this.noise(T, { type: 'bandpass', f0: 300, f1: 6500, q: 1.2, vol: 0.15, attack: 0.2 })
+    this.tone(66, 1.1, { type: 'sine', f1: 26, vol: 0.5, delay: T })
+    this.tone(132, 0.6, { type: 'triangle', f1: 55, vol: 0.2, delay: T })
+    this.noise(0.9, { type: 'lowpass', f0: 5200, f1: 120, vol: 0.42, delay: T })
+    this.noise(0.5, { type: 'highpass', f0: 3000, f1: 9000, vol: 0.12, delay: T })
+    this.arp([72, 76, 79, 84, 88, 91, 96], 0.06, { type: 'sine', vol: 0.12 }, T)
+    this.arp([84, 88, 91, 96], 0.06, { type: 'triangle', vol: 0.07 }, T + 0.08)
+    this.tone(mtof(96), 1.2, { type: 'sine', vol: 0.07, delay: T + 0.4, attack: 0.02 })
+    this.duckMusic(0.3, 1.5)
   }
 
   private pickup(kind: string): void {

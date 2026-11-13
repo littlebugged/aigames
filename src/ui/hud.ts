@@ -1,6 +1,7 @@
 import { PASSIVES } from '../data/passives'
 import { WEAPONS } from '../data/weapons'
-import { WEAPON_MAX_LEVEL } from '../data/ids'
+import { WEAPON_MAX_LEVEL, type WeaponId } from '../data/ids'
+import { EVOLVE_BANNER_SECS } from '../engine/feel'
 import type { World } from '../game/world'
 import { dyn, fmtInt, fmtTime, t } from '../i18n'
 import type { UiCtx } from './ctx'
@@ -28,6 +29,7 @@ export class Hud {
   private readonly dash: HTMLElement
   private readonly dashBtn: HTMLElement
   private readonly banner = h('div', { class: 'banner' })
+  private readonly evoBanner = h('div', { class: 'evo-banner' })
   private readonly toasts = h('div', { class: 'toasts' })
   private readonly hint = h('div', { class: 'hint' })
 
@@ -35,6 +37,7 @@ export class Hud {
   private wSig = ''
   private pSig = ''
   private bannerT = 0
+  private evoT = 0
   private hintT = 0
   private bossShown = false
 
@@ -75,6 +78,7 @@ export class Hud {
       h('div', { class: 'hud-bc' }, this.dash),
       h('div', { class: 'hud-br' }, this.dashBtn),
       this.banner,
+      this.evoBanner,
       this.toasts,
       this.hint,
     )
@@ -94,11 +98,14 @@ export class Hud {
     this.wSig = ''
     this.pSig = ''
     this.bannerT = 0
+    this.evoT = 0
     this.hintT = 0
     this.bossShown = false
     this.bossBar.hidden = true
     this.banner.className = 'banner'
     this.banner.textContent = ''
+    this.evoBanner.className = 'evo-banner'
+    clear(this.evoBanner)
     this.hint.className = 'hint'
     clear(this.toasts)
     this.hpTrail.style.width = '100%'
@@ -188,6 +195,10 @@ export class Hud {
         this.bannerT -= dt
         if (this.bannerT <= 0) this.banner.className = 'banner'
       }
+      if (this.evoT > 0) {
+        this.evoT -= dt
+        if (this.evoT <= 0) this.evoBanner.className = 'evo-banner'
+      }
       if (this.hintT > 0) {
         this.hintT -= dt
         if (this.hintT <= 0) this.hint.className = 'hint'
@@ -242,6 +253,23 @@ export class Hud {
     // 重启动画
     void this.banner.offsetWidth
     this.bannerT = sev === 2 ? 3.2 : 2.2
+  }
+
+  /** 武器进化的大横幅：武器图标 + 进化后的名字 + 一句话效果，颜色取该武器的主色 */
+  showEvolve(id: WeaponId): void {
+    this.evoBanner.style.setProperty('--c', WEAPONS[id].color)
+    this.evoBanner.replaceChildren(
+      h('div', { class: 'evo-rays' }),
+      h('div', { class: 'evo-ico' }, svgEl(weaponIcon(id))),
+      h('div', { class: 'evo-kicker' }, t('evo.kicker')),
+      h('div', { class: 'evo-name' }, t(dyn(`weapon.${id}.evoName`))),
+      h('div', { class: 'evo-desc' }, t(dyn(`weapon.${id}.evoDesc`))),
+    )
+    this.evoBanner.className = 'evo-banner'
+    // 重启动画
+    void this.evoBanner.offsetWidth
+    this.evoBanner.className = 'evo-banner show'
+    this.evoT = EVOLVE_BANNER_SECS
   }
 
   toast(text: string, kind: 'info' | 'good' | 'gold' | 'bad' = 'info', ms = 2400): void {

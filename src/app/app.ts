@@ -1,6 +1,7 @@
 import { SECTORS } from '../data/sectors'
-import { SECTOR_IDS } from '../data/ids'
+import { SECTOR_IDS, type WeaponId } from '../data/ids'
 import { AudioEngine } from '../engine/audio'
+import { EVOLVE_CHARGE, EVOLVE_TOTAL, evolveTimeScale } from '../engine/feel'
 import { canInstall, promptInstall } from './pwa'
 import { Input } from '../engine/input'
 import type { InputState } from '../game/entities'
@@ -58,6 +59,11 @@ export class App {
   private bot: Bot | null = null
   private demoClock = 0
   private paused = false
+  /**
+   * 武器进化的"演出导演"：蓄力（慢下来）→ 冲击波引爆（砸到定格）→ 慢慢恢复。
+   * t 是事件发生后的真实秒数，只在对局进行中才走（暂停 / 选卡时冻结）。
+   */
+  private cine: { t: number; w: WeaponId; boomed: boolean } | null = null
   private endT = -1
   private lastT = 0
   private sel: Selection
@@ -461,6 +467,7 @@ export class App {
     this.state = 'play'
     this.paused = false
     this.endT = -1
+    this.cine = null
     this.tutStep = 0
     this.lastBonus = 0
     this.renderer.attach(w)
@@ -526,7 +533,8 @@ export class App {
 
   private onGameEvent(e: GameEvent): void {
     const w = this.world
-    this.renderer.onEvent(e)
+    // 进化由下面的演出导演接管（蓄力 / 爆发两幕），不走渲染层的简化版
+    if (e.t !== 'evolve') this.renderer.onEvent(e)
     this.audio.onEvent(e, w)
     switch (e.t) {
       case 'warn':
@@ -540,8 +548,17 @@ export class App {
         else if (e.kind === 'chest') this.hud.toast(t('hud.chest'), 'gold', 1400)
         break
       case 'evolve':
-        this.hud.toast(t('toast.evolve', { name: t(dyn(`weapon.${e.w}.evoName`)) }), 'gold', 3200)
-        this.input.buzz([20, 40, 20])
+        // 第一幕：蓄力。已经有一次演出在爆发阶段时，别打断它
+        if (!this.cine || this.cine.boomed) this.cine = { t: 0, w: e.w, boomed: false }
+        this.renderer.evolveCharge(e.w)
+        this.input.buzz([15, 30, 15])
+        break
+      case 'evolveBoom':
+        // 第二幕：冲击波引爆。画面、横幅、手机震动在这一刻一起砸下来，时间流速从这里开始"定格 → 恢复"
+        this.cine = { t: EVOLVE_CHARGE, w: e.w, boomed: true }
+        this.renderer.evolveBoom(e.w)
+        this.hud.showEvolve(e.w)
+        this.input.buzz([30, 30, 70])
         break
       case 'revive':
         this.hud.toast(t('hud.revived'), 'good', 2800)
@@ -563,6 +580,7 @@ export class App {
         this.input.buzz(18)
         break
       case 'end':
+        this.cine = null
         this.endT = e.won ? 1.0 : 1.6
         this.input.enabled = false
         this.audio.musicMode('off')
@@ -643,6 +661,7 @@ export class App {
     const w = this.world
     if (!w) return
     const playing = !this.paused && w.phase === 'play'
+    let ts = 1
 
     if (playing) {
       const inp = this.input.poll(dt)
@@ -651,9 +670,12 @@ export class App {
         this.pilot.drive(w, dt, inp)
       }
       if (this.godMode) w.player.hp = w.player.maxHp
+      // 进化演出的时间流速（1 = 正常）
+      ts = this.cineScale(dt)
+      const sdt = dt * ts
       // 帧率低时分多步模拟，保持游戏速度；单步不超过 1/30 秒
-      const steps = Math.min(3, Math.max(1, Math.ceil(dt / MAX_STEP)))
-      const sd = Math.min(dt, MAX_STEP * 3) / steps
+      const steps = Math.min(3, Math.max(1, Math.ceil(sdt / MAX_STEP)))
+      const sd = Math.min(sdt, MAX_STEP * 3) / steps
       for (let i = 0; i < steps && w.phase === 'play'; i++) {
         w.update(sd, i === 0 ? inp : { mx: inp.mx, my: inp.my, dash: false })
       }
@@ -672,13 +694,33 @@ export class App {
       this.input.reset()
     }
 
-    this.renderer.frame(w, playing || w.phase === 'won' || w.phase === 'lost' ? dt : 0)
+    this.renderer.frame(w, playing ? dt * ts : w.phase === 'won' || w.phase === 'lost' ? dt : 0)
     this.hud.update(w, playing ? dt : 0)
 
     if (this.endT >= 0) {
       this.endT -= dt
       if (this.endT < 0) this.finishRun()
     }
+  }
+
+  /** 推进进化演出的时钟，返回这一帧的时间流速 */
+  private cineScale(dt: number): number {
+    const c = this.cine
+    if (!c) return 1
+    c.t += dt
+    if (!c.boomed) {
+      // 蓄力阶段：停在"屏息"的流速上等冲击波引爆（由模拟层的 evolveBoom 事件触发）；超时保险
+      if (c.t > EVOLVE_CHARGE + 0.6) {
+        this.cine = null
+        return 1
+      }
+      return evolveTimeScale(Math.min(c.t, EVOLVE_CHARGE - 0.001))
+    }
+    if (c.t >= EVOLVE_TOTAL) {
+      this.cine = null
+      return 1
+    }
+    return evolveTimeScale(c.t)
   }
 
   private intensityOf(w: World): number {

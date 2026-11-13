@@ -206,6 +206,7 @@ export const en: Record<Key, string> = {
   'toast.bomb': 'Screen blast',
   'toast.cores': '+{n} cores',
   'toast.evolve': '"{name}" evolved!',
+  'evo.kicker': 'WEAPON EVOLVED',
   'toast.newBest': 'New record',
   'pickup.heal': 'Repair kit',
   'pickup.magnet': 'Magnet core',

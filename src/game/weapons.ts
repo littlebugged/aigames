@@ -85,7 +85,7 @@ function updatePulse(w: World, wi: WeaponInst, dt: number): void {
       blast: wi.evolved ? s.blast : 0,
     })
   }
-  w.emit({ t: 'shot', w: 'pulse', x: p.x, y: p.y, a: base })
+  w.emit({ t: 'shot', w: 'pulse', x: p.x, y: p.y, a: base, evo: wi.evolved })
   if (wi.evolved && !second) {
     wi.pending = 1
     wi.timer = 0.11
@@ -170,7 +170,7 @@ function updateArc(w: World, wi: WeaponInst, dt: number): void {
     }
   }
   for (const st of starts) chainLightning(w, wi, st)
-  w.emit({ t: 'shot', w: 'arc', x: p.x, y: p.y, a: angleTo(p.x, p.y, first.x, first.y) })
+  w.emit({ t: 'shot', w: 'arc', x: p.x, y: p.y, a: angleTo(p.x, p.y, first.x, first.y), evo: wi.evolved })
   wi.timer = s.cooldown
 }
 
@@ -227,7 +227,7 @@ function updateMissile(w: World, wi: WeaponInst, dt: number): void {
       cluster: wi.evolved ? 3 : 0,
     })
   }
-  w.emit({ t: 'shot', w: 'missile', x: p.x, y: p.y, a: base })
+  w.emit({ t: 'shot', w: 'missile', x: p.x, y: p.y, a: base, evo: wi.evolved })
   wi.timer = s.cooldown
 }
 
@@ -260,7 +260,7 @@ function updateLaser(w: World, wi: WeaponInst, dt: number): void {
     b.ox = p.x
     b.oy = p.y
   }
-  w.emit({ t: 'shot', w: 'laser', x: p.x, y: p.y, a: base })
+  w.emit({ t: 'shot', w: 'laser', x: p.x, y: p.y, a: base, evo: wi.evolved })
   wi.timer = s.cooldown
 }
 
@@ -287,7 +287,7 @@ function updateMine(w: World, wi: WeaponInst, dt: number): void {
     m.blast = s.blast
     m.pull = wi.evolved ? s.chain : 0
   }
-  w.emit({ t: 'shot', w: 'mine', x: p.x, y: p.y, a: 0 })
+  w.emit({ t: 'shot', w: 'mine', x: p.x, y: p.y, a: 0, evo: wi.evolved })
   wi.timer = s.cooldown
 }
 
@@ -316,7 +316,7 @@ function updateNova(w: World, wi: WeaponInst, dt: number): void {
     r.delay = i * 0.3
     r.color = wi.evolved ? '#ffe0a0' : '#e8fbff'
   }
-  w.emit({ t: 'shot', w: 'nova', x: p.x, y: p.y, a: 0 })
+  w.emit({ t: 'shot', w: 'nova', x: p.x, y: p.y, a: 0, evo: wi.evolved })
   wi.timer = s.cooldown
 }
 
@@ -389,7 +389,7 @@ function updateChakram(w: World, wi: WeaponInst, dt: number): void {
         const a = base + k * fan * flip
         pts.push({ x: p.x, y: p.y, a: w.rng.angle(), r: s.area, cd: 0, vx: Math.cos(a), vy: Math.sin(a), d: 0, ph: 0, hit: [] })
       }
-      w.emit({ t: 'shot', w: 'chakram', x: p.x, y: p.y, a: base })
+      w.emit({ t: 'shot', w: 'chakram', x: p.x, y: p.y, a: base, evo: wi.evolved })
       wi.timer = s.cooldown
     }
   }
@@ -559,5 +559,5 @@ function fireRail(w: World, wi: WeaponInst, ang: number): void {
     sc.color = '#ffb3c1'
     sc.slot = wi.slot
   }
-  w.emit({ t: 'shot', w: 'rail', x: ox, y: oy, a: ang })
+  w.emit({ t: 'shot', w: 'rail', x: ox, y: oy, a: ang, evo: wi.evolved })
 }

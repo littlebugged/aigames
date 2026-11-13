@@ -207,6 +207,7 @@ export const zh = {
   'toast.bomb': '清屏冲击',
   'toast.cores': '+{n} 晶核',
   'toast.evolve': '「{name}」进化！',
+  'evo.kicker': '武器进化',
   'toast.newBest': '新纪录',
   'pickup.heal': '修复包',
   'pickup.magnet': '磁力核心',

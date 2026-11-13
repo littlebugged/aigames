@@ -5,12 +5,13 @@
 ## 1. 发布流程
 
 ```bash
-npm test                      # 51 项测试
+npm test                      # 71 项测试
 npm run build                 # 生成页面 → tsc（应用与脚本两套配置）→ vite build
 node scripts/e2e.mjs smoke    # 无头浏览器冒烟（含音频电平断言）
 node scripts/e2e.mjs mobile   # 改动了界面/触屏时再跑
 node scripts/e2e.mjs pwa      # 改动了 SW / 缓存策略时再跑
 node scripts/e2e.mjs flows    # 改动了菜单/机库/结算/输入流程时再跑（含英文界面与手柄）
+node scripts/e2e.mjs fx       # 改动了伤害数字 / 命中特效 / 进化演出时再跑（截图在 .e2e/fx*.png，需要人看一眼）
 git push origin main          # 触发 Cloudflare Pages 构建
 ```
 

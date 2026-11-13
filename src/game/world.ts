@@ -2,7 +2,8 @@ import { ENEMIES } from '../data/enemies'
 import type { EnemyId, SectorId, ShipId, WeaponId } from '../data/ids'
 import { SECTORS, THREAT_LEVELS, type SectorDef } from '../data/sectors'
 import { SHIPS } from '../data/ships'
-import { TUNE } from '../data/tuning'
+import { EVOLVE_SHOCK, TUNE } from '../data/tuning'
+import { WEAPONS } from '../data/weapons'
 import { SpatialHash } from '../engine/grid'
 import { angleTo, clamp, clamp01, segmentClosestT, turnToward } from '../engine/math'
 import { Pool, compact } from '../engine/pool'
@@ -127,6 +128,8 @@ export class World {
 
   // 升级流程
   queue: ('level' | 'chest')[] = []
+  /** 等待引爆的进化冲击波（选卡后 EVOLVE_SHOCK.delay 秒） */
+  private readonly shocks: { t: number; w: WeaponId }[] = []
   offers: Offer[] = []
   offerSource: 'level' | 'chest' = 'level'
   rerolls = 0
@@ -230,6 +233,7 @@ export class World {
     updateEnemies(this, dt)
     this.rebuildGrid()
     updateBoss(this, dt)
+    this.updateShocks(dt)
     updateWeapons(this, dt)
     this.updateProjectiles(dt)
     this.updateEnemyBullets(dt)
@@ -785,6 +789,30 @@ export class World {
     const b = this.boss
     if (b && b.alive && b.intro <= 0 && Math.hypot(b.x - x, b.y - y) - b.r < range) return b
     return this.grid.nearest(x, y, range, (en) => en.alive && en.spawnT <= 0 && (!filter || filter(en)))
+  }
+
+  /** 武器进化：稍后在玩家身上引爆一圈冲击波（见 EVOLVE_SHOCK） */
+  queueEvolveShock(id: WeaponId): void {
+    this.shocks.push({ t: EVOLVE_SHOCK.delay, w: id })
+  }
+
+  private updateShocks(dt: number): void {
+    for (let i = this.shocks.length - 1; i >= 0; i--) {
+      const s = this.shocks[i]
+      s.t -= dt
+      if (s.t > 0) continue
+      this.shocks.splice(i, 1)
+      this.fireEvolveShock(s.w)
+    }
+  }
+
+  /** 进化冲击波：削掉范围内敌人一截血并向外震开，同时抹掉范围内的敌方弹幕。玩家自己不受伤。 */
+  private fireEvolveShock(id: WeaponId): void {
+    const p = this.player
+    const r = EVOLVE_SHOCK.radius
+    this.explode(p.x, p.y, r, EVOLVE_SHOCK.base + this.time * EVOLVE_SHOCK.perSec, WEAPONS[id].color, EVOLVE_SHOCK.knock)
+    for (const b of this.ebullets) if (b.alive && Math.hypot(b.x - p.x, b.y - p.y) < r) b.alive = false
+    this.emit({ t: 'evolveBoom', w: id })
   }
 
   /** 屏幕炸弹：对视野内所有敌人造成大量伤害并清除敌方弹幕 */

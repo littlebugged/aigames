@@ -1,11 +1,15 @@
+import type { WeaponId } from '../data/ids'
 import { SHIPS } from '../data/ships'
+import { WEAPONS } from '../data/weapons'
+import { DMG_TIERS, EVOLVE_CHARGE, EVOLVE_ZOOM, budgetClass, dmgTier, fmtDmg } from '../engine/feel'
 import { TAU, clamp01 } from '../engine/math'
 import type { GameEvent } from '../game/events'
 import type { World } from '../game/world'
 import { Background } from './background'
 import { BossArt } from './bossart'
 import { Camera } from './camera'
-import { Particles, FloatTexts } from './particles'
+import { FloatTexts } from './floattext'
+import { Particles } from './particles'
 import { lighten, rgba } from './palette'
 import { FACES_MOTION } from './shapes'
 import { GEM_COLORS, PICKUP_COLOR, SpriteBank } from './sprites'
@@ -49,7 +53,23 @@ interface Scheduled {
 
 const ENEMY_SPAWN_FADE = 0.5
 
-const fmtDmg = (n: number): string => (n >= 10000 ? `${(n / 1000).toFixed(0)}k` : n >= 1000 ? `${(n / 1000).toFixed(1)}k` : `${Math.round(n)}`)
+/** 命中火花数量：随伤害档位增长 */
+const HIT_SPARKS = [2, 3, 3, 5, 7, 9, 12, 16]
+/** 重击（T4+）的屏幕震动 */
+const HIT_TRAUMA = [0, 0, 0, 0, 0.02, 0.035, 0.055, 0.1]
+/** 飘字限流桶（小数字 / 中等 / 重击）：容量与每秒补充量 */
+const NUM_CAP = [12, 6, 4]
+const NUM_RATE = [30, 12, 6]
+/** 进化武器每轮开火时的微震 */
+const EVO_SHOT_TRAUMA: Partial<Record<WeaponId, number>> = {
+  pulse: 0.02,
+  arc: 0.03,
+  missile: 0.05,
+  laser: 0.05,
+  mine: 0.04,
+  nova: 0.1,
+  chakram: 0.04,
+}
 
 export class Renderer {
   readonly canvas: HTMLCanvasElement
@@ -87,8 +107,20 @@ export class Renderer {
   private bossMix = 0
   private lastBossX = 0
   private lastBossY = 0
-  private dmgBudget = 10
+  /** 飘字额度：小数字 / 中等 / 重击 三个桶 */
+  private readonly numBudget = [12, 6, 4]
   private bossDmgBudget = 4
+  /** 重击特效（冲击环 + 震屏）额度，防止一次大范围爆炸触发几十次 */
+  private fxBudget = 3
+  /** 视口基础缩放（不含进化变焦） */
+  private kBase = 1
+  /** 进化爆发的镜头变焦（比例）与蓄力阶段的目标变焦 */
+  private zoom = 0
+  private charging = false
+  /** 各进化武器的颜色（每帧刷新，给光环用） */
+  private readonly evoCols: string[] = []
+  private auraT = 0
+  private readonly evoShotAt: Partial<Record<WeaponId, number>> = {}
   private readonly ghosts: Ghost[] = []
   private readonly scheduled: Scheduled[] = []
 
@@ -159,9 +191,10 @@ export class Renderer {
     this.W = W
     this.H = H
     this.dpr = W / this.cssW
-    this.k = Camera.scaleFor(this.cssW, this.cssH) * this.dpr
-    this.halfW = W / (2 * this.k)
-    this.halfH = H / (2 * this.k)
+    this.kBase = Camera.scaleFor(this.cssW, this.cssH) * this.dpr
+    this.k = this.kBase * (1 + this.zoom)
+    this.halfW = W / (2 * this.kBase)
+    this.halfH = H / (2 * this.kBase)
     this.ctx.imageSmoothingEnabled = true
     // 注意：'high' 会在 GPU 画布上触发逐帧 mipmap / 双三次采样，实测慢约 6 倍；双线性对 2:1 降采样已经是正确的盒式滤波
     this.ctx.imageSmoothingQuality = 'low'
@@ -201,6 +234,13 @@ export class Renderer {
     this.ghosts.length = 0
     this.flashA = 0
     this.bossMix = 0
+    this.zoom = 0
+    this.charging = false
+    this.k = this.kBase
+    this.numBudget[0] = NUM_CAP[0]
+    this.numBudget[1] = NUM_CAP[1]
+    this.numBudget[2] = NUM_CAP[2]
+    this.fxBudget = 3
     this.bg.setPalette(w.sector.palette)
     this.cam.reset(w.player.x, w.player.y)
     this.cx = w.player.x
@@ -225,28 +265,15 @@ export class Renderer {
     const P = this.parts
     switch (e.t) {
       case 'shot':
-        if (e.w === 'pulse') P.sparkCone(e.x + Math.cos(e.a) * 12, e.y + Math.sin(e.a) * 12, e.a, 0.5, '#3df2ff', 2, 140, 0.16)
-        else if (e.w === 'chakram') P.sparkCone(e.x, e.y, e.a, 0.9, '#ff7ae0', 4, 170, 0.22)
-        else if (e.w === 'rail') {
-          // 磁轨炮：炮口闪光 + 沿光轨洒一串火花 + 一点后坐力震屏
-          const ca = Math.cos(e.a)
-          const sa = Math.sin(e.a)
-          P.sparkCone(e.x, e.y, e.a, 0.4, '#ff8aa0', 9, 420, 0.3)
-          P.ring(e.x, e.y, 4, 44, '#ff4d6d', 0.26, 3)
-          for (let k = 0; k < 9; k++) {
-            const d = 70 + k * 85
-            P.spark(e.x + ca * d, e.y + sa * d, '#ffb3c1', 2, 110, 0.4, 1.6)
-          }
-          this.cam.addTrauma(0.14)
-        }
+        this.shotFx(e)
         break
-      case 'hit': {
-        P.spark(e.x, e.y, e.crit ? '#ffe66b' : lighten(e.color, 0.3), e.crit ? 6 : 3, e.crit ? 260 : 150, 0.28, e.crit ? 2.2 : 1.6)
-        if (this.settings.dmgNumbers) this.hitNumber(e.x, e.y, e.dmg, e.crit, e.boss)
+      case 'hit':
+        this.hitFx(e)
         break
-      }
       case 'kill': {
         const big = e.big || e.elite
+        // 击杀瞬间的白色闪点：让每一次击杀都有"啪"的一下
+        P.dot(e.x, e.y, 0, 0, '#ffffff', 11 + e.r * 0.55, 0.11)
         P.burst(e.x, e.y, e.color, big ? 16 : 6, 120 + e.r * 7, 5 + e.r * 0.28, 0.5)
         P.shards(e.x, e.y, e.color, big ? 12 : 4, 150 + e.r * 7, 3.4, 0.55)
         P.ring(e.x, e.y, e.r * 0.4, e.r * (big ? 3.6 : 2.3), e.color, big ? 0.45 : 0.32, big ? 3.2 : 2)
@@ -261,7 +288,7 @@ export class Renderer {
         this.cam.addTrauma(Math.min(0.75, 0.3 + e.dmg * 0.012))
         P.burst(p.x, p.y, '#ff3b5c', 10, 220, 6, 0.4)
         P.spark(p.x, p.y, '#ffffff', 8, 260, 0.3)
-        if (this.settings.dmgNumbers) this.texts.add(p.x, p.y - 20, `-${Math.round(e.dmg)}`, '#ff5c7a', 17, 0.9)
+        if (this.settings.dmgNumbers) this.texts.add(p.x, p.y - 20, `-${Math.round(e.dmg)}`, { size: 18, color: '#ff5c7a', halo: '#ff1f4b', life: 0.9, pop: 1.7, tier: 4, rise: 0.8 })
         break
       }
       case 'gem': {
@@ -311,16 +338,13 @@ export class Renderer {
         this.cam.addTrauma(0.5)
         break
       case 'evolve': {
-        const gold = '#ffd84a'
-        for (let i = 0; i < 3; i++) {
-          this.schedule(i * 0.14, () => {
-            P.ring(p.x, p.y, 10, 170 + i * 70, i === 1 ? '#ffffff' : gold, 0.7, 4)
-          })
-        }
-        P.burst(p.x, p.y, gold, 34, 340, 8, 0.85)
-        P.spark(p.x, p.y, '#ffffff', 22, 380, 0.5)
-        this.flash(gold, 0.3)
-        this.cam.addTrauma(0.3)
+        // 菜单里的演示局没有"演出导演"，只放一个简化版；正式对局由 App 调用 evolveCharge / evolveBoom
+        const col = WEAPONS[e.w].color
+        P.ring(p.x, p.y, 10, 190, '#ffd84a', 0.7, 4)
+        P.ring(p.x, p.y, 10, 130, col, 0.6, 3)
+        P.burst(p.x, p.y, '#ffd84a', 26, 320, 8, 0.8)
+        this.flash('#ffd84a', 0.2)
+        this.cam.addTrauma(0.25)
         break
       }
       case 'end':
@@ -331,20 +355,193 @@ export class Renderer {
     }
   }
 
-  private hitNumber(x: number, y: number, dmg: number, crit: boolean, boss: boolean): void {
-    if (crit) {
-      this.texts.add(x, y - 10, fmtDmg(dmg), '#ffd84a', 19, 0.8)
-      return
+  private shotFx(e: Extract<GameEvent, { t: 'shot' }>): void {
+    const P = this.parts
+    const ca = Math.cos(e.a)
+    const sa = Math.sin(e.a)
+    const mx = e.x + ca * 12
+    const my = e.y + sa * 12
+    switch (e.w) {
+      case 'pulse':
+        P.sparkCone(mx, my, e.a, 0.5, '#3df2ff', 2, 140, 0.16)
+        P.dot(mx, my, 0, 0, '#aefcff', 9, 0.07)
+        break
+      case 'arc':
+        P.sparkCone(e.x, e.y, e.a, 1.5, '#ffe66b', 4, 230, 0.18)
+        P.dot(mx, my, 0, 0, '#fff6a0', 15, 0.1)
+        break
+      case 'missile':
+        // 尾喷：向后喷一团火花
+        P.sparkCone(e.x - ca * 8, e.y - sa * 8, e.a + Math.PI, 0.9, '#ffb15c', 5, 200, 0.22)
+        P.dot(mx, my, 0, 0, '#ffd9a0', 12, 0.09)
+        break
+      case 'laser':
+        // 向内收缩的蓄能环 + 炮口亮点
+        P.ring(e.x, e.y, 34, 6, '#ff9db0', 0.2, 2)
+        P.dot(mx, my, 0, 0, '#ffd1dc', 18, 0.12)
+        break
+      case 'mine':
+        P.ring(e.x, e.y, 3, 26, '#5dff9e', 0.22, 2)
+        break
+      case 'nova':
+        P.ring(e.x, e.y, 10, 74, '#e8fbff', 0.3, 3)
+        this.cam.addTrauma(0.04)
+        break
+      case 'chakram':
+        P.sparkCone(e.x, e.y, e.a, 0.9, '#ff7ae0', 4, 170, 0.22)
+        break
+      case 'rail': {
+        // 磁轨炮：炮口闪光 + 沿光轨洒一串火花 + 一点后坐力震屏
+        P.sparkCone(e.x, e.y, e.a, 0.4, '#ff8aa0', 9, 420, 0.3)
+        P.ring(e.x, e.y, 4, 44, '#ff4d6d', 0.26, 3)
+        for (let k = 0; k < 9; k++) {
+          const d = 70 + k * 85
+          P.spark(e.x + ca * d, e.y + sa * d, '#ffb3c1', 2, 110, 0.4, 1.6)
+        }
+        this.cam.addTrauma(0.14)
+        break
+      }
+      default:
+        break
     }
-    if (boss) {
-      if (this.bossDmgBudget < 1) return
-      this.bossDmgBudget -= 1
-      this.texts.add(x + (Math.random() - 0.5) * 60, y - 30 - Math.random() * 30, fmtDmg(dmg), '#ffc2cc', 14, 0.7)
-      return
+    if (e.evo) this.evoShotFx(e, ca, sa)
+  }
+
+  /** 进化武器每轮开火：炮口多一圈光环 + 光爆 + 微震（按武器限频，不然连发会糊成一片） */
+  private evoShotFx(e: Extract<GameEvent, { t: 'shot' }>, ca: number, sa: number): void {
+    if (this.vt - (this.evoShotAt[e.w] ?? -9) < 0.22) return
+    this.evoShotAt[e.w] = this.vt
+    const P = this.parts
+    const col = WEAPONS[e.w].color
+    P.ring(e.x, e.y, 8, 54, col, 0.3, 3.2)
+    P.ring(e.x, e.y, 5, 32, '#ffffff', 0.22, 2)
+    P.burst(e.x, e.y, col, 7, 170, 5.5, 0.32)
+    P.dot(e.x + ca * 14, e.y + sa * 14, 0, 0, '#ffffff', 24, 0.11)
+    const tr = EVO_SHOT_TRAUMA[e.w]
+    if (tr) this.cam.addTrauma(tr)
+  }
+
+  /** 命中：火花数量 / 大小 / 颜色随伤害档位增长；重击再加冲击环、碎片和震屏 */
+  private hitFx(e: Extract<GameEvent, { t: 'hit' }>): void {
+    const P = this.parts
+    const tier = dmgTier(e.dmg, e.crit)
+    const T = DMG_TIERS[tier]
+    const hot = tier >= 3
+    P.spark(
+      e.x,
+      e.y,
+      hot ? T.color : e.crit ? '#ffe66b' : lighten(e.color, 0.3),
+      HIT_SPARKS[tier] + (e.crit ? 2 : 0),
+      150 + tier * 35,
+      0.26 + tier * 0.025,
+      1.6 + tier * 0.14,
+    )
+    if (hot) P.dot(e.x, e.y, 0, 0, T.color, 9 + tier * 2.5, 0.14)
+    if (tier >= 4 && this.fxBudget >= 1) {
+      // 一次大范围爆炸会同时命中几十个敌人，所以重击特效要限流
+      this.fxBudget -= 1
+      P.ring(e.x, e.y, 5, 24 + tier * 9, T.color, 0.22 + tier * 0.02, 1.6 + tier * 0.45)
+      if (tier >= 5) P.shards(e.x, e.y, T.color, 3 + tier, 200 + tier * 25, 3.4, 0.5)
+      this.cam.addTrauma(HIT_TRAUMA[tier])
     }
-    if (this.dmgBudget < 1) return
-    this.dmgBudget -= 1
-    this.texts.add(x, y - 8, fmtDmg(dmg), dmg >= 40 ? '#ffffff' : '#bfefff', dmg >= 40 ? 14 : 12, 0.6)
+    if (this.settings.dmgNumbers) this.hitNumber(e.x, e.y, e.dmg, e.crit, e.boss, tier)
+  }
+
+  /** 先用自己那一档的额度，用完了向下"借"——重击不该因为额度被丢掉 */
+  private takeNumberToken(cls: number): boolean {
+    for (let c = cls; c >= 0; c--) {
+      if (this.numBudget[c] >= 1) {
+        this.numBudget[c] -= 1
+        return true
+      }
+    }
+    return false
+  }
+
+  private hitNumber(x: number, y: number, dmg: number, crit: boolean, boss: boolean, tier: number): void {
+    const cls = budgetClass(tier)
+    // Boss 身上的小数字额外限流，不然会糊成一片
+    if (cls === 0 && boss && this.bossDmgBudget < 1) return
+    if (!this.takeNumberToken(cls)) return
+    if (cls === 0 && boss) this.bossDmgBudget -= 1
+    const T = DMG_TIERS[tier]
+    this.texts.add(
+      x + (boss ? (Math.random() - 0.5) * (52 + tier * 8) : 0),
+      boss ? y - 24 - Math.random() * 26 - tier * 3 : y - 8 - tier * 2,
+      fmtDmg(dmg) + (crit ? '!' : ''),
+      { size: T.size, color: T.color, halo: T.halo, life: T.life, pop: T.pop, tier, rise: tier >= 3 ? 0.72 : 1 },
+    )
+  }
+
+  // ───────────────────────── 武器进化演出 ─────────────────────────
+
+  /** 镜头猛地推近一下（比例），随后自然回落；"减少晃动"的玩家不会有这个效果 */
+  private zoomPunch(a: number): void {
+    if (this.settings.shake) this.zoom = Math.max(this.zoom, a)
+  }
+
+  /** 向飞船收拢的光点：速度按拖拽衰减反推，保证正好在 life 结束时到达中心 */
+  private converge(x: number, y: number, color: string, n: number, rMin: number, rMax: number, life: number): void {
+    const P = this.parts
+    const f = 1 - Math.exp(-3.2 * life)
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * TAU
+      const r = rMin + Math.random() * (rMax - rMin)
+      const v = (3.2 * r) / f
+      P.dot(x + Math.cos(a) * r, y + Math.sin(a) * r, -Math.cos(a) * v, -Math.sin(a) * v, color, 5 + Math.random() * 3, life)
+    }
+  }
+
+  /**
+   * 进化 · 第一幕「蓄力」：光环和光点向飞船收拢，镜头慢慢拉近。
+   * 紧接着模拟层的冲击波引爆，由 App 调用 evolveBoom 进入第二幕。
+   */
+  evolveCharge(id: WeaponId): void {
+    const w = this.world
+    if (!w) return
+    const p = w.player
+    const P = this.parts
+    const col = WEAPONS[id].color
+    const gold = '#ffd84a'
+    this.charging = true
+    const cols = [col, '#ffffff', gold]
+    for (let i = 0; i < 3; i++) {
+      this.schedule(i * 0.07, () => P.ring(p.x, p.y, 330 - i * 50, 20, cols[i], EVOLVE_CHARGE - i * 0.05, 3.5))
+    }
+    this.converge(p.x, p.y, col, 22, 120, 280, EVOLVE_CHARGE)
+    this.converge(p.x, p.y, gold, 12, 90, 220, EVOLVE_CHARGE * 0.8)
+    this.cam.addTrauma(0.2)
+  }
+
+  /**
+   * 进化 · 第二幕「爆发」：整屏冲击波、光爆、放射光线、白闪、猛推镜头。
+   * 此刻 App 把时间流速砸到近乎静止，所以这些粒子会"慢放"出来。
+   */
+  evolveBoom(id: WeaponId): void {
+    const w = this.world
+    if (!w) return
+    const p = w.player
+    const P = this.parts
+    const col = WEAPONS[id].color
+    const gold = '#ffd84a'
+    this.charging = false
+    const R = Math.hypot(this.halfW, this.halfH)
+    P.ring(p.x, p.y, 14, R * 1.05, '#ffffff', 0.85, 9)
+    P.ring(p.x, p.y, 14, R * 0.8, col, 0.95, 6)
+    P.ring(p.x, p.y, 14, R * 0.55, gold, 1.0, 4)
+    this.schedule(0.1, () => P.ring(p.x, p.y, 10, R * 0.7, '#ffffff', 0.7, 4))
+    this.schedule(0.2, () => P.ring(p.x, p.y, 10, R * 0.45, col, 0.7, 3))
+    P.burst(p.x, p.y, col, 70, 620, 11, 1.0)
+    P.burst(p.x, p.y, gold, 50, 480, 9, 0.9)
+    P.burst(p.x, p.y, '#ffffff', 24, 360, 12, 0.5)
+    P.spark(p.x, p.y, '#ffffff', 56, 900, 0.75, 2.6)
+    P.spark(p.x, p.y, col, 44, 700, 0.9, 2.2)
+    P.shards(p.x, p.y, col, 30, 560, 5, 1.0)
+    P.dot(p.x, p.y, 0, 0, '#ffffff', 170, 0.35)
+    this.flash('#ffffff', 0.9)
+    this.schedule(0.18, () => this.flash(col, 0.3))
+    this.cam.addTrauma(0.8)
+    this.zoomPunch(EVOLVE_ZOOM)
   }
 
   private flash(color: string, a: number): void {
@@ -425,12 +622,27 @@ export class Renderer {
     if (this.world !== w) this.attach(w)
     const ctx = this.ctx
     const p = w.player
-    const k = this.k
 
     this.vt += animDt
-    // 预算回填
-    this.dmgBudget = Math.min(12, this.dmgBudget + animDt * 30)
+    // 镜头变焦：蓄力时缓缓拉近，爆发时猛地一推再自然回落（进化演出）
+    if (!this.settings.shake) this.zoom = 0
+    else if (this.charging && (w.phase === 'play' || w.phase === 'levelup')) {
+      this.zoom += (EVOLVE_ZOOM * 0.45 - this.zoom) * Math.min(1, animDt * 6)
+    } else {
+      this.charging = false
+      if (this.zoom > 0) {
+        this.zoom *= Math.exp(-4.2 * animDt)
+        if (this.zoom < 0.0008) this.zoom = 0
+      }
+    }
+    this.k = this.kBase * (1 + this.zoom)
+    const k = this.k
+
+    // 额度回填
+    const nb = this.numBudget
+    for (let c = 0; c < nb.length; c++) nb[c] = Math.min(NUM_CAP[c], nb[c] + animDt * NUM_RATE[c])
     this.bossDmgBudget = Math.min(4, this.bossDmgBudget + animDt * 7)
+    this.fxBudget = Math.min(3, this.fxBudget + animDt * 5)
 
     // 预定事件（Boss 连环爆炸等）
     for (let i = this.scheduled.length - 1; i >= 0; i--) {
@@ -453,6 +665,7 @@ export class Renderer {
     this.parts.update(animDt)
     this.texts.update(animDt)
     this.flashA = Math.max(0, this.flashA - animDt * 2.4)
+    this.updateEvoAura(w, animDt)
     this.updateGhosts(w, animDt)
 
     this.cx = this.cam.x + this.cam.sx
@@ -484,7 +697,7 @@ export class Renderer {
     this.parts.draw(ctx, this.bank)
     // 玩家画在所有加色特效之上：再乱的场面也要一眼看到自己
     this.drawPlayer(w)
-    this.texts.draw(ctx)
+    this.texts.draw(ctx, this.k, this.settings.quality !== 'low')
 
     // 屏幕空间后处理
     ctx.setTransform(1, 0, 0, 1, 0, 0)
@@ -1185,6 +1398,71 @@ export class Renderer {
     ctx.globalCompositeOperation = 'source-over'
   }
 
+  /** 记下进化武器的颜色，并让光环上不时飘出一粒光点（顺着飞船的运动方向拖出尾迹） */
+  private updateEvoAura(w: World, animDt: number): void {
+    const p = w.player
+    const cols = this.evoCols
+    cols.length = 0
+    for (const wi of p.weapons) if (wi.evolved) cols.push(WEAPONS[wi.id].color)
+    if (cols.length === 0 || animDt <= 0 || w.phase !== 'play') return
+    this.auraT -= animDt
+    if (this.auraT > 0) return
+    this.auraT = 0.1 / (1 + cols.length * 0.35)
+    const a = Math.random() * TAU
+    const ca = Math.cos(a)
+    const sa = Math.sin(a)
+    this.parts.dot(p.x + ca * 30, p.y + sa * 30, ca * 26 + p.vx * 0.15, sa * 26 + p.vy * 0.15, cols[(Math.random() * cols.length) | 0], 4.6, 0.6)
+  }
+
+  /**
+   * 进化光环：只要有任何一把武器进化过，飞船周围就常驻金色光晕 + 每把进化武器一段旋转的弧（用该武器的颜色）。
+   * 一眼就能数出"我现在有几把神装"。
+   */
+  private drawEvoAura(p: World['player']): void {
+    const cols = this.evoCols
+    const n = cols.length
+    if (n === 0) return
+    const ctx = this.ctx
+    const vt = this.vt
+    ctx.globalCompositeOperation = 'lighter'
+    const g = this.bank.glow('#ffd84a')
+    const gs = 92 + n * 7 + 10 * Math.sin(vt * 3.2)
+    ctx.globalAlpha = Math.min(0.62, 0.28 + n * 0.07)
+    ctx.drawImage(g.c, p.x - gs / 2, p.y - gs / 2, gs, gs)
+    ctx.globalAlpha = 1
+    const span = Math.min(1.9, (TAU / n) * 0.7)
+    const rot = vt * 1.9
+    for (let i = 0; i < n; i++) {
+      const a0 = rot + (i / n) * TAU
+      const r = 31 + Math.sin(vt * 3 + i * 1.7) * 1.2
+      // 弧线底下垫一层宽而淡的同色光
+      ctx.strokeStyle = rgba(cols[i], 0.22)
+      ctx.lineWidth = 8
+      ctx.beginPath()
+      ctx.arc(p.x, p.y, r, a0, a0 + span)
+      ctx.stroke()
+      ctx.strokeStyle = rgba(cols[i], 0.9)
+      ctx.lineWidth = 3
+      ctx.beginPath()
+      ctx.arc(p.x, p.y, r, a0, a0 + span)
+      ctx.stroke()
+      ctx.strokeStyle = 'rgba(255,255,255,0.55)'
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      ctx.arc(p.x, p.y, r, a0 + span * 0.15, a0 + span * 0.85)
+      ctx.stroke()
+    }
+    ctx.setLineDash([3, 7])
+    ctx.lineDashOffset = -vt * 12
+    ctx.strokeStyle = rgba('#ffd84a', 0.35)
+    ctx.lineWidth = 1.2
+    ctx.beginPath()
+    ctx.arc(p.x, p.y, 38, 0, TAU)
+    ctx.stroke()
+    ctx.setLineDash([])
+    ctx.globalCompositeOperation = 'source-over'
+  }
+
   private drawPlayer(w: World): void {
     if (w.phase === 'lost') return
     const p = w.player
@@ -1209,6 +1487,8 @@ export class Renderer {
     ctx.drawImage(g2.c, fx - f2 / 2, fy - f2 / 2, f2, f2)
     ctx.globalAlpha = 1
     ctx.globalCompositeOperation = 'source-over'
+
+    this.drawEvoAura(p)
 
     // 衬底：深色柔边圆，让机身在明亮的特效里依然清晰
     const plate = ctx.createRadialGradient(p.x, p.y, 2, p.x, p.y, 24)

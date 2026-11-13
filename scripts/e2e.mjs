@@ -6,6 +6,7 @@
  *   node scripts/e2e.mjs smoke              # 冒烟：能启动、无控制台错误、能开一局并推进、音频有输出且不削波
  *   node scripts/e2e.mjs flows              # 关键流程：英文界面、失败结算、机库购买、暂停放弃、手柄
  *   node scripts/e2e.mjs pwa                # Service Worker：激活、离线可玩、新版本提示、清单与图标
+ *   node scripts/e2e.mjs fx                 # 手感：伤害数字 8 档梯度 + 武器进化演出（蓄力 → 爆发 → 慢动作 → 横幅 → 光环），逐帧截图
  *   node scripts/e2e.mjs play [选项]        # 直接开一局并快进截图：--sector --ship --threat --ff --wait --name --q --audio 1
  *   node scripts/e2e.mjs perf [选项]        # 性能探针：--q high|medium|low|auto --dpr 2 --gpu 1 --secs 6
  *   node scripts/e2e.mjs live [--url URL]   # 对线上地址做冒烟测试（默认 https://aigames.de5.net）
@@ -271,14 +272,24 @@ async function perf(base) {
     }, smooth)
   }
   await sleep(1500)
+  // --hits N：采样期间每帧额外灌入 N 次重击（T3–T7、含暴击），压测伤害数字 / 命中特效的限流
+  const hits = Number(opt('hits', '0'))
   const r = await page.evaluate(
-    (secs) =>
+    ({ secs, hits }) =>
       new Promise((resolve) => {
         const ts = []
         const ms = []
         const t0 = performance.now()
+        const DMG = [60, 120, 260, 520, 1400]
         const tick = (now) => {
           ts.push(now)
+          if (hits > 0) {
+            const w = window.__neon.game
+            const p = w.player
+            for (let i = 0; i < hits; i++) {
+              w.emit({ t: 'hit', x: p.x + (Math.random() - 0.5) * 700, y: p.y + (Math.random() - 0.5) * 420, dmg: DMG[i % DMG.length], crit: i % 3 === 0, color: '#ff6a8a', boss: false })
+            }
+          }
           const d = window.__neon.debug()
           ms.push(Number(d.frameMs))
           if (now - t0 < secs * 1000) requestAnimationFrame(tick)
@@ -297,9 +308,9 @@ async function perf(base) {
         }
         requestAnimationFrame(tick)
       }),
-    secs,
+    { secs, hits },
   )
-  console.log(`  perf q=${quality} dpr=${dpr} ${vw}x${vh} gpu=${gpu}:`, JSON.stringify({ ...r, debug: { enemies: r.debug.enemies, canvas: r.debug.canvas, quality: r.debug.quality } }))
+  console.log(`  perf q=${quality} dpr=${dpr} ${vw}x${vh} gpu=${gpu}${hits ? ` hits/frame=${hits}` : ''}:`, JSON.stringify({ ...r, debug: { enemies: r.debug.enemies, canvas: r.debug.canvas, quality: r.debug.quality } }))
   await browser.close()
 }
 
@@ -646,6 +657,144 @@ async function flows(base) {
   await browser.close()
 }
 
+/** 手感专项：伤害数字分级 + 武器进化演出。截图在 .e2e/fx*.png，同时断言演出时序（导演 / 横幅 / 慢动作 / 光环）。 */
+async function fx(base) {
+  const browser = await launch()
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 })
+  const page = await ctx.newPage()
+  watch(page, 'fx')
+  await page.goto(`${base}/?e2e=1&q=high`, { waitUntil: 'load' })
+  await waitReady(page)
+  await page.evaluate(() => {
+    const a = window.__neon
+    a.startRun({ ship: 'vanguard', sector: 'fields', threat: 0, endless: false })
+    a.godMode = true
+  })
+  await page.waitForSelector('.hud:not([hidden])')
+  await sleep(600)
+
+  // ① 伤害数字梯度：上排普通命中，下排同样数值的暴击（上浮一档 + 感叹号）
+  await page.evaluate(() => {
+    const w = window.__neon.game
+    const p = w.player
+    const dmgs = [6, 14, 30, 60, 120, 260, 520, 1400]
+    dmgs.forEach((d, i) => {
+      w.emit({ t: 'hit', x: p.x - 330 + i * 94, y: p.y - 120, dmg: d, crit: false, color: '#ff6a8a', boss: false })
+      w.emit({ t: 'hit', x: p.x - 330 + i * 94, y: p.y + 120, dmg: d, crit: true, color: '#ff6a8a', boss: false })
+    })
+  })
+  await sleep(90)
+  await shot(page, 'fx1-numbers-pop')
+  await sleep(330)
+  await shot(page, 'fx2-numbers-settled')
+
+  // ② 武器进化：升满第一把武器并补上配套被动 → 触发升级 → 在面板里选进化卡
+  const PARTNER = { pulse: 'power', orbit: 'area', arc: 'haste', missile: 'accel', laser: 'multi', mine: 'magnet', nova: 'armor', drone: 'learning', chakram: 'thruster', rail: 'luck' }
+  await sleep(1200) // 等数字散去
+  await page.evaluate((partners) => {
+    const a = window.__neon
+    const w = a.game
+    const p = w.player
+    const wi = p.weapons[0]
+    wi.level = 8
+    wi.evolved = false
+    p.passives[partners[wi.id]] = Math.max(1, p.passives[partners[wi.id]] ?? 0)
+    w.recalc()
+    w.addXp(p.xpNext)
+  }, PARTNER)
+  try {
+    await page.waitForSelector('.overlay.levelup:not([hidden])', { timeout: 6000 })
+  } catch {
+    problems.push('[fx] 升级面板没有出现')
+  }
+  await sleep(500)
+  const evoIdx = await page.evaluate(() => window.__neon.game.offers.findIndex((o) => o.kind === 'weapon' && o.evolve))
+  if (evoIdx < 0) {
+    problems.push('[fx] 升级卡里没有进化选项')
+  } else {
+    const t0 = Date.now()
+    await page.keyboard.press(String(evoIdx + 1))
+    const marks = [
+      ['charge', 140],
+      ['boom', 430],
+      ['hold', 560],
+      ['ramp', 820],
+      ['banner', 1500],
+      ['after', 3600],
+    ]
+    const seen = {}
+    for (const [label, at] of marks) {
+      await sleep(Math.max(0, at - (Date.now() - t0)))
+      const st = await page.evaluate(() => {
+        const a = window.__neon
+        return {
+          cine: a.cine ? { t: +a.cine.t.toFixed(2), boomed: a.cine.boomed } : null,
+          banner: !!document.querySelector('.evo-banner.show'),
+          evolved: a.game.player.weapons.filter((x) => x.evolved).length,
+          frameMs: Math.round(a.renderer.frameMs * 100) / 100,
+        }
+      })
+      seen[label] = st
+      console.log(`  ${label.padEnd(7)} +${Date.now() - t0}ms`, JSON.stringify(st))
+      await shot(page, `fx3-evolve-${label}`)
+    }
+    if (seen.charge.evolved !== 1) problems.push('[fx] 选进化卡后武器没有进化')
+    if (!seen.charge.cine && !seen.boom.cine) problems.push('[fx] 进化后演出导演没有启动')
+    if (!Object.values(seen).some((x) => x.cine?.boomed)) problems.push('[fx] 冲击波没有引爆（导演从未进入爆发阶段）')
+    // 每个采样点都带一次截图，真实耗时会漂移，所以只要任意一次采样看到横幅就算数
+    if (!Object.values(seen).some((x) => x.banner)) problems.push('[fx] 进化横幅没有显示')
+    if (seen.after.cine) problems.push('[fx] 3.6 秒后演出导演应已结束（时间流速恢复正常）')
+    if (seen.after.banner) problems.push('[fx] 3.6 秒后进化横幅应已消失')
+
+    // ③ 无障碍：关掉"屏幕震动"、打开"减少闪烁"后再进化一次——不应有镜头变焦与白闪，横幅等其余演出照常
+    await page.evaluate((partners) => {
+      const a = window.__neon
+      a.save.settings.shake = false
+      a.save.settings.reduceFlash = true
+      a.applySettings()
+      const w = a.game
+      const p = w.player
+      const wi = p.weapons[0]
+      wi.level = 8
+      wi.evolved = false
+      p.passives[partners[wi.id]] = Math.max(1, p.passives[partners[wi.id]] ?? 0)
+      w.recalc()
+      w.addXp(p.xpNext)
+    }, PARTNER)
+    try {
+      await page.waitForSelector('.overlay.levelup:not([hidden])', { timeout: 6000 })
+    } catch {
+      problems.push('[fx/a11y] 第二次升级面板没有出现')
+    }
+    await sleep(500)
+    const idx2 = await page.evaluate(() => window.__neon.game.offers.findIndex((o) => o.kind === 'weapon' && o.evolve))
+    if (idx2 < 0) {
+      problems.push('[fx/a11y] 第二次升级卡里没有进化选项')
+    } else {
+      await page.keyboard.press(String(idx2 + 1))
+      let maxZoom = 0
+      let maxFlash = 0
+      let bannerSeen = false
+      for (let i = 0; i < 18; i++) {
+        await sleep(100)
+        const st = await page.evaluate(() => {
+          const r = window.__neon.renderer
+          return { zoom: r.zoom, flash: r.flashA, banner: !!document.querySelector('.evo-banner.show') }
+        })
+        maxZoom = Math.max(maxZoom, st.zoom)
+        maxFlash = Math.max(maxFlash, st.flash)
+        bannerSeen = bannerSeen || st.banner
+      }
+      console.log(`  [a11y] 关闭震动 + 减少闪烁：最大变焦 ${maxZoom.toFixed(3)}，最大白闪 ${maxFlash.toFixed(3)}，横幅${bannerSeen ? '有' : '无'}`)
+      if (maxZoom > 0) problems.push(`[fx/a11y] 关闭"屏幕震动"后镜头仍在变焦（${maxZoom.toFixed(3)}）`)
+      if (maxFlash > 0) problems.push(`[fx/a11y] 开启"减少闪烁"后仍出现白闪（${maxFlash.toFixed(3)}）`)
+      if (!bannerSeen) problems.push('[fx/a11y] 无障碍设置下进化横幅没有显示')
+    }
+  }
+  console.log('  debug:', JSON.stringify(await dbg(page)))
+  await browser.close()
+}
+
 async function smoke(base) {
   const browser = await launch()
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } })
@@ -736,6 +885,7 @@ try {
   else if (mode === 'live') await live()
   else if (mode === 'pwa') await pwa()
   else if (mode === 'flows') await flows(base)
+  else if (mode === 'fx') await fx(base)
   else throw new Error(`未知模式 ${mode}`)
 } finally {
   srv?.server.close()

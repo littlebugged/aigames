@@ -1,6 +1,7 @@
 import { MAX_PASSIVES, MAX_WEAPONS, PASSIVE_IDS, WEAPON_IDS, WEAPON_MAX_LEVEL } from '../data/ids'
 import type { PassiveId, WeaponId } from '../data/ids'
 import { PASSIVES } from '../data/passives'
+import { EVOLVE_SHOCK } from '../data/tuning'
 import { WEAPONS } from '../data/weapons'
 import { WeaponInst } from './entities'
 import type { World } from './world'
@@ -116,9 +117,11 @@ export function applyOffer(w: World, o: Offer): void {
         if (wi) {
           if (o.evolve) {
             wi.evolved = true
-            wi.timer = 0.2
+            // 进化后的第一轮火力等冲击波炸完再打，演出才连得上
+            wi.timer = EVOLVE_SHOCK.delay + 0.1
             w.stats.evolves++
             w.emit({ t: 'evolve', w: o.id })
+            w.queueEvolveShock(o.id)
           } else {
             wi.level = o.to
           }
