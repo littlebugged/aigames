@@ -65,10 +65,14 @@ export const TOP_TIER = DMG_TIERS.length - 1
 /** 玩家自己受到的伤害：热红色，和打出去的数字一眼区分 */
 export const HURT_STYLE = DMG_TIERS.length
 
-/** 全部数字外观：下标 0..TOP_TIER 是伤害档位，HURT_STYLE 是受伤数字 */
+/** 回血数字（虹吸索）：薄荷绿，和伤害 / 受伤数字一眼区分 */
+export const HEAL_STYLE = DMG_TIERS.length + 1
+
+/** 全部数字外观：下标 0..TOP_TIER 是伤害档位，HURT_STYLE 是受伤数字，HEAL_STYLE 是回血数字 */
 export const NUM_LOOKS: readonly NumLook[] = [
   ...DMG_TIERS,
   { size: 18, weight: 800, top: '#ffe6ea', mid: '#ff8da0', bot: '#ff3a5c', glow: '#ff1f4b', glowK: 0.16, outline: 0.1, skew: 0.1, gloss: 0.3 },
+  { size: 16, weight: 800, top: '#f0fff6', mid: '#8dffbb', bot: '#2fd37a', glow: '#1fdc7a', glowK: 0.13, outline: 0.1, skew: 0.06, gloss: 0.26 },
 ]
 
 /** 伤害 → 档位。暴击额外上浮一档（至少落在第 2 档），一眼能和普通命中区分开。 */

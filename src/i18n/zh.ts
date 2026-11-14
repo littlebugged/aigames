@@ -260,6 +260,11 @@ export const zh = {
   'stat.arc.chain': '连跳次数',
   'stat.chakram.range': '飞行距离',
   'stat.rail.area': '光轨宽度',
+  'stat.heal': '回复',
+  'stat.siphon.damage': '每跳伤害',
+  'stat.siphon.count': '索数',
+  'stat.siphon.range': '索长',
+  'stat.siphon.heal': '每跳回复',
   'stat.unit.s': '秒',
 
   // ───── 武器 ─────
@@ -303,6 +308,14 @@ export const zh = {
   'weapon.rail.desc': '瞬发一道贯穿全屏的穿甲光轨，专挑血量最厚的敌人打，Boss 优先，无法躲避。',
   'weapon.rail.evoName': '超载磁轨',
   'weapon.rail.evoDesc': '三道超载光轨，每一道都会在原地留下持续灼烧的等离子痕。',
+  'weapon.howitzer.name': '榴弹炮',
+  'weapon.howitzer.desc': '朝最密集的敌群抛出炮弹，落点有准星提示，落地大爆炸；Boss 在射程内时专打 Boss。最大生命越高，伤害越高。',
+  'weapon.howitzer.evoName': '饱和轰炸',
+  'weapon.howitzer.evoDesc': '六发齐射分头砸向不同的敌群，每发落地后还会撒出三枚子弹药连环爆炸。',
+  'weapon.siphon.name': '虹吸索',
+  'weapon.siphon.desc': '从机身拉出能量索，扣住最近的敌人持续汲取（每秒 4 跳），每一跳都回复生命。不会打空，Boss 也能扣住；纳米修复能放大回复量。',
+  'weapon.siphon.evoName': '噬能之网',
+  'weapon.siphon.evoDesc': '七根能量索，射程更远、回复翻倍；每一跳的电击还会溅射到目标周围的敌人。',
 
   // ───── 被动 ─────
   'passive.power.name': '过载核心',

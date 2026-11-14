@@ -101,7 +101,7 @@ v1.5 只重做了"活物"（敌人 / 飞船 / Boss），场上最常出现的另
 
 代码结构与约定：
 
-- `src/render/props.ts` 只负责"画"（`paintHeal / paintMagnet / paintBomb / paintChest / paintCache / paintBlade / paintChakram / paintDrone / paintMine / paintBolt / paintPlasma`，都接受 `(ctx, 基准半径, 颜色)`，原点在精灵中心）；尺寸、光晕、缓存、`SpriteBank` 的取用方式仍在 `sprites.ts`。想改某个造型，只动 `props.ts` 的对应函数。
+- `src/render/props.ts` 只负责"画"（`paintHeal / paintMagnet / paintBomb / paintChest / paintCache / paintBlade / paintChakram / paintDrone / paintMine / paintBolt / paintPlasma / paintShell / paintClamp`，都接受 `(ctx, 基准半径, 颜色)`，原点在精灵中心）；尺寸、光晕、缓存、`SpriteBank` 的取用方式仍在 `sprites.ts`。想改某个造型，只动 `props.ts` 的对应函数。
 - 拾取物的 ID 与识别色在 `src/data/ids.ts`（`PICKUP_IDS`）与 `src/data/pickups.ts`（`PICKUP_COLOR`）——渲染器和玩法指南页共用同一份；`PickupKind` 是 `PickupId` 的别名。
 - `cut()`（刻面宝石着色）从 `sprites.ts` 搬到了 `parts.ts`，宝石和晶核箱共用。
 - **判定半径一律不变**：这是视觉改动。僚机、地雷画得比原来大一圈，是美术半径变大，不是判定变大。
@@ -215,6 +215,25 @@ v1.9 刻意没碰 HUD（它叠在战场上，越不抢眼越好），结果是�
 
 **验证**：`node scripts/e2e.mjs hud` 是 HUD 样张——开一局并定格，把 5 种状态（常规 / 低血量 / Boss + 横幅 / 进化相关的装备槽 / 手机竖屏的摇杆与冲刺键）下的各个区域逐块放大截图（默认 DPR 3，写到 `.e2e/hud-<状态>-<区域>.png`，区域有 `tl / xp / tc / tr / bl / dash / joy`；`--only`、`--dpr`、`--lang en`、`--tag 名` 可用）。改了 HUD 的样式后必须看一眼，尤其是 `--dpr 1`：1 px 的环和 0.4 px 的内缩在低分屏上最容易露出缝。"版面不变"这件事仍由 `layout` 守护。`tests/hud-style.test.ts` 守 CSS 里几处必须同步改的列表（套件的 `:is()` 列表重复了好几遍，漏改一处就是半成品板）。
 
+### 武器扩充 v1.11：榴弹炮与虹吸索
+
+目标是把"武器 × 被动"补成 12 × 12 的一一配对：之前 `hull`（强化舱体）和 `regen`（纳米修复）没有搭档武器，是两张"永远进化不了任何东西"的被动卡。新增的两把武器正好各吃一张：**榴弹炮**（搭档强化舱体，威力随最大生命）和**虹吸索**（搭档纳米修复，回复速度会放大它的回血）。`tests/data.test.ts` 要求搭档不重复，所以**第 13 把武器必须先有第 13 张被动**。
+
+| | 榴弹炮 `howitzer` | 虹吸索 `siphon` |
+| --- | --- | --- |
+| 行为 | 抛物线炮击。`Shell` 实体（池化；齐射数量与冷却自然限制了同屏数，整局测试断言峰值 ≤ 16）飞行 `clamp(距离 / 弹速, 0.5, 1.25)` 秒；落点**跟着目标走**（`target` + `targetId` 校验 + 偏移 `ox / oy`），目标死了就落在原地。选靶 `howitzerAim`：抽查 24 个候选，谁身边爆炸半径内的敌人最多谁当锚点（血厚 / 精英略加分），落点向人群重心靠拢；**已经有炮弹飞向的那一团会被避开**，一轮齐射会分头砸向不同的人堆；Boss 在射程内时所有炮弹只打 Boss（偏移按黄金角绕着 `boss.r × 0.45` 错开） | 不发射弹丸。`WeaponPt.tgt / tgtId` 记录每根索扣住的目标（`wi.pts`）：每 0.12 s 补一次索（Boss 优先、最多占 `ceil(根数/2)`，其余扣最近且没被扣住的），目标跑出 `射程 × 1.18` 才断开（滞回，边缘的敌人不会一会儿连一会儿断）；每根索每 0.25 s 跳一次：先打伤害，**打出伤害且自己没满血才回血** |
+| 数值 | `HULL_SCALING.howitzer = 0.5`：最大生命每比 `HULL_BASELINE`（100）高 100 点，伤害 +50 %（`stats.ts` 的 `hullBoost`，先锋号 100 血 ×1.0、要塞号 170 血 ×1.35）；进化「饱和轰炸」6 发齐射，每发落地再炸出 `HOWITZER_BOMBLET`（半径 ×0.5、伤害 ×0.4）的 3 颗子弹 | 每跳固定回血 `heal`（`WStats.heal`，与伤害无关）× `1 + regen × SIPHON_REGEN_BOOST`（0.2，`regen` 是 HP/s，每级 +0.5）；进化「噬能之网」每跳向目标周围溅射 `SIPHON_SPLASH_RATIO`（0.5）的伤害，**溅射不回血**（人潮里回血会失控），并随机放一道紫色电弧 |
+| 事件 | `shot`（出膛）、`shellLand {x,y,r,evo}`（落地，渲染 / 音频共用）、落地爆炸走已有的 `blast` | `shot`（连上新索）、`heal {x,y,n}`（回血汇总：攒够 1 点才冒一个 `+N`，最快 0.6 s 一次，满血不冒） |
+
+**渲染**：
+
+- 地面层（`src/render/groundfx.ts` 的 `GroundFx`）：焦痕 `scorch`（上限 16，保持 35 % 寿命后线性淡出）和烟团 `smoke`（上限 64，速度按 `exp(-2.4·dt)` 衰减并向上漂）。焦痕与烟是**哑光半透明深色**（非加色混合），所以和爆炸的加色火光叠在一起也不会发白。
+- 弹体 / 夹爪是 `props.ts` 的 `paintShell`（钢身 + 石灰色弹头与弹带 + 钢尖，进化后配色更亮）和 `paintClamp`（两片钢制 C 形钳口 + 铆钉 + 双灯），经 `SpriteBank.shell(color) / clamp(color)` 缓存。落点标记（`drawShellMarks`）全是墨线垫底的细线、不靠发光：虚线外圈缓慢自转 + 向内收拢的环（倒数落地）+ 十字准星 + 中心小菱形，临近落地线条变白；炮弹的地面影子也画在这一层，越高越小越淡。
+- 绘制顺序（`renderer.ts` 的 `frame`）：焦痕（最底层，在敌人之下）→ 落点标记与炮弹影子（在敌人之上）→ 虹吸索（在 `drawPlayerWeapons` 里：软管 + 能量包 + 夹爪）→ 炮弹本体 → 烟（在爆炸火光之下、玩家之下）。`heal` 事件用 `feel.ts` 的 `HEAL_STYLE`（`NUM_LOOKS` 末尾追加的绿色外观）飘字。
+- **连环爆炸的震屏上限**：爆炸（`blast`）震动单独累计到 `blastTrauma`（上限 0.75，每秒衰减 1.4），榴弹炮 / 导弹 / 地雷成串炸时屏幕不会一直糊在抖动里；与重击震屏的 `fxBudget` 互不影响。
+
+**验证**：`tests/weapons.test.ts` 新增 14 条（榴弹炮：落点与半径、跟着移动目标、Boss 优先、齐射分散、最大生命缩放、进化子弹、无目标不开火与同屏上限；虹吸索：取最近 N 个互不重复的目标、滞回与补索、固定回血与纳米修复放大、满血不回、Boss 最多占一半的索、进化溅射不回血、空场 / 多重 / 范围被动）。每条都做过"拆掉实现看测试会不会红"的反向检查（例如关掉炮弹追踪，两条追踪相关的测试都会失败）。`tests/groundfx.test.ts` 守 `GroundFx` 的容量、寿命、淡出和 `clear`。数值用 `scripts/bench-weapons.ts`（单件）和 `scripts/commit-weapons.ts`（整局只押一把武器）校过：先锋号 / 要塞号 × 数据荒原 × 12 个种子（每把 24 局，误差约 ±10 个百分点）下，押榴弹炮通关 71 %、押虹吸索 63 %，对照组 58 %，其余十把在 25 %–79 % 之间——两把新武器落在已有区间内，没有明显压过其余，也没有明显垫底。`play --lab crowd` 摆出定身的人群，`--catch shells|landing|tethers` 抓到那一帧再截图。
+
 ### 打击感：伤害数字分档与武器进化演出
 
 分层与前面一致：**参数与纯函数放 `src/engine/feel.ts`**（不依赖 DOM / Canvas），渲染器、音频、HUD、App 共用，并能在 Node 里直接单测；真正"画出来"的部分在 `render/floattext.ts`（飘字池）、`render/numfont.ts`（字形图集）、`renderer.ts`、`app/app.ts`。
@@ -286,11 +305,12 @@ HUD 按"区域 + 流式排布"组织，**不要再用 `position: absolute` + 魔
 | 存档与结算 | `tests/progress.test.ts` | 钳制/往返、结算、解锁、成就连锁、机库与飞船购买；晶核账单逐行相加恰好等于合计（最大余数法取整，保底补足单独成行，合计口径不变） |
 | 模拟 | `tests/sim.test.ts` | 确定性、所有飞船×星区稳定（无 NaN）、Boss 按时出现且可被击败、升级/重抽/放逐/复活流程、模拟层不依赖 DOM |
 | 升级候选 | `tests/offers.test.ts` | 随机压测（24 局 × 130 次升级）：武器 ≤ 6、被动 ≤ 6、等级不超上限、满级不再出现、无重复卡；全部满级时只剩进化与保底 |
-| 武器行为 | `tests/weapons.test.ts` | 回旋飞轮：折返、一去一回各打一次、移动中也一定接得回来、同屏上限、进化冲击环、打 Boss 并束；磁轨炮：专挑厚血目标、贯穿整条线、Boss 优先、多道光轨叠在同一目标、进化灼痕；每把武器（含进化）单独整局不出 NaN / 泄漏 |
+| 武器行为 | `tests/weapons.test.ts` | 回旋飞轮：折返、一去一回各打一次、移动中也一定接得回来、同屏上限、进化冲击环、打 Boss 并束；磁轨炮：专挑厚血目标、贯穿整条线、Boss 优先、多道光轨叠在同一目标、进化灼痕；榴弹炮：落点跟着目标走、Boss 优先、齐射分散、随最大生命增伤、进化子弹；虹吸索：取最近的互不重复的目标、滞回、固定回血与纳米修复放大、满血不回、进化溅射；每把武器（含进化）单独整局不出 NaN / 泄漏、炮弹不超同屏上限 |
 | 打击感参数 | `tests/feel.test.ts` | 伤害分档阈值严格递增、字号/停留/弹出逐档变大；`dmgTier` 单调且暴击上浮一档；`fmtDmg` 边界不出现 4 位数；进化时间流速连续（蓄力渐慢→定格→恢复，始终在 (0,1]），总时长 ≤ 2 秒 |
 | 进化冲击波 | `tests/evolve.test.ts` | `evolve` 事件立刻发、`evolveBoom` 延迟后只发一次；半径内削血并击退、半径外不动；威力随时间增长；不伤玩家并抹掉半径内敌弹；连续进化两把各爆一次；进化后首轮火力在冲击波之后 |
 | 分级飘字 | `tests/floattext.test.ts` | 池容量有限、满池时高档挤掉最低档里最老的一条；高档永不被低档挤掉；到期移除；高档画在最上层；弹出放大到 pop 倍后回弹落定、末尾淡出（重击更晚才开始淡）；热档弹出抖动但最终归位、非热档不抖；外观下标与缩放原样交给画笔、画完 `globalAlpha` 复位（用记录型假画笔，不依赖 Canvas） |
 | 数字字形图集 | `tests/numfont.test.ts` | 每个"字符 × 外观"只预渲染一次；整串居中、按步进排开；字号变化只改绘制尺寸；缩放大幅变化才重建图集；字体未就绪时不预渲染也不缓存；有光晕的外观先画光晕再描边再字面，`shadowBlur` 画完复位；低档位是中性正体；外观表层级单调递进、颜色格式合法（用假 2D 上下文，不依赖 Canvas） |
+| 地面特效 | `tests/groundfx.test.ts` | 焦痕 / 烟团的数量上限与寿命、焦痕先保持再单调淡出、烟团减速并上浮、零或负步长不推进、`clear` 清空（不依赖 Canvas） |
 | 拾取物 | `tests/pickups.test.ts` | 被吸附的经验石 / 道具在 30 / 60 / 120 fps、各种走位下都会很快被收走，不会绕着飞机转圈，玩家跑得比吸力快也追得上 |
 | 勋章 | `tests/medals.test.ts` | 档位边界（≤40 铜 / ≤100 银 / ≤250 金，其余等离子）；每个成就指标都有徽记、徽记在图标库里且互不相同；四个档位都有成就、等离子不超过四分之一；勋章 SVG 结构完整（标签配对、数字有限、徽记画两遍、点数与档位一致、没有滤镜 / 渐变）；CSS 里每个档位 / 尺寸 / 未获得态的配色钩子都在 |
 | HUD 样式 | `tests/hud-style.test.ts` | 读 `main.css` 与 `hud.ts` 的文本，守"几处必须同步改的地方有没有漏"：钢板套件的 `:is()` 列表重复了好几遍，必须完全一致；镂空外框列表（半透明的板）里的类名都得是套件成员，HUD 里的几种板一个不少；血条 / Boss 血条的填充条包在 `.bar-in` 里；外框环、八边形、摇杆环的多边形顶点数没写坏。画面好不好看靠 e2e `hud` 截图 |
@@ -299,6 +319,7 @@ HUD 按"区域 + 流式排布"组织，**不要再用 `position: absolute` + 魔
 | 文案 | `tests/i18n.test.ts` | 中英词典键与占位符完全一致、无空字符串、所有内容 id 都有名称与描述 |
 | 浏览器 | `scripts/e2e.mjs` | 冒烟/桌面/手机/PWA/关键流程/打击感(`fx`)/HUD 版面审计(`layout`)/HUD 样张(`hud`)/整页版面审计(`pages`)/界面样张(`ui`)/性能/线上巡检；监听 `console.error`、`pageerror`、`requestfailed` |
 | 平衡 | `scripts/sim.ts` | 机器人整局模拟：存活时间、等级、击杀、进化数、Boss 击杀耗时 |
+| 整局押一把 | `scripts/commit-weapons.ts` | 机器人整局只押一把武器（别的随机），按武器 / 飞船 / 星区出通关率与生存时间；`--weapons none` 是对照组。单件基准看不出的“这把武器能不能撑起一整局”靠它 |
 | 武器基准 | `scripts/bench-weapons.ts` | 每把武器单独上场，在"稳定人潮"与"Boss 单挑"里比 Lv1 / Lv4 / Lv8 / 进化后的有效 DPS 与击杀速度；加新武器、改数值表前后各跑一次 |
 
 ## 10. 新增一把武器的清单
@@ -306,7 +327,7 @@ HUD 按"区域 + 流式排布"组织，**不要再用 `position: absolute` + 魔
 TypeScript 只会提醒前两项，其余靠这张表（漏了也有测试兜底：`tests/data.test.ts`、`tests/i18n.test.ts`、`tests/weapons.test.ts`）：
 
 1. `src/data/ids.ts`：登记 id（编译器会提示 `WEAPONS` 与 `WEAPON_ICON` 缺项）。图标在 `src/ui/icons.ts` 的 `WEAPON_ICON` 里画——一件认得出来的小物件，尽量取自局内造型；画完 `npm run icons -- --ids <id>` 看样张，再 `npm run icons -- --check` 查越界（见"图标系统 v1.8"）。
-2. `src/data/weapons.ts`：等级表 + 进化形态 + 搭档被动（搭档不能与已有武器重复）；升级卡片的文案由相邻两级数值自动生成，只需在 `shown` 里列出要展示的项。
+2. `src/data/weapons.ts`：等级表 + 进化形态 + 搭档被动（搭档不能与已有武器重复——12 张被动现在都被占满，新增武器要先新增一张被动）；升级卡片的文案由相邻两级数值自动生成，只需在 `shown` 里列出要展示的项。
 3. `src/game/weapons.ts`：行为（`updateXxx`，在 `updateWeapons` 里分发）；`src/game/stats.ts` 的 `COUNTABLE` 决定它是否吃"多重弹仓"。
 4. `src/render/sprites.ts` + `renderer.ts`：精灵 / 绘制；`engine/audio.ts` 的 `shot()`：开火音效。
 5. `src/i18n/zh.ts` + `en.ts`：`weapon.<id>.name/desc/evoName/evoDesc`，以及需要改名的数值标签 `stat.<id>.<key>`。

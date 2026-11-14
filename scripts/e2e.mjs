@@ -267,7 +267,33 @@ async function play(base) {
     [sector, ship, threat, ff, gear, glv, evo],
   )
   await sleep(wait * 1000)
-  // --catch beams|bolts|rings|ebullets|hbeams|hrings：一小步一小步往前跑，直到场上出现这种特效的那一帧，再暂停截图
+  // --lab crowd：清场后把一圈定身的敌人摆在飞船四周（距离 110~215，虹吸索够得着），再在远处摆两堆人群（榴弹炮的靶子）；
+  // 飞船原地不动、关掉自动驾驶，配合 --catch tethers|shells|landing 看这两把武器的造型。--evo 1 看进化版
+  if (opt('lab', '') === 'crowd') {
+    await page.evaluate(() => {
+      const a = window.__neon
+      const w = a.game
+      const p = w.player
+      a.autoPilot = false
+      a.godMode = true
+      for (const e of w.enemies) e.alive = false
+      p.vx = p.vy = 0
+      const ids = ['drone', 'swarmer', 'brute', 'shooter', 'splitter', 'charger', 'bomber', 'shielder']
+      const put = (id, x, y, elite) => {
+        const e = w.spawnEnemy(id, x, y, { spawnT: 0, elite })
+        e.stun = 1e9
+        e.age = 1
+      }
+      ids.forEach((id, i) => {
+        const ang = (i / ids.length) * Math.PI * 2 + 0.3
+        const d = 110 + (i % 3) * 52
+        put(id, p.x + Math.cos(ang) * d, p.y + Math.sin(ang) * d * 0.8, i === 3)
+      })
+      const heap = [[330, -170], [-300, 190]]
+      for (const [hx, hy] of heap) for (let k = 0; k < 14; k++) put(k % 3 === 0 ? 'swarmer' : 'drone', p.x + hx + ((k * 37) % 70) - 35, p.y + hy + ((k * 53) % 70) - 35, false)
+    })
+  }
+  // --catch beams|bolts|rings|ebullets|hbeams|hrings|shells|landing|tethers：一小步一小步往前跑，直到场上出现这种特效的那一帧，再暂停截图
   // （武器是自动开火的，直接截图常常拍不到光束 / 电弧 / 冲击环）。--skip N 再多跑 N 小步（0.03 秒一步）
   const catchWhat = opt('catch', '')
   if (catchWhat) {
@@ -283,6 +309,11 @@ async function play(base) {
           if (what === 'ebullets') return w.ebullets.length > 12
           if (what === 'hbeams') return w.beams.some((b) => b.alive && b.hostile)
           if (what === 'hrings') return w.rings.some((r) => r.alive && r.hostile && r.r > 120)
+          // 榴弹炮：shells = 炮弹飞到半程以后（空中的炮弹 + 落点标记）；landing = 即将落地（配合 --skip 看落地后的冲击 / 烟 / 焦痕）
+          if (what === 'shells') return w.shells.some((s) => s.alive && s.t / s.T > 0.55)
+          if (what === 'landing') return w.shells.some((s) => s.alive && s.T - s.t < 0.04)
+          // 虹吸索：至少两根索都扣稳了（软管 + 能量包 + 夹爪）
+          if (what === 'tethers') return w.player.weapons.some((x) => x.id === 'siphon' && x.pts.length >= 2 && x.pts.every((pt) => pt.d > 0.35))
           return false
         }
         let n = 0
@@ -295,6 +326,14 @@ async function play(base) {
     )
     console.log('  catch:', JSON.stringify(got))
     await sleep(200)
+    // --run 0.4：抓到之后放开暂停真实地跑这么多秒再停住（看烟、焦痕、粒子的"后续"：暂停时它们不会老化）
+    const run = Number(opt('run', '0'))
+    if (run > 0) {
+      await page.evaluate(() => (window.__neon.paused = false))
+      await sleep(run * 1000)
+      await page.evaluate(() => (window.__neon.paused = true))
+      await sleep(150)
+    }
   }
   // --lab fx：清场后把激光 / 磁轨 / 电弧 / 冲击波 / 敌方子弹 / 敌方光束各摆一份定格样张并暂停
   // （看光束类特效和弹幕的造型；效果都是相对屏幕中心摆的，配合 --w 1280 --h 720 时 1 世界单位 = 1 像素）
@@ -426,6 +465,30 @@ async function play(base) {
       a.paused = true
     })
     await sleep(300)
+  }
+  // --offers weapon:howitzer:5,weapon:siphon:1:new,passive:regen:1:new,weapon:howitzer:8:evolve：直接弹出升级面板并摆上这几张卡
+  // （种类:id:升到几级[:new|evolve]；配合 --gear / --glv 先发好对应的武器，看新武器的卡片文案和数值标签）
+  const offerSpec = opt('offers', '')
+  if (offerSpec) {
+    await page.evaluate(() => {
+      const a = window.__neon
+      a.autoPilot = false
+      a.game.player.xp = a.game.player.xpNext
+      a.game.addXp(0)
+    })
+    // 面板真正打开之后再换卡（和 flows 里手摆卡片同一个顺序），否则会被面板自己抽的卡盖掉
+    await page.waitForSelector('.overlay.levelup:not([hidden])', { timeout: 8000 }).catch(() => console.log('  ⚠ 升级面板没有出现'))
+    await sleep(400)
+    await page.evaluate((spec) => {
+      const a = window.__neon
+      const w = a.game
+      w.offers = spec.split(',').map((s) => {
+        const [kind, id, to, flag] = s.split(':')
+        return kind === 'weapon' ? { kind, id, to: Number(to), isNew: flag === 'new', evolve: flag === 'evolve' } : { kind, id, to: Number(to), isNew: flag === 'new' }
+      })
+      a.levelup.refresh()
+    }, offerSpec)
+    await sleep(700)
   }
   if (opt('clean', '0') === '1') await page.addStyleTag({ content: '.hint,.toasts,.banner,.evo-banner{display:none!important}' })
   // --tele 1：在玩家周围摆几条不同进度的 Boss 预警（直线 / 圆形 / 临出手快闪），看警示带的画法
@@ -831,7 +894,7 @@ async function flows(base) {
         const Inst = P.weapons[0].constructor
         if (fill) {
           const have = new Set(P.weapons.map((x) => x.id))
-          for (const id of ['pulse', 'orbit', 'arc', 'missile', 'laser', 'mine', 'nova', 'drone', 'chakram', 'rail']) {
+          for (const id of ['pulse', 'orbit', 'arc', 'missile', 'laser', 'mine', 'nova', 'drone', 'chakram', 'rail', 'howitzer', 'siphon']) {
             if (P.weapons.length >= 6) break
             if (!have.has(id)) P.weapons.push(new Inst(id, P.weapons.length))
           }
@@ -995,7 +1058,7 @@ async function fx(base) {
   await shot(page, 'fx2-numbers-settled')
 
   // ② 武器进化：升满第一把武器并补上配套被动 → 触发升级 → 在面板里选进化卡
-  const PARTNER = { pulse: 'power', orbit: 'area', arc: 'haste', missile: 'accel', laser: 'multi', mine: 'magnet', nova: 'armor', drone: 'learning', chakram: 'thruster', rail: 'luck' }
+  const PARTNER = { pulse: 'power', orbit: 'area', arc: 'haste', missile: 'accel', laser: 'multi', mine: 'magnet', nova: 'armor', drone: 'learning', chakram: 'thruster', rail: 'luck', howitzer: 'hull', siphon: 'regen' }
   await sleep(1200) // 等数字散去
   await page.evaluate((partners) => {
     const a = window.__neon
@@ -1438,6 +1501,8 @@ async function art(base) {
       for (const [m, cols] of [
         ['blade', ['#8fb8ff', '#ffd24d']],
         ['chakram', ['#ff7ae0', '#ffd2f6']],
+        ['shell', ['#b8f03a', '#ffe08a']],
+        ['clamp', ['#a96bff', '#ffd84a']],
         ['drone', ['#7dffb0', '#c8ffe0']],
         ['mine', ['#5dff9e']],
         ['missile', ['#ff9b3d']],
@@ -1451,6 +1516,8 @@ async function art(base) {
         for (const c of cols) weaponItems.push({ label: `${m} ${c}`, sp: bank[m](c), s: m === 'glow' ? 1.5 : S })
       }
       if (isSprite(bank.shadow)) weaponItems.push({ label: 'shadow', sp: bank.shadow, s: 1.5, light: true })
+      if (isSprite(bank.scorch)) weaponItems.push({ label: 'scorch', sp: bank.scorch, s: 1.2, light: true })
+      if (isSprite(bank.puff)) weaponItems.push({ label: 'puff', sp: bank.puff, s: 1.5, light: true })
       groups.push({ id: 'weapons', name: '武器件 / 子弹 / 光斑', items: weaponItems })
       // 敌方子弹：[造型, 颜色]（和战斗里各 Boss / 敌人用的配色一致）
       groups.push({

@@ -11,11 +11,11 @@ export interface WStats {
   damage: number
   /** 冷却（秒） */
   cooldown: number
-  /** 数量：弹体 / 光刃 / 电弧条数 / 导弹 / 光束 / 地雷 / 冲击环 / 无人机 */
+  /** 数量：弹体 / 光刃 / 电弧条数 / 导弹 / 光束 / 地雷 / 冲击环 / 无人机 / 炮弹 / 虹吸索 */
   count: number
   /** 穿透次数 */
   pierce: number
-  /** 弹速 或 公转角速度 */
+  /** 弹速 或 公转角速度（榴弹炮：炮弹的飞行速度，飞行时间 = 距离 ÷ 速度） */
   speed: number
   /** 体型：光刃半径 / 光束宽度 / 冲击环最大半径 */
   area: number
@@ -25,12 +25,14 @@ export interface WStats {
   range: number
   /** 击退力度 */
   knock: number
-  /** 电弧额外跳跃次数 */
+  /** 电弧额外跳跃次数（榴弹炮进化后：每发炮弹落地时撒出的子弹药数量） */
   chain: number
   /** 持续伤害的判定间隔（秒） */
   tick: number
-  /** 爆炸半径 */
+  /** 爆炸半径（虹吸索进化后：电击溅射的半径） */
   blast: number
+  /** 每次命中回复的耐久（虹吸索：每一跳、每一根索） */
+  heal: number
 }
 
 export interface WeaponDef {
@@ -56,6 +58,7 @@ const ZERO: WStats = {
   chain: 0,
   tick: 0,
   blast: 0,
+  heal: 0,
 }
 
 /** 取 1 起始的等级表；超过长度取最后一项。 */
@@ -356,9 +359,83 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
       })
     },
   },
+
+  /**
+   * 榴弹炮：把炮弹抛向射程内最密集的一团敌人（Boss 在射程内则只打 Boss），弹着点有准星提示，
+   * 落地大爆炸并向外震开。伤害随"最大耐久"增长——船体越厚，炮声越响。
+   */
+  howitzer: {
+    id: 'howitzer',
+    color: '#b8f03a',
+    evolvesWith: 'hull',
+    shown: ['damage', 'count', 'blast', 'cooldown'],
+    stats(level, evolved) {
+      if (evolved)
+        return make({
+          damage: 92,
+          cooldown: 3.0,
+          count: 6,
+          speed: 600,
+          blast: 112,
+          range: 560,
+          knock: 160,
+          chain: 3, // 进化后：每发炮弹落地后再撒出的子弹药数量
+        })
+      return make({
+        damage: at([40, 44, 44, 52, 52, 60, 68, 78], level),
+        cooldown: at([4.4, 4.2, 3.9, 3.7, 3.5, 3.3, 3.1, 2.8], level),
+        count: at([1, 1, 1, 2, 2, 2, 3, 3], level),
+        speed: 520,
+        blast: at([64, 68, 72, 76, 80, 84, 90, 96], level),
+        range: at([420, 430, 440, 450, 460, 470, 490, 520], level),
+        knock: 110,
+      })
+    },
+  },
+
+  /**
+   * 虹吸索：从机身拉出几根能量索，扣住最近的敌人持续汲取，每一跳都回复一点耐久。
+   * 不会打空、不用瞄准，Boss 在射程内时也会被扣住；纳米修复的回复速度会放大它的回血。
+   */
+  siphon: {
+    id: 'siphon',
+    color: '#a96bff',
+    evolvesWith: 'regen',
+    shown: ['damage', 'count', 'range', 'heal'],
+    stats(level, evolved) {
+      if (evolved)
+        return make({
+          damage: 13,
+          count: 7,
+          range: 330,
+          tick: 0.25,
+          blast: 76, // 进化后：每一跳还会电击目标周围这个半径内的其他敌人
+          heal: 0.5,
+        })
+      return make({
+        damage: at([6, 6, 7, 7, 8, 9, 10, 11], level),
+        count: at([1, 2, 2, 3, 3, 4, 4, 5], level),
+        range: at([190, 200, 210, 220, 235, 250, 265, 280], level),
+        tick: 0.25,
+        heal: at([0.12, 0.14, 0.16, 0.18, 0.2, 0.23, 0.26, 0.3], level),
+      })
+    },
+  },
 }
 
 /** 磁轨炮进化后，残留灼痕每跳伤害 = 主炮伤害 × 该比例 */
 export const RAIL_SCAR_RATIO = 0.07
+
+/** 榴弹炮：每多 100 点最大耐久（高于先锋号出厂的 100 点），伤害 +50% */
+export const HULL_SCALING: Partial<Record<WeaponId, number>> = { howitzer: 0.5 }
+export const HULL_BASELINE = 100
+
+/** 榴弹炮进化后撒出的子弹药：爆炸半径 / 伤害占主炮弹的比例 */
+export const HOWITZER_BOMBLET = { radius: 0.5, damage: 0.4 } as const
+
+/** 虹吸索进化后：电击溅射的伤害占本跳伤害的比例 */
+export const SIPHON_SPLASH_RATIO = 0.5
+/** 虹吸索回血被"纳米修复"放大：每点回复速度（HP/秒）让每次回血 +20% */
+export const SIPHON_REGEN_BOOST = 0.2
 
 export { WEAPON_MAX_LEVEL }

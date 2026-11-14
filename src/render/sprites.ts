@@ -9,7 +9,7 @@ import { lighten, mixHex, rgba } from './palette'
 import { EBULLET_BOX, EBULLET_PAINT } from './bullets'
 import { CREATURES } from './creatures'
 import { cut } from './parts'
-import { paintBlade, paintBolt, paintBomb, paintCache, paintChakram, paintChest, paintDrone, paintHeal, paintMagnet, paintMine, paintPlasma } from './props'
+import { paintBlade, paintBolt, paintBomb, paintCache, paintChakram, paintChest, paintClamp, paintDrone, paintHeal, paintMagnet, paintMine, paintPlasma, paintShell } from './props'
 import { SHIP_ART, steelTones } from './shipart'
 
 /**
@@ -392,6 +392,69 @@ function glowSprite(color: string, ss: number): Sprite {
   })
 }
 
+/** 炮弹：钢制弹体 + 涂装弹头（朝 +x，造型见 props.ts） */
+function shellSprite(color: string, ss: number): Sprite {
+  return make(30, 14, ss, (ctx) => paintShell(ctx, color))
+}
+
+/** 虹吸夹爪：两片 C 形卡爪（造型见 props.ts） */
+function clampSprite(color: string, ss: number): Sprite {
+  const r = 10
+  const size = (r + 8) * 2
+  return make(size, size, ss, (ctx) => paintClamp(ctx, r, color))
+}
+
+/** 弹坑焦痕：几团叠在一起的深色柔斑 + 零星的碎屑。哑光、不发光，由 GroundFx 慢慢淡掉 */
+function scorchSprite(ss: number): Sprite {
+  const size = 128
+  return make(size, size, Math.max(1, ss * 0.5), (ctx) => {
+    const R = 54
+    let seed = 7
+    const rnd = (): number => (seed = (seed * 16807) % 2147483647) / 2147483647
+    for (let i = 0; i < 6; i++) {
+      const a = rnd() * TAU
+      const d = rnd() * R * 0.34
+      const r = R * (0.5 + rnd() * 0.3)
+      const x = Math.cos(a) * d
+      const y = Math.sin(a) * d
+      const g = ctx.createRadialGradient(x, y, 0, x, y, r)
+      g.addColorStop(0, 'rgba(8,7,12,0.5)')
+      g.addColorStop(0.6, 'rgba(10,9,14,0.28)')
+      g.addColorStop(1, 'rgba(12,10,16,0)')
+      ctx.fillStyle = g
+      ctx.beginPath()
+      ctx.arc(x, y, r, 0, TAU)
+      ctx.fill()
+    }
+    // 碎屑：小的深色斑点撒在坑沿附近
+    for (let i = 0; i < 16; i++) {
+      const a = rnd() * TAU
+      const d = R * (0.35 + rnd() * 0.6)
+      ctx.beginPath()
+      ctx.arc(Math.cos(a) * d, Math.sin(a) * d, 0.7 + rnd() * 1.7, 0, TAU)
+      ctx.fillStyle = 'rgba(6,5,9,0.5)'
+      ctx.fill()
+    }
+  })
+}
+
+/** 烟团：偏冷的灰，左上受光；用普通混合画，所以是"烟"而不是"光" */
+function puffSprite(ss: number): Sprite {
+  const size = 64
+  return make(size, size, Math.max(1, ss * 0.5), (ctx) => {
+    const R = size / 2
+    const g = ctx.createRadialGradient(-R * 0.22, -R * 0.26, R * 0.05, 0, 0, R)
+    g.addColorStop(0, 'rgba(176,184,204,0.92)')
+    g.addColorStop(0.45, 'rgba(112,120,140,0.7)')
+    g.addColorStop(0.8, 'rgba(62,68,86,0.28)')
+    g.addColorStop(1, 'rgba(40,44,60,0)')
+    ctx.fillStyle = g
+    ctx.beginPath()
+    ctx.arc(0, 0, R, 0, TAU)
+    ctx.fill()
+  })
+}
+
 /** 接触阴影：一团柔和的暗斑，垫在地面上让单位"浮"在背景之上 */
 function shadowSprite(ss: number): Sprite {
   const size = 64
@@ -414,6 +477,9 @@ export class SpriteBank {
   readonly gem: Sprite[] = []
   readonly pickup = {} as Record<PickupKind, Sprite>
   readonly shadow: Sprite
+  /** 弹坑焦痕 / 烟团（颜色固定，只做一张） */
+  readonly scorch: Sprite
+  readonly puff: Sprite
   private readonly glows = new Map<string, Sprite>()
   private readonly blades = new Map<string, Sprite>()
   private readonly drones = new Map<string, Sprite>()
@@ -425,6 +491,8 @@ export class SpriteBank {
   private readonly mines = new Map<string, Sprite>()
   private readonly bolts = new Map<string, Sprite>()
   private readonly plasmas = new Map<string, Sprite>()
+  private readonly shells = new Map<string, Sprite>()
+  private readonly clamps = new Map<string, Sprite>()
 
   constructor(ss: number) {
     this.ss = ss
@@ -436,6 +504,8 @@ export class SpriteBank {
     for (let i = 0; i < 4; i++) this.gem.push(gemSprite(i, ss))
     for (const k of PICKUP_IDS) this.pickup[k] = pickupSprite(k, ss)
     this.shadow = shadowSprite(ss)
+    this.scorch = scorchSprite(ss)
+    this.puff = puffSprite(ss)
   }
 
   /** 不带光晕的宝石（只给导出图标用，局内不走这里） */
@@ -518,6 +588,16 @@ export class SpriteBank {
   /** 等离子球 */
   plasma(color: string): Sprite {
     return this.cached(this.plasmas, color, plasmaSprite)
+  }
+
+  /** 榴弹炮的炮弹 */
+  shell(color: string): Sprite {
+    return this.cached(this.shells, color, shellSprite)
+  }
+
+  /** 虹吸索的夹爪 */
+  clamp(color: string): Sprite {
+    return this.cached(this.clamps, color, clampSprite)
   }
 }
 

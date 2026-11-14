@@ -5,7 +5,7 @@
 ## 1. 发布流程
 
 ```bash
-npm test                      # 126 项测试
+npm test                      # 145 项测试
 npm run build                 # 生成页面 → tsc（应用与脚本两套配置）→ vite build
 node scripts/e2e.mjs smoke    # 无头浏览器冒烟（含音频电平断言）
 node scripts/e2e.mjs mobile   # 改动了界面/触屏时再跑
@@ -73,7 +73,7 @@ gh api repos/littlebugged/aigames/commits/<sha>/check-suites \
 1. 在 `src/data/ids.ts` 登记新 id → TypeScript 会提示所有需要补齐的地方（数据、图标、词典…）。
 2. 补齐 `src/data/*`、`src/i18n/zh.ts` 与 `en.ts`（`tests/i18n.test.ts` 会拦住漏翻或占位符不一致）。
 3. 需要新行为时改 `src/game/*`（武器/敌人/Boss/升级逻辑），需要新画面时改 `src/render/*`。
-4. `npm test`（数据约束 + 确定性 + 稳定性）→ `npm run sim -- --all`（看机器人存活、击杀、进化、Boss 耗时有没有失衡）；新武器 / 改武器数值表时再跑 `npm run bench`，与同档位的老武器对照强度。
+4. `npm test`（数据约束 + 确定性 + 稳定性）→ `npm run sim -- --all`（看机器人存活、击杀、进化、Boss 耗时有没有失衡）；新武器 / 改武器数值表时再跑 `npm run bench`，与同档位的老武器对照强度；单件 DPS 好看不代表整局好用，再跑一遍 `npx tsx scripts/commit-weapons.ts --weapons <id> --ships vanguard,phantom --sector void --seeds 12`（整局只押这一把武器、别的随机，看通关率；`--weapons none` 是对照组）。
 5. `npm run build`：游戏指南页会自动带上新内容，无需手改文档。
 6. 无头截图确认：`node scripts/e2e.mjs play --sector void --ff 400 --wait 4 --name check`，看 `.e2e/check.png`。
 
@@ -104,7 +104,9 @@ gh api repos/littlebugged/aigames/commits/<sha>/check-suites \
 | 想看某个时间点的画面 | `node scripts/e2e.mjs play --sector <fields\|wasteland\|void> --ff <秒> --wait <秒> --name <文件名>` |
 | 想测性能 | `node scripts/e2e.mjs perf --q high --dpr 2 --gpu 1`（`--gpu 1` 使用 Metal，`0` 为纯软件光栅化的最坏情况）。做 A/B：`--eval "__neon.renderer.bloomPass=()=>{}"` 在采样前往页面里注入一段脚本，软件光栅化下噪声较大，建议新旧版本交替各跑 4 次取平均 |
 | 想看 Boss 预警 / 手机竖屏 / 干净的截图 | `play ... --tele 1`（在玩家周围摆几条不同进度的预警）、`play ... --touch 1 --w 390 --h 844 --dpr 2`（按手机方式开）、`play ... --clean 1`（隐藏教学提示 / Toast / 横幅），`--clip x,y,w,h` 再截一张局部放大图 |
-| 想看光束 / 电弧 / 冲击波 / 敌方子弹 / 爆炸 | `play --lab fx --w 1280 --h 720 --clean 1`（清场后摆一张定格样张；`--dpr 3 --clip x,y,w,h` 放大看细节）；真实对局里等某个效果出现再定格：`play --ff 25 --gear laser,rail,arc,nova --glv 8 --evo 1 --catch beams --clean 1`（`--catch` 可取 `beams / bolts / rings / ebullets / hbeams / hrings`，`--skip N` 跳过前 N 次命中）；子弹图鉴：`art --scale 5 --only bullets --sheeth 700` |
+| 想看光束 / 电弧 / 冲击波 / 敌方子弹 / 爆炸 | `play --lab fx --w 1280 --h 720 --clean 1`（清场后摆一张定格样张；`--dpr 3 --clip x,y,w,h` 放大看细节）；真实对局里等某个效果出现再定格：`play --ff 25 --gear laser,rail,arc,nova --glv 8 --evo 1 --catch beams --clean 1`（`--catch` 可取 `beams / bolts / rings / ebullets / hbeams / hrings / shells / landing / tethers`，`--skip N` 跳过前 N 次命中；`--run SEC` 抓到后放开暂停真实地再跑 SEC 秒，看烟和焦痕的后续）；子弹图鉴：`art --scale 5 --only bullets --sheeth 700` |
+| 想看某几张升级卡长什么样 | `play --ff 20 --gear howitzer --glv 4 --offers weapon:howitzer:5,weapon:siphon:1:new,passive:regen:1:new --w 1280 --h 720`（`--offers` 直接弹出升级面板并摆上这几张卡，格式 `种类:id:升到几级[:new\|evolve]`；先用 `--gear / --glv` 发好对应的武器，进化卡要配 `--glv 8`；`--dpr 2 --clip x,y,w,h` 放大看一张卡） |
+| 想看榴弹炮 / 虹吸索的造型 | `play --lab crowd --gear howitzer --glv 8 --catch shells --dpr 2 --clean 1`（`--lab crowd` 清场后把一圈定身敌人摆在飞船四周、再在远处摆两堆人群，飞船不动；`--catch landing --skip 3 --run 0.4` 看落地后的冲击 / 烟 / 焦痕）；`play --lab crowd --gear siphon --glv 8 [--evo 1] --catch tethers --dpr 2 --clean 1` 看钢索与夹爪 |
 | 想看武器 / 拾取物的实物 | `play --gear orbit,chakram,drone,mine,missile --glv 6 [--evo 1] --ff 60 --dpr 3 --w 720 --h 440 --clean 1 --clip 215,95,290,250`（开局直接发武器、可指定等级 / 进化）；`play --pickups 1 --ff 30 --dpr 3 --clean 1`（清场后把五种拾取物摆成一排并暂停） |
 
 ## 8. 历史

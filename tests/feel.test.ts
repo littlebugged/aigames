@@ -6,6 +6,9 @@ import {
   EVOLVE_FLOOR,
   EVOLVE_HOLD,
   EVOLVE_TOTAL,
+  HEAL_STYLE,
+  HURT_STYLE,
+  NUM_LOOKS,
   TOP_TIER,
   budgetClass,
   dmgTier,
@@ -112,4 +115,17 @@ test('进化演出的总时长克制：真实时间不超过 2 秒', () => {
   for (let t = 0; t < EVOLVE_TOTAL; t += 0.001) game += evolveTimeScale(t) * 0.001
   assert.ok(game < EVOLVE_TOTAL * 0.65, `慢动作不够明显：游戏内 ${game.toFixed(2)}s / 真实 ${EVOLVE_TOTAL.toFixed(2)}s`)
   assert.ok(game > EVOLVE_TOTAL * 0.25, '也不能慢到近乎暂停')
+})
+
+test('数字外观表：伤害档位之后依次是受伤、回血，回血数字是绿色系且和受伤数字不同', () => {
+  assert.equal(HURT_STYLE, DMG_TIERS.length)
+  assert.equal(HEAL_STYLE, HURT_STYLE + 1)
+  assert.equal(NUM_LOOKS.length, HEAL_STYLE + 1)
+  const heal = NUM_LOOKS[HEAL_STYLE]
+  const hurt = NUM_LOOKS[HURT_STYLE]
+  assert.notEqual(heal.mid, hurt.mid)
+  // 绿色：G 通道明显高于 R / B
+  const n = parseInt(heal.mid.slice(1), 16)
+  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255]
+  assert.ok(g > r && g > b, `回血数字应是绿色：${heal.mid}`)
 })

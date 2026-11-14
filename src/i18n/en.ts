@@ -259,6 +259,11 @@ export const en: Record<Key, string> = {
   'stat.arc.chain': 'Chain jumps',
   'stat.chakram.range': 'Flight distance',
   'stat.rail.area': 'Rail width',
+  'stat.heal': 'Heal',
+  'stat.siphon.damage': 'Damage per tick',
+  'stat.siphon.count': 'Tethers',
+  'stat.siphon.range': 'Reach',
+  'stat.siphon.heal': 'Heal per tick',
   'stat.unit.s': 's',
 
   // ───── Weapons ─────
@@ -302,6 +307,14 @@ export const en: Record<Key, string> = {
   'weapon.rail.desc': 'Fires an instant armor-piercing rail across the whole screen at the toughest enemy. Bosses first, impossible to dodge.',
   'weapon.rail.evoName': 'Overcharged Rail',
   'weapon.rail.evoDesc': 'Three overcharged rails, each leaving a burning plasma scar behind.',
+  'weapon.howitzer.name': 'Howitzer',
+  'weapon.howitzer.desc': 'Lobs shells onto the densest cluster of enemies, with a marker where they will land and a big blast on impact. Bosses in range get all the fire. The more max hull you have, the harder it hits.',
+  'weapon.howitzer.evoName': 'Saturation Barrage',
+  'weapon.howitzer.evoDesc': 'Six shells per salvo, each aimed at a different cluster; every shell scatters three bomblets that chain-explode.',
+  'weapon.siphon.name': 'Siphon Tether',
+  'weapon.siphon.desc': 'Extends energy tethers from your ship to latch onto the nearest enemies and drain them (4 ticks a second), restoring hull on every tick. Never misses, and Bosses in range get hooked too. Nano Repair boosts the healing.',
+  'weapon.siphon.evoName': 'Devourer Web',
+  'weapon.siphon.evoDesc': 'Seven tethers, longer reach and double healing; every tick also arcs into the enemies around the target.',
 
   // ───── Passives ─────
   'passive.power.name': 'Overload Core',

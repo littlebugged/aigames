@@ -16,7 +16,7 @@ import { METAS, metaCost } from '../src/data/meta'
 import { PASSIVES } from '../src/data/passives'
 import { SECTORS, THREAT_LEVELS } from '../src/data/sectors'
 import { SHIPS } from '../src/data/ships'
-import { RAIL_SCAR_RATIO, WEAPONS } from '../src/data/weapons'
+import { HOWITZER_BOMBLET, RAIL_SCAR_RATIO, SIPHON_SPLASH_RATIO, WEAPONS } from '../src/data/weapons'
 
 test('每把武器每一级的数值都合法', () => {
   for (const id of WEAPON_IDS) {
@@ -48,6 +48,12 @@ function output(id: (typeof WEAPON_IDS)[number], evolved: boolean): number {
       const scar = evolved ? (s.damage * RAIL_SCAR_RATIO * (s.duration / s.tick)) : 0
       return ((s.damage + scar) * s.count) / s.cooldown
     }
+    case 'howitzer':
+      // 进化后每发炮弹落地还会撒出子弹药（chain 枚，各打主爆炸的一部分伤害）
+      return (s.damage * s.count * (1 + (evolved ? s.chain * HOWITZER_BOMBLET.damage : 0))) / s.cooldown
+    case 'siphon':
+      // 没有冷却：每根索每 tick 秒打一下；进化后每一跳还会溅射周围的敌人
+      return (s.damage * s.count * (evolved ? 1 + SIPHON_SPLASH_RATIO : 1)) / s.tick
     default:
       return (s.damage * s.count) / s.cooldown
   }

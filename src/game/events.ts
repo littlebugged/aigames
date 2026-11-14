@@ -16,6 +16,10 @@ export type GameEvent =
   | { t: 'levelup'; level: number }
   | { t: 'dash'; x: number; y: number; a: number }
   | { t: 'blast'; x: number; y: number; r: number; color: string }
+  /** 榴弹炮的炮弹落地（紧跟在一次 blast 之后）：渲染层在这里补扬尘与更重的震屏 */
+  | { t: 'shellLand'; x: number; y: number; r: number; evo: boolean }
+  /** 虹吸索回血（每 0.6 秒汇总一次，n 为整数点数） */
+  | { t: 'heal'; x: number; y: number; n: number }
   | { t: 'spark'; x: number; y: number; color: string; n: number }
   | { t: 'warn'; key: string; sev: 1 | 2 }
   | { t: 'boss'; id: BossId; what: 'spawn' | 'phase' | 'dead' }

@@ -1,7 +1,7 @@
 import { METAS } from '../data/meta'
 import { PASSIVES } from '../data/passives'
 import { SHIPS } from '../data/ships'
-import { WEAPONS, type WStats } from '../data/weapons'
+import { HULL_BASELINE, HULL_SCALING, WEAPONS, type WStats } from '../data/weapons'
 import type { MetaId, PassiveId, ShipId, WeaponId } from '../data/ids'
 import type { PlayerStats } from './entities'
 
@@ -66,24 +66,33 @@ const COUNTABLE: Partial<Record<WeaponId, true>> = {
   mine: true,
   drone: true,
   chakram: true,
+  howitzer: true,
+  siphon: true,
+}
+
+/** 吃"最大耐久"加成的武器（榴弹炮）：伤害 ×(1 + 系数 × 高出 100 点的耐久 ÷ 100) */
+function hullBoost(id: WeaponId, st: PlayerStats): number {
+  const k = HULL_SCALING[id]
+  return k ? 1 + (k * Math.max(0, st.maxHp - HULL_BASELINE)) / 100 : 1
 }
 
 /** 武器基础数值 × 玩家加成 = 战斗里实际用的数值 */
 export function resolveWeaponStats(id: WeaponId, level: number, evolved: boolean, st: PlayerStats): WStats {
   const b = WEAPONS[id].stats(level, evolved)
   return {
-    damage: b.damage * st.dmg,
+    damage: b.damage * st.dmg * hullBoost(id, st),
     cooldown: b.cooldown * st.cd,
     count: b.count + (COUNTABLE[id] ? st.extraCount : 0),
     pierce: b.pierce,
     speed: b.speed * st.projSpeed,
     area: b.area * st.area,
     duration: b.duration * st.duration,
-    range: id === 'orbit' ? b.range * (1 + (st.area - 1) * 0.5) : b.range,
+    range: id === 'orbit' || id === 'siphon' ? b.range * (1 + (st.area - 1) * 0.5) : b.range,
     knock: b.knock,
     chain: b.chain,
     tick: b.tick,
     blast: b.blast * st.area,
+    heal: b.heal,
   }
 }
 

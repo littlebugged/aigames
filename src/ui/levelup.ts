@@ -27,6 +27,8 @@ function fmtStat(key: keyof WStats, v: number): string {
       return v >= 10 ? String(Math.round(v)) : v.toFixed(1).replace(/\.0$/, '')
     case 'count':
       return String(Math.round(v * 10) / 10)
+    case 'heal':
+      return v.toFixed(2).replace(/\.?0+$/, '')
     default:
       return String(Math.round(v))
   }

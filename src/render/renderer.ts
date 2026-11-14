@@ -1,8 +1,9 @@
 import type { WeaponId } from '../data/ids'
 import { SHIPS } from '../data/ships'
 import { WEAPONS } from '../data/weapons'
-import { DMG_TIERS, EVOLVE_CHARGE, EVOLVE_ZOOM, HURT_STYLE, NUM_LOOKS, budgetClass, dmgTier, fmtDmg } from '../engine/feel'
-import { TAU, clamp01, turnToward } from '../engine/math'
+import { DMG_TIERS, EVOLVE_CHARGE, EVOLVE_ZOOM, HEAL_STYLE, HURT_STYLE, NUM_LOOKS, budgetClass, dmgTier, fmtDmg } from '../engine/feel'
+import { TAU, clamp, clamp01, turnToward } from '../engine/math'
+import type { Shell, WeaponInst } from '../game/entities'
 import type { GameEvent } from '../game/events'
 import type { World } from '../game/world'
 import { Background } from './background'
@@ -10,6 +11,7 @@ import { BossArt } from './bossart'
 import { paintBeam, paintBolt, paintRing } from './beams'
 import { Camera } from './camera'
 import { FloatTexts } from './floattext'
+import { GroundFx } from './groundfx'
 import { NumberFont } from './numfont'
 import { Particles } from './particles'
 import { ink } from './matte'
@@ -65,6 +67,36 @@ const HIT_TRAUMA = [0, 0, 0, 0, 0.02, 0.035, 0.055, 0.1]
 /** 飘字限流桶（小数字 / 中等 / 重击）：容量与每秒补充量 */
 const NUM_CAP = [12, 6, 4]
 const NUM_RATE = [30, 12, 6]
+/**
+ * 爆炸这一路的震屏累计上限：连环爆炸（榴弹炮的子弹药、地雷阵、导弹齐射）每一下都加一点，
+ * 不设上限会很快把震屏顶满，整局像地震。重击 / Boss / 受伤 / 进化各走各的，不受这个上限影响。
+ */
+const BLAST_SHAKE_CAP = 0.75
+const BLAST_SHAKE_DECAY = 1.4
+const NO_DASH: number[] = []
+const DASH: number[] = [0, 0]
+/** 虹吸索的软管折线段数 / 能量包从目标流回机身的用时（秒） */
+const HOSE_SEG = 14
+const PACKET_TRAVEL = 0.5
+const HOSE_X = new Float32Array(HOSE_SEG + 1)
+const HOSE_Y = new Float32Array(HOSE_SEG + 1)
+
+/** 炮弹在某个飞行进度 u 上的位置：地面投影（gx, gy）、离地高度 h、屏幕位置（ax, ay）和机头朝向 ang */
+const SH = { gx: 0, gy: 0, h: 0, hMax: 0, ax: 0, ay: 0, ang: 0 }
+function shellAt(sh: Shell, u: number): void {
+  const dx = sh.x - sh.x0
+  const dy = sh.y - sh.y0
+  const hMax = clamp(Math.hypot(dx, dy) * 0.32, 38, 130)
+  SH.gx = sh.x0 + dx * u
+  SH.gy = sh.y0 + dy * u
+  SH.hMax = hMax
+  SH.h = 4 * hMax * u * (1 - u)
+  SH.ax = SH.gx
+  SH.ay = SH.gy - SH.h
+  // 屏幕上的运动方向 = 地面速度 + 高度变化（抛物线）
+  SH.ang = Math.atan2(dy - 4 * hMax * (1 - 2 * u), dx)
+}
+
 /** 进化武器每轮开火时的微震 */
 const EVO_SHOT_TRAUMA: Partial<Record<WeaponId, number>> = {
   pulse: 0.02,
@@ -74,6 +106,7 @@ const EVO_SHOT_TRAUMA: Partial<Record<WeaponId, number>> = {
   mine: 0.04,
   nova: 0.1,
   chakram: 0.04,
+  howitzer: 0.05,
 }
 
 export class Renderer {
@@ -131,6 +164,11 @@ export class Renderer {
   private auraT = 0
   private readonly evoShotAt: Partial<Record<WeaponId, number>> = {}
   private readonly ghosts: Ghost[] = []
+  /** 弹坑焦痕与烟团（榴弹炮落地后的实物痕迹） */
+  private readonly gfx = new GroundFx()
+  private readonly inViewFn = (x: number, y: number, m: number): boolean => this.inView(x, y, m)
+  /** 爆炸震屏的累计量（见 BLAST_SHAKE_CAP） */
+  private blastTrauma = 0
   private readonly scheduled: Scheduled[] = []
 
   // 泛光缓冲
@@ -257,6 +295,8 @@ export class Renderer {
     this.world = w
     this.parts.clear()
     this.texts.clear()
+    this.gfx.clear()
+    this.blastTrauma = 0
     this.scheduled.length = 0
     this.ghosts.length = 0
     this.flashA = 0
@@ -348,7 +388,16 @@ export class Renderer {
         P.ring(e.x, e.y, e.r * 0.15, e.r, e.color, 0.4, 4)
         P.burst(e.x, e.y, e.color, 8 + e.r * 0.1, e.r * 2.6, 8, 0.45)
         P.shards(e.x, e.y, e.color, 4 + e.r * 0.04, e.r * 2.4, 3.6, 0.5)
-        this.cam.addTrauma(Math.min(0.42, e.r / 420))
+        this.cam.addTrauma(this.blastShake(Math.min(0.42, e.r / 420)))
+        break
+      }
+      case 'shellLand':
+        this.shellLandFx(e)
+        break
+      case 'heal': {
+        P.spark(p.x, p.y, '#7dffb0', 5, 110, 0.5, 1.8)
+        P.ring(p.x, p.y, 8, 30, '#7dffb0', 0.3, 2)
+        if (this.settings.dmgNumbers) this.texts.add(p.x, p.y - 22, `+${e.n}`, { size: NUM_LOOKS[HEAL_STYLE].size, style: HEAL_STYLE, life: 0.85, pop: 1.5, tier: 3, rise: 0.85 })
         break
       }
       case 'spark':
@@ -428,10 +477,55 @@ export class Renderer {
         this.cam.addTrauma(0.14)
         break
       }
+      case 'howitzer': {
+        // 炮口：一团火光 + 两团向后喷的烟 + 一点后坐力
+        P.sparkCone(mx, my, e.a, 0.7, '#ffe9a0', 7, 320, 0.2)
+        P.dot(mx, my, 0, 0, '#f4ffd0', 17, 0.09)
+        for (let k = 0; k < 2; k++) this.gfx.smoke(mx, my, ca * (70 + k * 45) + (Math.random() - 0.5) * 30, sa * (70 + k * 45) + (Math.random() - 0.5) * 30, 3.5, 10 + k * 3, 0.5 + k * 0.15, 0.4)
+        this.cam.addTrauma(0.025)
+        break
+      }
+      case 'siphon':
+        // 索扣住目标的一瞬间：机身这头一圈小环 + 一撮紫色火花
+        P.ring(e.x, e.y, 6, 26, '#a96bff', 0.25, 2)
+        P.sparkCone(mx, my, e.a, 0.9, '#d9b8ff', 4, 160, 0.2)
+        break
       default:
         break
     }
-    if (e.evo) this.evoShotFx(e, ca, sa)
+    // 虹吸索的"开火"只是新扣住了目标，不是一次齐射，不配进化炮口的光环和震屏
+    if (e.evo && e.w !== 'siphon') this.evoShotFx(e, ca, sa)
+  }
+
+  /** 爆炸震屏：累计有上限（见 BLAST_SHAKE_CAP），返回真正该加的量 */
+  private blastShake(a: number): number {
+    const add = Math.min(a, Math.max(0, BLAST_SHAKE_CAP - this.blastTrauma))
+    this.blastTrauma += add
+    return add
+  }
+
+  /** 炮弹落地：冲击环 + 火星 + 碎石，再留下焦痕和烟；闪光与基础震屏由随后的 blast 事件负责 */
+  private shellLandFx(e: Extract<GameEvent, { t: 'shellLand' }>): void {
+    const P = this.parts
+    const R = e.r
+    const col = e.evo ? '#e6ff9a' : '#b8f03a'
+    P.ring(e.x, e.y, R * 0.18, R * 1.35, col, 0.55, 5)
+    P.ring(e.x, e.y, R * 0.1, R * 0.85, '#ffffff', 0.3, 3)
+    P.spark(e.x, e.y, '#ffe9a0', 18 + R * 0.14, R * 3.6, 0.55, 2)
+    P.shards(e.x, e.y, '#7c869e', 9, R * 2.8, 4.6, 0.75)
+    P.shards(e.x, e.y, '#3b3126', 7, R * 1.9, 5.4, 0.9)
+    this.gfx.scorch(e.x, e.y, R)
+    // 烟：一圈向外推开的 + 几团慢慢升起的；低画质减半
+    const n = this.settings.quality === 'low' ? 3 : 6
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * TAU + Math.random() * 0.8
+      const sp = R * (0.9 + Math.random() * 0.9)
+      this.gfx.smoke(e.x + Math.cos(a) * R * 0.15, e.y + Math.sin(a) * R * 0.15, Math.cos(a) * sp, Math.sin(a) * sp, R * 0.16, R * 0.5, 0.9 + Math.random() * 0.5, 0.5)
+    }
+    for (let i = 0; i < (n >> 1); i++) {
+      this.gfx.smoke(e.x + (Math.random() - 0.5) * R * 0.5, e.y + (Math.random() - 0.5) * R * 0.4, (Math.random() - 0.5) * 20, -26 - Math.random() * 30, R * 0.25, R * 0.75, 1.3 + Math.random() * 0.6, 0.42)
+    }
+    this.cam.addTrauma(this.blastShake(0.1 + R / 1200))
   }
 
   /** 进化武器每轮开火：炮口多一圈光环 + 光爆 + 微震（按武器限频，不然连发会糊成一片） */
@@ -693,6 +787,8 @@ export class Renderer {
 
     this.cam.update(animDt, p.x, p.y, p.vx, p.vy, this.settings.shake)
     this.parts.update(animDt)
+    this.gfx.update(animDt)
+    this.blastTrauma = Math.max(0, this.blastTrauma - animDt * BLAST_SHAKE_DECAY)
     this.texts.update(animDt)
     this.flashA = Math.max(0, this.flashA - realDt * 2.4)
     this.updateEvoAura(w, animDt)
@@ -709,6 +805,7 @@ export class Renderer {
     // 世界空间
     this.worldT()
     this.drawMines(w)
+    this.gfx.drawMarks(ctx, this.bank, this.inViewFn)
     this.drawTelegraphs(w)
     this.drawGems(w)
     this.drawPickups(w)
@@ -716,13 +813,16 @@ export class Renderer {
     this.drawEnemies(w, animDt)
     this.drawEnemiesOver(w)
     if (boss) this.bossArt.draw(ctx, boss, p.x, p.y, this.vt, this.bank)
+    this.drawShellMarks(w)
     this.drawBeams(w)
     this.drawRings(w)
     this.drawEnemyBullets(w)
     this.drawGhosts(w)
     this.drawPlayerWeapons(w)
     this.drawPlayerBullets(w, animDt)
+    this.drawShells(w)
     this.drawBolts(w)
+    this.gfx.drawSmoke(ctx, this.bank, this.inViewFn)
     this.drawBlasts(w)
     this.parts.draw(ctx, this.bank)
     // 玩家画在所有加色特效之上：再乱的场面也要一眼看到自己
@@ -1346,6 +1446,288 @@ export class Renderer {
           ctx.drawImage(spr.c, -spr.w / 2, -spr.h / 2, spr.w, spr.h)
           ctx.restore()
         }
+      } else if (wi.id === 'siphon') {
+        this.drawTethers(w, wi)
+      }
+    }
+  }
+
+  // ───────────────────────── 榴弹炮：落点标记与炮弹 ─────────────────────────
+
+  /**
+   * 落点标记（地面层）：圈出爆炸范围，一圈向内收拢的环倒数"还有多久落地"，炮弹的影子也画在这一层。
+   * 全是哑光的细线（墨线衬底 + 一道亮色），不发光；临近落地时线条变白，提示"马上炸"。
+   */
+  private drawShellMarks(w: World): void {
+    if (w.shells.length === 0) return
+    const ctx = this.ctx
+    const shadow = this.bank.shadow
+    ctx.lineCap = 'butt'
+    for (const sh of w.shells) {
+      if (!sh.alive) continue
+      const u = clamp01(sh.t / sh.T)
+      // 影子沿地面走：越高越小越淡
+      if (u > 0.03 && u < 0.985) {
+        shellAt(sh, u)
+        if (this.inView(SH.gx, SH.gy, 30)) {
+          const hr = SH.h / SH.hMax
+          const sw = 24 * (1 - 0.32 * hr)
+          ctx.globalAlpha = 0.55 * (1 - 0.45 * hr)
+          ctx.drawImage(shadow.c, SH.gx - sw / 2, SH.gy - sw * 0.24, sw, sw * 0.48)
+          ctx.globalAlpha = 1
+        }
+      }
+      const R = sh.blast
+      if (!this.inView(sh.x, sh.y, R + 24)) continue
+      const hot = clamp01((u - 0.78) / 0.22)
+      const line = hot > 0 ? lighten(sh.color, hot * 0.75) : sh.color
+      const k = sh.evolved ? 1.2 : 1
+      ctx.save()
+      ctx.translate(sh.x, sh.y)
+      ctx.globalAlpha = Math.min(1, sh.t / 0.1)
+      // 范围底色：只是一层很淡的色，让人一眼知道炸多大
+      ctx.fillStyle = rgba(sh.color, 0.045 + 0.075 * u)
+      ctx.beginPath()
+      ctx.arc(0, 0, R, 0, TAU)
+      ctx.fill()
+      // 外圈：虚线，缓慢自转
+      DASH[0] = R * 0.2
+      DASH[1] = R * 0.115
+      ctx.setLineDash(DASH)
+      ctx.lineDashOffset = -this.vt * R * 0.22
+      ctx.beginPath()
+      ctx.arc(0, 0, R, 0, TAU)
+      ctx.lineWidth = 3.6 * k
+      ctx.strokeStyle = ink(0.4)
+      ctx.stroke()
+      ctx.lineWidth = 1.7 * k
+      ctx.strokeStyle = rgba(line, 0.34 + 0.5 * u)
+      ctx.stroke()
+      ctx.setLineDash(NO_DASH)
+      // 收拢环：从爆炸半径一路缩到 0.2R，缩到头就是落地
+      const ease = u * u * (3 - 2 * u)
+      ctx.beginPath()
+      ctx.arc(0, 0, R * (1 - 0.8 * ease), 0, TAU)
+      ctx.lineWidth = 4.6 * k
+      ctx.strokeStyle = ink(0.5)
+      ctx.stroke()
+      ctx.lineWidth = 2.4 * k
+      ctx.strokeStyle = rgba(line, 0.5 + 0.5 * u)
+      ctx.stroke()
+      // 十字准星：四根短线横跨外圈
+      ctx.beginPath()
+      for (let i = 0; i < 4; i++) {
+        const c = Math.cos((i * Math.PI) / 2)
+        const sn = Math.sin((i * Math.PI) / 2)
+        ctx.moveTo(c * (R - 6), sn * (R - 6))
+        ctx.lineTo(c * (R + 8), sn * (R + 8))
+      }
+      ctx.lineWidth = 3.6 * k
+      ctx.strokeStyle = ink(0.5)
+      ctx.stroke()
+      ctx.lineWidth = 1.7 * k
+      ctx.strokeStyle = rgba(line, 0.85)
+      ctx.stroke()
+      // 中心：一枚小菱形
+      const dm = 3.4 + 1.2 * hot
+      ctx.beginPath()
+      ctx.moveTo(0, -dm)
+      ctx.lineTo(dm, 0)
+      ctx.lineTo(0, dm)
+      ctx.lineTo(-dm, 0)
+      ctx.closePath()
+      ctx.fillStyle = rgba(line, 0.95)
+      ctx.fill()
+      ctx.lineWidth = 1.2
+      ctx.strokeStyle = ink(0.8)
+      ctx.stroke()
+      ctx.restore()
+    }
+    ctx.lineCap = 'round'
+  }
+
+  /** 空中的炮弹：抛物线飞行，机头始终朝着运动方向（落下来时就是头朝下砸），身后一道渐淡的尾迹 */
+  private drawShells(w: World): void {
+    if (w.shells.length === 0) return
+    const ctx = this.ctx
+    for (const sh of w.shells) {
+      if (!sh.alive) continue
+      const u = clamp01(sh.t / sh.T)
+      if (u > 0.985) continue
+      shellAt(sh, u)
+      const px = SH.ax
+      const py = SH.ay
+      const hr = SH.h / SH.hMax
+      const ang = SH.ang
+      if (!this.inView(px, py, 70)) continue
+      // 尾迹：沿来路退几个点，越远越细越淡
+      let lx = px
+      let ly = py
+      for (let j = 1; j <= 6; j++) {
+        const uj = u - j * 0.03
+        if (uj < 0) break
+        shellAt(sh, uj)
+        const f = 1 - j / 7
+        ctx.beginPath()
+        ctx.moveTo(lx, ly)
+        ctx.lineTo(SH.ax, SH.ay)
+        ctx.lineWidth = 3.4 * f
+        ctx.strokeStyle = rgba(sh.color, 0.36 * f)
+        ctx.stroke()
+        lx = SH.ax
+        ly = SH.ay
+      }
+      const spr = this.bank.shell(sh.color)
+      const sc = (0.92 + 0.4 * hr) * (sh.evolved ? 1.22 : 1)
+      ctx.save()
+      ctx.translate(px, py)
+      ctx.rotate(ang)
+      ctx.scale(sc, sc)
+      ctx.drawImage(spr.c, -spr.w / 2, -spr.h / 2, spr.w, spr.h)
+      ctx.restore()
+    }
+  }
+
+  // ───────────────────────── 虹吸索 ─────────────────────────
+
+  /**
+   * 虹吸索：钢灰色的软管（暗肋 + 一线紫色导能芯）从机身连到目标；
+   * 每"一跳"有一个薄荷色的能量包顺着软管流回机身；目标身上扣着钢制夹爪，每一跳夹爪咬紧一下。
+   * 进化后是两股绞在一起的软管。
+   */
+  private drawTethers(w: World, wi: WeaponInst): void {
+    const pts = wi.pts
+    if (pts.length === 0) return
+    const ctx = this.ctx
+    const bank = this.bank
+    const p = w.player
+    const evo = wi.evolved
+    const coreCol = evo ? '#e0c4ff' : '#a96bff'
+    const clampSpr = bank.clamp(evo ? '#d9b8ff' : '#a96bff')
+    const packet = bank.glow('#7dffb0')
+    const tick = wi.s.tick
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+    for (let i = 0; i < pts.length; i++) {
+      const pt = pts[i]
+      const t = pt.tgt
+      if (!t || !t.alive) continue
+      const ax = p.x
+      const ay = p.y
+      let dx = t.x - ax
+      let dy = t.y - ay
+      const dist = Math.hypot(dx, dy)
+      if (dist < 8) continue
+      dx /= dist
+      dy /= dist
+      // 夹爪的位置：小怪扣在中心；大个子（Boss 等）扣在朝向机身的那一侧
+      const cr = Math.min(t.r + 2.5, 14)
+      const off = Math.max(0, t.r - cr + 3)
+      const cx = t.x - dx * off
+      const cy = t.y - dy * off
+      const L = Math.hypot(cx - ax, cy - ay)
+      if (!this.inView((ax + cx) / 2, (ay + cy) / 2, L / 2 + 30)) continue
+      // 软管走一条轻轻摆动的二次曲线
+      const nx = -dy
+      const ny = dx
+      const bow = Math.sin(this.vt * 1.9 + pt.a) * Math.min(12, L * 0.07)
+      const kx = (ax + cx) / 2 + nx * bow
+      const ky = (ay + cy) / 2 + ny * bow
+      // 刚扣上的 0.16 秒：软管从机身甩出去
+      const grow = clamp01(pt.d / 0.16)
+      const umax = 1 - (1 - grow) * (1 - grow)
+      const trace = (sign: number, amp: number, oy = 0): void => {
+        ctx.beginPath()
+        for (let k = 0; k <= HOSE_SEG; k++) {
+          const u = (k / HOSE_SEG) * umax
+          const iu = 1 - u
+          let x = iu * iu * ax + 2 * iu * u * kx + u * u * cx
+          let y = iu * iu * ay + 2 * iu * u * ky + u * u * cy
+          if (amp > 0) {
+            const wv = Math.sin(u * 19 + this.vt * 6 + pt.a) * amp * Math.sin(Math.PI * u) * sign
+            x += nx * wv
+            y += ny * wv
+          }
+          if (k === 0) ctx.moveTo(x, y + oy)
+          else ctx.lineTo(x, y + oy)
+        }
+      }
+      if (!evo) {
+        trace(1, 0)
+        ctx.lineWidth = 5.6
+        ctx.strokeStyle = ink(0.8)
+        ctx.stroke()
+        ctx.lineWidth = 3.6
+        ctx.strokeStyle = '#58627c'
+        ctx.stroke()
+        // 软管的暗肋：一圈圈横跨管身的短线
+        DASH[0] = 1.2
+        DASH[1] = 4.2
+        ctx.setLineDash(DASH)
+        ctx.lineCap = 'butt'
+        ctx.strokeStyle = rgba('#04060d', 0.42)
+        ctx.stroke()
+        ctx.setLineDash(NO_DASH)
+        ctx.lineCap = 'round'
+        // 受光的一线 + 导能芯
+        trace(1, 0, -0.9)
+        ctx.lineWidth = 1
+        ctx.strokeStyle = rgba('#ffffff', 0.22)
+        ctx.stroke()
+        trace(1, 0)
+        ctx.lineWidth = 1.2
+        ctx.strokeStyle = rgba(coreCol, 0.9)
+        ctx.stroke()
+      } else {
+        // 两股绞线：先把两股的墨线都画好，再画钢身，最后是各自的导能芯，交叉处才干净
+        for (let s = 0; s < 3; s++) {
+          for (const sign of [1, -1]) {
+            trace(sign, 2.8)
+            ctx.lineWidth = s === 0 ? 4.4 : s === 1 ? 2.5 : 0.9
+            ctx.strokeStyle = s === 0 ? ink(0.8) : s === 1 ? '#6b6f90' : rgba(coreCol, 0.95)
+            ctx.stroke()
+          }
+        }
+      }
+      // 能量包：每一跳放出一个，用 PACKET_TRAVEL 秒顺着软管流回机身
+      const age0 = tick - pt.cd
+      for (let m = 0; m < 3; m++) {
+        const age = age0 + m * tick
+        if (age >= PACKET_TRAVEL || age > pt.d + 0.001) break
+        const u = (1 - age / PACKET_TRAVEL) * umax
+        const iu = 1 - u
+        const x = iu * iu * ax + 2 * iu * u * kx + u * u * cx
+        const y = iu * iu * ay + 2 * iu * u * ky + u * u * cy
+        ctx.globalCompositeOperation = 'lighter'
+        ctx.globalAlpha = 0.5
+        ctx.drawImage(packet.c, x - 7, y - 7, 14, 14)
+        ctx.globalAlpha = 1
+        ctx.globalCompositeOperation = 'source-over'
+        // 菱形包体：朝着机身的一头尖
+        ctx.beginPath()
+        ctx.moveTo(x - dx * 4.4, y - dy * 4.4)
+        ctx.lineTo(x - dy * 2.8, y + dx * 2.8)
+        ctx.lineTo(x + dx * 3, y + dy * 3)
+        ctx.lineTo(x + dy * 2.8, y - dx * 2.8)
+        ctx.closePath()
+        ctx.fillStyle = '#9dffc4'
+        ctx.fill()
+        ctx.lineWidth = 1.2
+        ctx.strokeStyle = ink(0.85)
+        ctx.stroke()
+      }
+      // 夹爪：刚扣上时从小变大，每一跳咬紧一下
+      const bite = age0 <= pt.d ? Math.max(0, 1 - age0 / 0.1) : 0
+      const cs = clamp01((pt.d - 0.1) / 0.1)
+      if (cs > 0) {
+        const sc = (cr / 10) * (0.6 + 0.4 * cs) * (1 + 0.18 * bite)
+        ctx.save()
+        ctx.translate(cx, cy)
+        ctx.rotate(this.vt * 1.5 + pt.a)
+        ctx.scale(sc, sc)
+        ctx.globalAlpha = cs
+        ctx.drawImage(clampSpr.c, -clampSpr.w / 2, -clampSpr.h / 2, clampSpr.w, clampSpr.h)
+        ctx.restore()
       }
     }
   }

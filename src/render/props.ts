@@ -2,6 +2,7 @@ import { TAU } from '../engine/math'
 import { groove, hull, ink, lamp, plate, rivet, tonesOf, type Trace } from './matte'
 import { lighten, mixHex, rgba } from './palette'
 import { bone, cut, metal, soft, solid, type Ctx, type Pt } from './parts'
+import { steelTones } from './shipart'
 
 /**
  * 拾取物与武器小件的"造型"。
@@ -622,4 +623,103 @@ export function paintPlasma(ctx: Ctx, color: string): void {
       ctx.stroke()
     }
   }
+}
+/**
+ * 榴弹炮的炮弹：钢制弹体 + 涂装弹头 + 一圈弹带，尾部收成船尾形。朝 +x，约 25×9。
+ * 圆柱的明暗是"上亮下暗"（垂直于弹轴），不是沿弹轴的渐变，所以不走 hull()。
+ */
+export function paintShell(ctx: Ctx, color: string): void {
+  const steel = steelTones('#9fb0c8')
+  const paint = tonesOf(color, -0.1)
+  const body: Trace = () => {
+    ctx.beginPath()
+    ctx.moveTo(-11.4, -2.5)
+    ctx.lineTo(-7.2, -4)
+    ctx.lineTo(3.2, -4.4)
+    ctx.quadraticCurveTo(8.4, -4.1, 12.6, 0)
+    ctx.quadraticCurveTo(8.4, 4.1, 3.2, 4.4)
+    ctx.lineTo(-7.2, 4)
+    ctx.lineTo(-11.4, 2.5)
+    ctx.closePath()
+  }
+  const across = (a: string, b: string, c: string): CanvasGradient => {
+    const g = ctx.createLinearGradient(0, -4.5, 0, 4.5)
+    g.addColorStop(0, a)
+    g.addColorStop(0.34, b)
+    g.addColorStop(1, c)
+    return g
+  }
+  // 墨线
+  body()
+  ctx.lineWidth = 2.6
+  ctx.strokeStyle = ink(0.95)
+  ctx.stroke()
+  // 弹体：钢色
+  body()
+  ctx.fillStyle = across(steel.hi, steel.mid, steel.lo)
+  ctx.fill()
+  ctx.save()
+  body()
+  ctx.clip()
+  // 弹头涂装 + 接缝
+  ctx.fillStyle = across(paint.hi, paint.mid, paint.lo)
+  ctx.fillRect(3.2, -6, 11, 12)
+  ctx.fillStyle = ink(0.85)
+  ctx.fillRect(2.9, -6, 0.9, 12)
+  // 弹带
+  ctx.fillStyle = across(lighten(color, 0.5), color, mixHex(color, '#0a0c14', 0.5))
+  ctx.fillRect(-5.3, -6, 2.5, 12)
+  ctx.fillStyle = ink(0.8)
+  ctx.fillRect(-5.5, -6, 0.6, 12)
+  ctx.fillRect(-2.9, -6, 0.6, 12)
+  // 尾部环槽
+  ctx.fillRect(-8.6, -6, 0.7, 12)
+  // 上缘高光
+  ctx.beginPath()
+  ctx.moveTo(-9.4, -3.1)
+  ctx.lineTo(2.2, -3.5)
+  ctx.lineWidth = 0.9
+  ctx.strokeStyle = rgba('#ffffff', 0.4)
+  ctx.stroke()
+  ctx.restore()
+  // 弹尖
+  ctx.beginPath()
+  ctx.arc(12, 0, 0.9, 0, TAU)
+  ctx.fillStyle = steel.hi
+  ctx.fill()
+}
+
+/** 虹吸索的夹爪：两片钢制 C 形卡爪扣在目标身上，缺口处各一盏灯。基准 r=10，没有朝向（渲染时自转） */
+export function paintClamp(ctx: Ctx, r: number, color: string): void {
+  const steel = steelTones(color)
+  const w = r * 0.46
+  for (let s = 0; s < 2; s++) {
+    const a0 = s * Math.PI + 0.4
+    const a1 = s * Math.PI + Math.PI - 0.4
+    const arc = (rad: number): void => {
+      ctx.beginPath()
+      ctx.arc(0, 0, rad, a0, a1)
+    }
+    arc(r)
+    ctx.lineWidth = w + 2.4
+    ctx.strokeStyle = ink(0.95)
+    ctx.lineCap = 'round'
+    ctx.stroke()
+    const g = ctx.createLinearGradient(-r, -r, r, r)
+    g.addColorStop(0, steel.hi)
+    g.addColorStop(0.5, steel.mid)
+    g.addColorStop(1, steel.lo)
+    arc(r)
+    ctx.lineWidth = w
+    ctx.strokeStyle = g
+    ctx.stroke()
+    // 外缘一道高光 + 中段的铆钉
+    arc(r + w * 0.3)
+    ctx.lineWidth = 0.8
+    ctx.strokeStyle = rgba('#ffffff', 0.34)
+    ctx.stroke()
+    const m = (a0 + a1) / 2
+    rivet(ctx, Math.cos(m) * r, Math.sin(m) * r, r * 0.07)
+  }
+  for (const a of [0, Math.PI]) lamp(ctx, Math.cos(a) * r, Math.sin(a) * r, r * 0.17, color, 1)
 }

@@ -334,7 +334,7 @@ export class AudioEngine {
     switch (e.t) {
       case 'shot':
         this.shot(e.w, pan(e.x))
-        if (e.evo) this.evoShot(e.w, pan(e.x))
+        if (e.evo && e.w !== 'siphon') this.evoShot(e.w, pan(e.x))
         break
       case 'hit': {
         // 重击：低频"咚" + 金属感高频；越重越沉、越亮。档位 ≥ 4 才有，且限频，不会糊成一团
@@ -404,6 +404,21 @@ export class AudioEngine {
       case 'dash':
         this.noise(0.2, { type: 'bandpass', f0: 1400, f1: 260, q: 1.2, vol: 0.2 })
         this.tone(320, 0.17, { type: 'triangle', f1: 920, vol: 0.09 })
+        break
+      case 'shellLand':
+        // 炮弹落地：比普通爆炸更沉的一声闷响 + 碎石飞溅的高频沙沙
+        if (this.ok('shell', 0.06)) {
+          this.tone(84, 0.5, { type: 'sine', f1: 30, vol: 0.3, pan: pan(e.x) })
+          this.noise(0.42, { type: 'lowpass', f0: 2200, f1: 110, vol: 0.26, pan: pan(e.x) })
+          this.noise(0.14, { type: 'highpass', f0: 3600, vol: 0.06, delay: 0.03, pan: pan(e.x) })
+        }
+        break
+      case 'heal':
+        // 虹吸回血：一个轻轻的两音"叮"（限频，最快每 0.4 秒一次）
+        if (this.ok('heal', 0.4)) {
+          this.tone(mtof(88), 0.18, { type: 'sine', vol: 0.05 })
+          this.tone(mtof(95), 0.24, { type: 'sine', vol: 0.04, delay: 0.07 })
+        }
         break
       case 'blast': {
         const big = clamp(e.r / 130, 0.4, 1.6)
@@ -480,6 +495,21 @@ export class AudioEngine {
         if (this.ok('s:chakram', 0.14)) {
           this.noise(0.24, { type: 'bandpass', f0: 2000, f1: 700, q: 3, vol: 0.1, pan })
           this.tone(560, 0.22, { type: 'triangle', f1: 240, vol: 0.07, pan })
+        }
+        break
+      case 'howitzer':
+        // 发射：一声沉闷的"咚" + 炮口的气浪，再拖一道渐低的下坠哨音
+        if (this.ok('s:howitzer', 0.09)) {
+          this.tone(140, 0.22, { type: 'sine', f1: 52, vol: 0.2, pan })
+          this.noise(0.16, { type: 'lowpass', f0: 1500, f1: 220, vol: 0.14, pan })
+          this.tone(1500, 0.55, { type: 'sine', f1: 520, vol: 0.026, delay: 0.1, pan })
+        }
+        break
+      case 'siphon':
+        // 扣上目标：一声轻快的"嗖"加一下金属卡扣
+        if (this.ok('s:siphon', 0.16)) {
+          this.tone(360, 0.16, { type: 'triangle', f1: 1100, vol: 0.05, pan })
+          this.tone(2400, 0.03, { type: 'square', vol: 0.035, delay: 0.1, lp: 4200, pan })
         }
         break
       case 'rail':

@@ -37,7 +37,7 @@ export interface InputState {
   dash: boolean
 }
 
-/** 武器随身的"小件"：光刃 / 无人机 / 飞轮。字段按武器各取所需。 */
+/** 武器随身的"小件"：光刃 / 无人机 / 飞轮 / 虹吸索。字段按武器各取所需。 */
 export interface WeaponPt {
   x: number
   y: number
@@ -51,6 +51,14 @@ export interface WeaponPt {
   ph: number
   /** 回旋飞轮：本阶段（去程 / 回程）已经砍过的敌人 id，每个阶段每个敌人只砍一次 */
   hit: number[]
+  /** 虹吸索：这根索扣住的目标；对象会被池复用，所以同时记录 id */
+  tgt: Target | null
+  tgtId: number
+}
+
+/** 新建一个小件（字段全部归零） */
+export function newPt(): WeaponPt {
+  return { x: 0, y: 0, a: 0, r: 0, cd: 0, vx: 0, vy: 0, d: 0, ph: 0, hit: [], tgt: null, tgtId: -1 }
 }
 
 export class WeaponInst {
@@ -273,6 +281,35 @@ export class Mine {
   pull = 0
   pulling = 0
   age = 0
+}
+
+/**
+ * 榴弹炮的炮弹：抛物线飞行，落地爆炸。
+ * 落点跟着目标走（飞行途中敌人在移动）；目标死了就停在最后的位置。
+ */
+export class Shell {
+  alive = false
+  /** 发射点 */
+  x0 = 0
+  y0 = 0
+  /** 当前落点（世界坐标） */
+  x = 0
+  y = 0
+  /** 已飞行时间 / 总飞行时间 */
+  t = 0
+  T = 1
+  dmg = 0
+  blast = 0
+  knock = 0
+  /** 进化后：落地时撒出的子弹药数量 */
+  cluster = 0
+  color = '#b8f03a'
+  evolved = false
+  /** 落点跟随的目标，以及相对它中心的偏移（同一目标上的多发炮弹要错开） */
+  target: Target | null = null
+  targetId = -1
+  ox = 0
+  oy = 0
 }
 
 export class Blast {

@@ -3,7 +3,7 @@ import type { EBulletKind, EnemyId, SectorId, ShipId, WeaponId } from '../data/i
 import { SECTORS, THREAT_LEVELS, type SectorDef } from '../data/sectors'
 import { SHIPS } from '../data/ships'
 import { EVOLVE_SHOCK, TUNE } from '../data/tuning'
-import { WEAPONS } from '../data/weapons'
+import { HOWITZER_BOMBLET, WEAPONS } from '../data/weapons'
 import { SpatialHash } from '../engine/grid'
 import { angleTo, clamp, clamp01, segmentClosestT, turnToward } from '../engine/math'
 import { Pool, compact } from '../engine/pool'
@@ -24,6 +24,7 @@ import {
   Player,
   Projectile,
   Ring,
+  Shell,
   Telegraph,
   WeaponInst,
   type InputState,
@@ -112,6 +113,7 @@ export class World {
   beams: Beam[] = []
   rings: Ring[] = []
   mines: Mine[] = []
+  shells: Shell[] = []
   blasts: Blast[] = []
   bolts: Bolt[] = []
   teles: Telegraph[] = []
@@ -160,6 +162,7 @@ export class World {
   private beamPool = new Pool(() => new Beam())
   private ringPool = new Pool(() => new Ring())
   private minePool = new Pool(() => new Mine())
+  private shellPool = new Pool(() => new Shell())
   private blastPool = new Pool(() => new Blast())
   private boltPool = new Pool(() => new Bolt())
   private telePool = new Pool(() => new Telegraph())
@@ -599,6 +602,20 @@ export class World {
     m.pulling = 0
     this.mines.push(m)
     return m
+  }
+
+  addShell(): Shell {
+    const sh = this.shellPool.get()
+    sh.alive = true
+    sh.t = 0
+    sh.cluster = 0
+    sh.evolved = false
+    sh.target = null
+    sh.targetId = -1
+    sh.ox = 0
+    sh.oy = 0
+    this.shells.push(sh)
+    return sh
   }
 
   addBlast(x: number, y: number, r: number, color: string, life = 0.32): void {
@@ -1098,6 +1115,37 @@ export class World {
       }
     }
 
+    // 榴弹炮的炮弹：落点跟着目标走，到时间就落地
+    for (const sh of this.shells) {
+      if (!sh.alive) continue
+      const tg = sh.target
+      if (tg) {
+        if (tg.alive && (tg.isBoss || (tg as Enemy).id === sh.targetId)) {
+          sh.x = tg.x + sh.ox
+          sh.y = tg.y + sh.oy
+        } else {
+          sh.target = null // 目标已经没了：停在最后的位置
+        }
+      }
+      sh.t += dt
+      if (sh.t < sh.T) continue
+      sh.alive = false
+      this.explode(sh.x, sh.y, sh.blast, sh.dmg, sh.color, sh.knock)
+      this.emit({ t: 'shellLand', x: sh.x, y: sh.y, r: sh.blast, evo: sh.evolved })
+      for (let i = 0; i < sh.cluster; i++) {
+        const a = this.rng.angle()
+        const d = this.rng.range(sh.blast * 0.3, sh.blast * 1.05)
+        this.delayed.push({
+          t: this.rng.range(0.12, 0.5),
+          x: sh.x + Math.cos(a) * d,
+          y: sh.y + Math.sin(a) * d,
+          r: sh.blast * HOWITZER_BOMBLET.radius,
+          dmg: sh.dmg * HOWITZER_BOMBLET.damage,
+          color: sh.color,
+        })
+      }
+    }
+
     // 延迟爆炸（集束导弹的子弹）
     for (let i = this.delayed.length - 1; i >= 0; i--) {
       const d = this.delayed[i]
@@ -1232,6 +1280,7 @@ export class World {
     compact(this.beams, this.beamPool)
     compact(this.rings, this.ringPool)
     compact(this.mines, this.minePool)
+    compact(this.shells, this.shellPool)
     compact(this.blasts, this.blastPool)
     compact(this.bolts, this.boltPool)
     compact(this.teles, this.telePool)
