@@ -1061,9 +1061,9 @@ button.card {
 }
 
 .meta-ico .ico {
-  width: 30px;
-  height: 30px;
-  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.55));
+  width: 38px;
+  height: 38px;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45));
 }
 
 .meta-vals {
@@ -1400,9 +1400,9 @@ button.card {
 }
 
 .slot .ico {
-  width: 62%;
-  height: 62%;
-  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.55));
+  width: 76%;
+  height: 76%;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45));
 }
 
 .slot em {
@@ -2110,9 +2110,9 @@ body.touch .kbd-only {
 }
 
 .lv-ico .ico {
-  width: 38px;
-  height: 38px;
-  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.55));
+  width: 46px;
+  height: 46px;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45));
 }
 
 .lv-card h3 {
@@ -2322,9 +2322,9 @@ body.touch .kbd-only {
 }
 
 .lv-chip .ico {
-  width: 62%;
-  height: 62%;
-  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.55));
+  width: 76%;
+  height: 76%;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45));
 }
 
 .lv-chip em {
@@ -2484,9 +2484,9 @@ body.touch .kbd-only {
 }
 
 .bi > .ico-wrap .ico {
-  width: 24px;
-  height: 24px;
-  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.55));
+  width: 30px;
+  height: 30px;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45));
 }
 
 .bi-main {
@@ -3323,6 +3323,10 @@ input[type='range']:focus-visible {
     width: 54px;
     height: 54px;
   }
+  .lv-card .lv-ico .ico {
+    width: 40px;
+    height: 40px;
+  }
   .lv-card h3 {
     grid-area: name;
     align-self: end;
@@ -3425,8 +3429,8 @@ input[type='range']:focus-visible {
     height: 44px;
   }
   .lv-ico .ico {
-    width: 26px;
-    height: 26px;
+    width: 32px;
+    height: 32px;
   }
   .lv-card h3 {
     font-size: 0.96rem;
@@ -3744,8 +3748,8 @@ table.tbl {
 }
 
 .tbl .nm .ico {
-  width: 22px;
-  height: 22px;
+  width: 28px;
+  height: 28px;
   color: var(--c, var(--cyan));
 }
 

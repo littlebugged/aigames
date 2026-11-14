@@ -14,7 +14,7 @@ export function h<K extends keyof HTMLElementTagNameMap>(
     for (const [k, v] of Object.entries(attrs)) {
       if (v === undefined || v === null || v === false) continue
       if (k === 'class') el.className = String(v)
-      else if (k === 'style' && typeof v === 'object') Object.assign(el.style, v as object)
+      else if (k === 'style' && typeof v === 'object') applyStyle(el, v as Record<string, unknown>)
       else if (k === 'html') el.innerHTML = String(v)
       else if (k.length > 2 && k.startsWith('on') && typeof v === 'function') {
         el.addEventListener(k.slice(2).toLowerCase(), v as EventListener)
@@ -23,6 +23,19 @@ export function h<K extends keyof HTMLElementTagNameMap>(
   }
   append(el, kids)
   return el
+}
+
+/**
+ * 写内联样式。CSS 自定义属性（`--c` 这类）必须走 setProperty：
+ * `Object.assign(el.style, { '--c': … })` 只会在样式对象上挂一个普通 JS 属性，浏览器根本不认。
+ * 之前所有 `style: { '--c': 颜色 }` 都因此落空，武器 / 被动 / 卡片的主题色一直是默认的青色。
+ */
+export function applyStyle(el: HTMLElement, style: Record<string, unknown>): void {
+  for (const [k, v] of Object.entries(style)) {
+    if (v === undefined || v === null || v === false) continue
+    if (k.startsWith('--')) el.style.setProperty(k, String(v))
+    else (el.style as unknown as Record<string, string>)[k] = String(v)
+  }
 }
 
 export function append(el: Element, kids: Child[]): void {

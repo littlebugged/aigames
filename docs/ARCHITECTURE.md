@@ -147,6 +147,25 @@ v1.6 之后，场上还剩两类东西是旧写法：**光束类武器**（棱�
 - 性能：最坏情况的合成场景（7 条常驻光束 + 3 个冲击环 + 3 条长电弧 + 220 颗敌方子弹，软件光栅化 DPR 1，`perf --eval`）渲染 ≈ 22 ms → 26 ms（34 → 30 fps），逐类测：子弹 ≈ +0.5 ms / 220 颗，光束 ≈ +0.2 ms / 条；真实对局里同屏光束不超过三五条。GPU（Metal，DPR 2）同一场景两个版本都是 60 fps，JS 录制时间 0.5 → 0.6–0.7 ms。
 - 验证：`play --lab fx --w 1280 --h 720 [--dpr 3 --clip x,y,w,h]` 摆一张"样张"（激光 / 磁轨 / 灼痕 / 电弧 / 冲击波 / 敌方环 / 全部子弹 / 敌方射线 / 三个寿命阶段的爆炸）；`play --catch beams|bolts|rings|ebullets|hbeams|hrings [--skip N]` 在真实对局里等到该效果出现再定格（`--ff` 取小一点，避开进化白闪）；`art --only bullets` 排出子弹图鉴。
 
+### 图标系统 v1.8：物件图标 + 功能图标
+
+v1.7 之后，局内的敌人、拾取物、武器、光束、弹幕都有了结构，唯一还停在"一笔画的描边线条"的是 **UI 图标**：HUD 槽位、升级卡、暂停构筑栏、机库、玩法指南里的 47 个小图标和局内精灵不是一个世界，缩到 20 px 的槽位里更是一团细线。v1.8 把它们分成两套语言重画，**全部仍由代码生成（`src/ui/icons.ts`，只返回 SVG 字符串，不碰 DOM，Node 里生成静态页时同样可用），没有引入任何第三方图标集**——README 里"全部程序化绘制"的承诺不变。接口没动：`weaponIcon / passiveIcon(id, cls)`（`viewBox` 32）、`uiIcon(name, cls)`（`viewBox` 24）和 `WEAPON_ICON / PASSIVE_ICON / UI_ICON` 三张表。
+
+| | 物件图标（10 武器 + 12 被动） | 功能图标（25 个：播放 / 暂停 / 锁 / 齿轮 / 奖杯 / 骷髅……） |
+| --- | --- | --- |
+| 语言 | 和局内精灵同一套"哑光硬表面"：墨线描边 + 三层明暗 + 钢件与强调色分开 | 实心双色符号，不描边，几何统一（圆角、笔画粗细、留白一致），镂空用 `evenodd` |
+| 颜色 | 主色 = `currentColor`（外层 CSS `color: var(--c)`，进化后的槽位是金色）；暗面 / 高光是**黑白半透明叠层**，所以任何主色自带明暗；钢件走 `STEEL` 五阶色板 | 全部跟随文字色，暗面是 `#000` 半透明叠层，不写死墨色 |
+| 构图 | **一个图标一件物件**，先保证 20 px 下读得出剪影；铆钉、刻线这类细节只在 60 px+ 才露出；光源固定左上 | 单一符号，不拼贴 |
+| 来源 | 武器尽量取自局内造型（环绕刃的弯刀、飞轮的锯盘、磁轨炮的钢轨与线圈）；被动画成具体的东西（磁铁、盾、放大镜、四叶草、仪表盘……） | — |
+
+- 分层 DSL（`body / shade / light / flat / line / tube`）：`body()` 画墨线描边的实体，用的是 `paint-order: stroke`——只露出描边**外侧**的一半，所以描边不会吃掉形体；`fit(cx, cy, k, …)` 按视觉中心把一组形状缩放到画布正中，专治"画得偏 / 被裁掉"。
+- 只用 `<path>` 与 `<g>`（体积小、CSS 好控、不引入滤镜）；颜色只写 `currentColor` / 十六进制；坐标保留两位小数。整套图标会被内联进每个页面，所以体积有上限（测试守）。
+- **改图标的流程**：`npm run icons` 出样张（每个图标一张设计稿大图 + 四种真实使用尺寸，`--only weapons,ui` / `--ids chakram,rail` 只看一部分，`--w 760 --dpr 2` 在窄视口里看细节）；`npm run icons -- --check` 在无头浏览器里量每个图标**实际绘制出的范围**，越界（会被裁掉）报错退出，同时提示"偏小 / 偏心"。两者都直接 import 源码，不需要先 build。
+- `tests/icons.test.ts` 守结构与风格：每个武器 / 被动都有图标且没有多余的；只有 `path / g`；坐标全是有限数；颜色格式合法；物件图标必须是"墨线 + 多层明暗 + 跟随主题色"、不许退回单线条；功能图标必须是实心、不描边、颜色跟随文字色；任意两个图标的图元不相同；体积上限。
+- **尺寸（`main.css`）**：槽位与升级芯片的图标占 76%，升级卡 46 px（手机横排 40 px、小屏 32 px），机库 38 px，指南表格 28 px，按钮内 30 px；投影统一降到 0.45 透明度——不再靠发光撑存在感。
+
+**顺手修掉的一个老 bug：自定义属性必须用 `style.setProperty`**。`Object.assign(el.style, { '--c': color })` 对 CSS 自定义属性是**静默无效**的（只是给 JS 对象多挂了一个普通属性），而 `dom.ts` 的 `h()` 一直是这么写的——所以所有 `style: { '--c': … }` 从来没生效过，HUD 槽位、升级卡、暂停构筑栏、机库、出击页里每件武器 / 被动的主题色全部落在 CSS 默认的青色上。现在 `h()` 统一走 `applyStyle()`：以 `--` 开头的键用 `setProperty`，其余直接赋值，`null / undefined / false` 跳过。**以后要写自定义属性，一律走 `h()` 或 `applyStyle()`，不要手写 `Object.assign(el.style, …)`**；`tests/dom.test.ts` 守 `applyStyle` 本身，e2e `flows` 再在真实浏览器里断言升级卡与 HUD 槽位的计算样式 `--c` 确实非空且各不相同。这次修复会让许多界面的颜色一下子变得丰富——是预期行为，不是回归。
+
 ### 打击感：伤害数字分档与武器进化演出
 
 分层与前面一致：**参数与纯函数放 `src/engine/feel.ts`**（不依赖 DOM / Canvas），渲染器、音频、HUD、App 共用，并能在 Node 里直接单测；真正"画出来"的部分在 `render/floattext.ts`（飘字池）、`render/numfont.ts`（字形图集）、`renderer.ts`、`app/app.ts`。
@@ -223,6 +242,8 @@ HUD 按"区域 + 流式排布"组织，**不要再用 `position: absolute` + 魔
 | 分级飘字 | `tests/floattext.test.ts` | 池容量有限、满池时高档挤掉最低档里最老的一条；高档永不被低档挤掉；到期移除；高档画在最上层；弹出放大到 pop 倍后回弹落定、末尾淡出（重击更晚才开始淡）；热档弹出抖动但最终归位、非热档不抖；外观下标与缩放原样交给画笔、画完 `globalAlpha` 复位（用记录型假画笔，不依赖 Canvas） |
 | 数字字形图集 | `tests/numfont.test.ts` | 每个"字符 × 外观"只预渲染一次；整串居中、按步进排开；字号变化只改绘制尺寸；缩放大幅变化才重建图集；字体未就绪时不预渲染也不缓存；有光晕的外观先画光晕再描边再字面，`shadowBlur` 画完复位；低档位是中性正体；外观表层级单调递进、颜色格式合法（用假 2D 上下文，不依赖 Canvas） |
 | 拾取物 | `tests/pickups.test.ts` | 被吸附的经验石 / 道具在 30 / 60 / 120 fps、各种走位下都会很快被收走，不会绕着飞机转圈，玩家跑得比吸力快也追得上 |
+| 图标 | `tests/icons.test.ts` | 每个武器 / 被动都有图标且没有多余的；只含 `path / g`、属性白名单、标签配对；坐标全是有限数且保留两位小数；颜色只写十六进制 / `currentColor` / `none`；物件图标必须是墨线 + 多层明暗 + 跟随主题色（不许退回单线条），功能图标必须是实心、不描边；任意两个图标的图元不同；单个与整套体积有上限 |
+| DOM 样式 | `tests/dom.test.ts` | `applyStyle`：自定义属性必须走 `setProperty`（`Object.assign` 对它静默无效，曾让所有主题色落空）；普通属性直接赋值、空值跳过；两者混写（用记录型假元素，不依赖 DOM）。真正落进浏览器样式的那一层由 e2e `flows` 兜底：升级卡与 HUD 槽位的计算样式 `--c` 必须非空且各不相同 |
 | 文案 | `tests/i18n.test.ts` | 中英词典键与占位符完全一致、无空字符串、所有内容 id 都有名称与描述 |
 | 浏览器 | `scripts/e2e.mjs` | 冒烟/桌面/手机/PWA/关键流程/打击感(`fx`)/版面审计(`layout`)/性能/线上巡检；监听 `console.error`、`pageerror`、`requestfailed` |
 | 平衡 | `scripts/sim.ts` | 机器人整局模拟：存活时间、等级、击杀、进化数、Boss 击杀耗时 |
@@ -232,7 +253,7 @@ HUD 按"区域 + 流式排布"组织，**不要再用 `position: absolute` + 魔
 
 TypeScript 只会提醒前两项，其余靠这张表（漏了也有测试兜底：`tests/data.test.ts`、`tests/i18n.test.ts`、`tests/weapons.test.ts`）：
 
-1. `src/data/ids.ts`：登记 id（编译器会提示 `WEAPONS` 与 `WEAPON_ICON` 缺项）。
+1. `src/data/ids.ts`：登记 id（编译器会提示 `WEAPONS` 与 `WEAPON_ICON` 缺项）。图标在 `src/ui/icons.ts` 的 `WEAPON_ICON` 里画——一件认得出来的小物件，尽量取自局内造型；画完 `npm run icons -- --ids <id>` 看样张，再 `npm run icons -- --check` 查越界（见"图标系统 v1.8"）。
 2. `src/data/weapons.ts`：等级表 + 进化形态 + 搭档被动（搭档不能与已有武器重复）；升级卡片的文案由相邻两级数值自动生成，只需在 `shown` 里列出要展示的项。
 3. `src/game/weapons.ts`：行为（`updateXxx`，在 `updateWeapons` 里分发）；`src/game/stats.ts` 的 `COUNTABLE` 决定它是否吃"多重弹仓"。
 4. `src/render/sprites.ts` + `renderer.ts`：精灵 / 绘制；`engine/audio.ts` 的 `shot()`：开火音效。

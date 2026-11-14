@@ -1,7 +1,7 @@
 {
   "name": "neon-surge",
   "private": true,
-  "version": "1.7.0",
+  "version": "1.8.0",
   "description": "霓虹浪涌 NEON SURGE — 纯前端的霓虹生存肉鸽游戏",
   "type": "module",
   "scripts": {
@@ -12,7 +12,8 @@
     "test": "tsx --test tests/*.test.ts",
     "sim": "tsx scripts/sim.ts",
     "bench": "tsx scripts/bench-weapons.ts",
-    "e2e": "node scripts/e2e.mjs"
+    "e2e": "node scripts/e2e.mjs",
+    "icons": "node --import tsx scripts/icon-sheet.mjs"
   },
   "devDependencies": {
     "@fontsource/orbitron": "^5.3.0",

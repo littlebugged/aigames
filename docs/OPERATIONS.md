@@ -5,7 +5,7 @@
 ## 1. 发布流程
 
 ```bash
-npm test                      # 102 项测试
+npm test                      # 115 项测试
 npm run build                 # 生成页面 → tsc（应用与脚本两套配置）→ vite build
 node scripts/e2e.mjs smoke    # 无头浏览器冒烟（含音频电平断言）
 node scripts/e2e.mjs mobile   # 改动了界面/触屏时再跑
@@ -14,6 +14,7 @@ node scripts/e2e.mjs flows    # 改动了菜单/机库/结算/输入流程时再
 node scripts/e2e.mjs fx       # 改动了伤害数字 / 命中特效 / 进化演出时再跑（截图在 .e2e/fx*.png，需要人看一眼）
 node scripts/e2e.mjs layout   # 改动了 HUD / 样式 / 提示文案 / 新增屏幕元素时再跑（7 种屏幕 × 满配与开局两种状态，0 重叠 0 出屏）
 node scripts/e2e.mjs art      # 改动了精灵 / Boss 绘制 / 着色工具包时再跑（图鉴截图在 .e2e/art-*.png，需要人看一眼；`--scale 8 --only pickups,weapons --items blade --sheeth 1100` 只放大指定条目）
+npm run icons -- --check      # 改动了 src/ui/icons.ts 时再跑：量每个图标的实际绘制范围，越界（被裁掉）会报错；不带 --check 则出样张 .e2e/icons-all.png，需要人看一眼
 git push origin main          # 触发 Cloudflare Pages 构建
 ```
 

@@ -873,6 +873,13 @@ async function flows(base) {
           maxedChips: q('.lv-chip.maxed').length,
           emptyChips: q('.lv-chip.empty').length,
           fullGroups: q('.lv-grp.full').length,
+          // 主题色是否真的写进了样式（曾因 Object.assign(el.style, {'--c': …}) 静默无效，让所有颜色落在默认青色上）
+          cardColors: cards.map((c) => getComputedStyle(c).getPropertyValue('--c').trim()),
+          icoColors: cards.map((c) => {
+            const el = c.querySelector('.lv-ico')
+            return el ? getComputedStyle(el).color : ''
+          }),
+          hudColors: q('.hud-bl .slot').map((s) => getComputedStyle(s).getPropertyValue('--c').trim()),
           kinds: window.__neon.game.offers.map((o) => (o.kind === 'weapon' ? (o.evolve ? 'evolve' : o.isNew ? 'new-weapon' : 'weapon-up') : o.kind)),
         }
       })
@@ -883,6 +890,10 @@ async function flows(base) {
     if (!r1.groups[0]?.includes('3/6') || !r1.groups[1]?.includes('2/6')) problems.push(`[flows/cards] 栏位计数不对：${r1.groups}`)
     if (r1.maxedChips !== 2) problems.push(`[flows/cards] 满级图标应为 2 个，实际 ${r1.maxedChips}`)
     if (r1.emptyChips !== 3 + 4) problems.push(`[flows/cards] 空位应为 7 个，实际 ${r1.emptyChips}`)
+    const distinct = (a) => new Set(a).size
+    if (r1.cardColors.some((c) => !c) || distinct(r1.cardColors) !== 3) problems.push(`[flows/cards] 三张卡应各有自己的主题色（--c），实际 ${r1.cardColors}`)
+    if (distinct(r1.icoColors) !== 3) problems.push(`[flows/cards] 卡片图标应随主题色着色（三张卡三种颜色），实际 ${r1.icoColors}`)
+    if (r1.hudColors.length < 3 || r1.hudColors.some((c) => !c) || distinct(r1.hudColors) < 3) problems.push(`[flows/cards] HUD 槽位应各有自己的主题色，实际 ${r1.hudColors}`)
     await shot(page, 'f-levelup-cards')
     await page.click('.lv-card:nth-child(3)')
     await page.waitForSelector('.overlay.levelup', { state: 'hidden', timeout: 5000 }).catch(() => problems.push('[flows/cards] 选卡后面板没有关闭'))
