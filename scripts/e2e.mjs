@@ -8,6 +8,7 @@
  *   node scripts/e2e.mjs pwa                # Service Worker：激活、离线可玩、新版本提示、清单与图标
  *   node scripts/e2e.mjs fx                 # 手感：伤害数字 8 档梯度 + 武器进化演出（蓄力 → 爆发 → 慢动作 → 横幅 → 光环），逐帧截图
  *   node scripts/e2e.mjs layout [--only 名]  # 版面审计：手机竖/横屏、平板、桌面，满配 HUD 元素互不遮挡、不出屏
+ *   node scripts/e2e.mjs hud [--only 状态]  # HUD 样张：满配 / 低血量 / Boss / 进化 / 手机摇杆几种状态，逐区域放大截图（默认 DPR 3）：--w --h --dpr --lang en --tag 名
  *   node scripts/e2e.mjs ui [--only 屏幕]   # 界面样张：菜单 / 成就 / 机库 / 出击准备 / 设置 / 暂停 / 升级 / 结算（胜利、失败）逐屏截图：--w --h --dpr --touch 1 --lang en --seed rich|fresh --tag 名
  *   node scripts/e2e.mjs pages [--only 名]  # 整页版面审计：7 种屏幕 × 中英文 × 全部整页界面，量横向溢出 / 按钮文字被撑出 / 主按钮出屏（--shots 1 顺带截图）
  *   node scripts/e2e.mjs art [--scale N]    # 美术样张：把全部预渲染精灵（敌人/飞船/宝石/拾取物/武器件/Boss 部件）放大排在一张图上，逐个检查质感
@@ -1240,6 +1241,156 @@ async function layout(base) {
 }
 
 /**
+ * HUD 样张：开一局并定格，把几种典型状态下的战斗 HUD 逐个区域放大截图（默认 DPR 3），逐块检查板的质感。
+ *   --only normal,low,boss,evo,touch   状态：满配 / 低血量 / Boss + 横幅 / 进化相关的装备槽 / 手机竖屏的摇杆与冲刺键
+ *   --w --h --dpr --lang en --tag 名
+ * 输出 .e2e/hud-<状态>-<区域>.png（区域：tl 左上经验条与血条 / xp 经验条中段的等级牌 / tc 上中 / tr 右上 / bl 左下装备栏 / dash 冲刺键 / joy 摇杆）。
+ * 区域的包围盒在页面里量；截图只裁这一块，所以半透明的板下面能看到真实的战场。
+ */
+async function hudShots(base) {
+  const opt = (k, d) => (args.includes(`--${k}`) ? args[args.indexOf(`--${k}`) + 1] : d)
+  const states = opt('only', 'normal,low,boss,evo,touch').split(',').filter(Boolean)
+  const dpr = Number(opt('dpr', '3'))
+  const tag = opt('tag', '')
+  const lang = opt('lang', 'zh')
+  const browser = await launch()
+  for (const st of states) {
+    const touch = st === 'touch'
+    const w = Number(opt('w', touch ? '390' : '1280'))
+    const h = Number(opt('h', touch ? '844' : '720'))
+    const ctx = await browser.newContext({
+      viewport: { width: w, height: h },
+      deviceScaleFactor: dpr,
+      isMobile: touch,
+      hasTouch: touch,
+      ...(touch ? { userAgent: MOBILE_UA } : {}),
+    })
+    const page = await ctx.newPage()
+    watch(page, `hud-${st}`)
+    await page.goto(`${base}${lang === 'en' ? '/en' : ''}/?e2e=1&q=medium`, { waitUntil: 'load' })
+    await waitReady(page)
+    await sleep(1000)
+    if (touch) await page.tap('.btn.play')
+    else await page.click('.btn.play')
+    await page.waitForSelector('.screen.deploy')
+    if (touch) await page.tap('.btn.start')
+    else await page.click('.btn.start')
+    await page.waitForSelector('.hud:not([hidden])')
+    await sleep(600)
+    await page.evaluate((st) => {
+      const a = window.__neon
+      a.godMode = true
+      a.fastForward(150)
+      a.paused = true // 定格：战场静止，元素位置稳定
+      const p = a.game.player
+      const hud = a.hud
+      const mk = (id, level, evolved) => ({ id, slot: 0, level, evolved, timer: 0, pending: 0, angle: 0, pts: [], s: p.weapons[0].s })
+      for (const k of Object.keys(p.passives)) delete p.passives[k]
+      hud.toasts.replaceChildren()
+      hud.banner.className = 'banner'
+      hud.evoBanner.className = 'evo-banner'
+      hud.bossBar.hidden = true
+      if (st === 'evo') {
+        // 已进化（金）/ 满级且带着搭档（可进化，呼吸）/ 满级缺搭档（右上角角标）/ 普通
+        p.weapons = [mk('pulse', 8, true), mk('orbit', 8, false), mk('arc', 8, false), mk('missile', 5, false), mk('laser', 8, false)].map((x, i) => ({ ...x, slot: i }))
+        p.passives.area = 2 // orbit 的搭档
+        p.passives.power = 1
+        p.passives.haste = 5
+        p.passives.magnet = 3
+      } else {
+        p.weapons = ['pulse', 'orbit', 'arc', 'missile', 'laser', 'mine'].map((id, i) => ({ ...mk(id, i < 2 ? 8 : 3 + i, i < 2), slot: i }))
+        for (const [i, id] of ['power', 'area', 'haste', 'accel', 'multi', 'magnet'].entries()) p.passives[id] = 1 + (i % 3)
+        p.passives.magnet = 5 // 满级（MAX）
+      }
+      p.maxHp = 140
+      p.hp = st === 'low' ? 24 : 98
+      hud.reset(a.game)
+      hud.show()
+      if (st === 'normal' || st === 'touch') {
+        hud.showHint('武器练到满级，再带上搭档装备，就能进化！', 999)
+        hud.toast('提示：磁力脉冲', 'info', 600000)
+        hud.toast('修复 +20', 'good', 600000)
+        hud.toast('获得补给：+120 晶核', 'gold', 600000)
+        hud.toast('护盾已破裂', 'bad', 600000)
+      }
+      if (st === 'boss') {
+        hud.bossBar.hidden = false
+        hud.bossName.textContent = '监察者'
+        hud.bossFill.style.width = '58%'
+        hud.showBanner('警告：Boss 来袭', 2, true)
+        hud.toast('获得补给：+120 晶核', 'gold', 600000)
+      }
+      if (st === 'touch') {
+        // 摇杆：直接把底盘与旋钮摆出来（合成触摸事件在无头环境里不可靠）
+        const zone = document.querySelector('.joy-zone')
+        const base = zone?.querySelector('.joy-base')
+        const knob = zone?.querySelector('.joy-knob')
+        if (base && knob) {
+          base.style.display = 'block'
+          base.style.left = '110px'
+          base.style.top = `${innerHeight - 330}px`
+          knob.style.transform = 'translate(calc(-50% + 41px), calc(-50% - 41px))' // 推到最大行程（58px），旋钮会探出底盘
+        }
+      }
+      hud.update(a.game, 0)
+    }, st)
+    await sleep(500)
+    // 冲刺键 / 摇杆做成"冷却到一半"，一次就能看到环的进度
+    await page.evaluate(() => {
+      for (const e of document.querySelectorAll('.dash-ring, .dash-btn')) {
+        e.style.setProperty('--p', '0.62')
+        e.classList.remove('ready')
+      }
+    })
+    const regions = {
+      tl: ['.hud-xp', '.hud-tl'],
+      xp: ['.hud-xp .xp-lv'],
+      tc: ['.hud-tc'],
+      tr: ['.hud-tr'],
+      bl: ['.hud-bl'],
+      dash: touch ? ['.hud-br'] : ['.hud-bc'],
+      ...(touch ? { joy: ['.joy-base'] } : {}),
+    }
+    for (const [name, sels] of Object.entries(regions)) {
+      const r = await page.evaluate(
+        ({ sels, name }) => {
+          const els = sels.map((s) => document.querySelector(s)).filter((e) => e && e.getClientRects().length > 0)
+          if (!els.length) return null
+          const rs = els.map((e) => e.getBoundingClientRect())
+          let x = Math.min(...rs.map((q) => q.left))
+          let y = Math.min(...rs.map((q) => q.top))
+          let r = Math.max(...rs.map((q) => q.right))
+          let b = Math.max(...rs.map((q) => q.bottom))
+          // 经验条横跨整屏：左上区域只取它的左段，右边界以血条为准
+          if (name === 'tl') {
+            const hp = document.querySelector('.hud-tl').getBoundingClientRect()
+            x = 0
+            r = hp.right + 70
+          }
+          if (name === 'xp') {
+            x -= 90
+            r += 90
+          }
+          const pad = name === 'joy' ? 34 : 10
+          x = Math.max(0, x - pad)
+          y = Math.max(0, y - pad)
+          r = Math.min(innerWidth, r + pad)
+          b = Math.min(innerHeight, b + pad)
+          return { x, y, width: r - x, height: b - y }
+        },
+        { sels, name },
+      )
+      if (!r) continue
+      const file = join(out, `hud-${st}-${name}${tag ? '-' + tag : ''}.png`)
+      await page.screenshot({ path: file, clip: r })
+      console.log('  📸', file.replace(root + '/', ''), `${Math.round(r.width)}×${Math.round(r.height)}`)
+    }
+    await ctx.close()
+  }
+  await browser.close()
+}
+
+/**
  * 美术样张：把预渲染精灵放大排成一张图（.e2e/art-sheet.png），逐个检查质感、描边、渐变与光晕。
  * 精灵取自渲染器私有的 SpriteBank / BossArt（?e2e=1 时可访问），不依赖战局状态。
  */
@@ -1797,6 +1948,7 @@ try {
   else if (mode === 'flows') await flows(base)
   else if (mode === 'fx') await fx(base)
   else if (mode === 'layout') await layout(base)
+  else if (mode === 'hud') await hudShots(base)
   else if (mode === 'art') await art(base)
   else if (mode === 'ui') await ui(base)
   else if (mode === 'pages') await pages(base)

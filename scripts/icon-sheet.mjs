@@ -96,7 +96,7 @@ h2{margin:14px 0 10px;font:600 13px system-ui;opacity:.8}
   background:linear-gradient(180deg,color-mix(in srgb,var(--c) 11%,#151b2e),#0b101f);
   border:1px solid color-mix(in srgb,var(--c) 42%,transparent);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 2px 6px rgba(0,0,0,.35)}
-.plate.slot{border-radius:10px;background:rgba(6,10,22,.78);border-color:color-mix(in srgb,var(--c) 58%,transparent);box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
+.plate.slot{border:0;border-radius:0;clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px);background:linear-gradient(180deg,color-mix(in srgb,var(--c) 14%,#0c1224),#04070f);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--c) 70%,transparent),inset 0 1px 0 color-mix(in srgb,var(--c) 34%,transparent)}
 .plate.bare{background:none;border:0;box-shadow:none}
 .plate .in{display:block}
 .plate .ico,.uibig .ico,.s18 .ico,.s24 .ico,.s32 .ico{width:100%;height:100%;display:block;filter:drop-shadow(0 1px 1px rgba(0,0,0,.55))}

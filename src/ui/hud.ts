@@ -45,8 +45,9 @@ export class Hud {
     private readonly ctx: UiCtx,
     onPause: () => void,
   ) {
-    this.hpWrap = h('div', { class: 'hp' }, iconEl('heal', 'hp-ico'), h('div', { class: 'hp-bar' }, this.hpTrail, this.hpFill), this.hpText)
-    this.bossBar = h('div', { class: 'boss-bar', hidden: true }, this.bossName, h('div', { class: 'boss-track' }, this.bossFill))
+    // 血条 / Boss 血条 = 切角的细边框（板）+ 里面裁成同样切角的内槽（.bar-in），填充条在槽里按宽度伸缩
+    this.hpWrap = h('div', { class: 'hp' }, iconEl('heal', 'hp-ico'), h('div', { class: 'hp-bar' }, h('div', { class: 'bar-in' }, this.hpTrail, this.hpFill)), this.hpText)
+    this.bossBar = h('div', { class: 'boss-bar', hidden: true }, this.bossName, h('div', { class: 'boss-track' }, h('div', { class: 'bar-in' }, this.bossFill)))
     this.dash = h('div', { class: 'dash-ring ready' }, iconEl('dash'))
     this.dashBtn = h('button', { class: 'dash-btn ready', tabindex: -1, 'aria-label': t('hud.dash') }, iconEl('dash'), h('span', null, t('hud.dash')))
     this.dashBtn.addEventListener('pointerdown', (e) => {
@@ -224,7 +225,7 @@ export class Hud {
         },
         svgEl(weaponIcon(wi.id)),
         h('em', null, wi.evolved ? '★' : wi.level >= WEAPON_MAX_LEVEL ? 'MAX' : String(wi.level)),
-        maxed && !hasPartner ? h('i', { class: 'need', style: { color: PASSIVES[partner].color } }, svgEl(passiveIcon(partner))) : null,
+        maxed && !hasPartner ? h('i', { class: 'need', style: { color: PASSIVES[partner].color, '--c': PASSIVES[partner].color } }, svgEl(passiveIcon(partner))) : null,
       )
       this.weapons.appendChild(slot)
     }

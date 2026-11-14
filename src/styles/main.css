@@ -187,7 +187,7 @@ body.ready .boot {
   initial-value: #0f1526;
 }
 
-:is(.btn, .card, .chip, .tag, .plate, .pill, .fcard, .seg, .toggle-row, .lv-card, .lv-ico, .ship-ico, .meta-ico, .lv-rows, .lv-build, .bi, .pause-panel, .modal-panel) {
+:is(.btn, .card, .chip, .tag, .plate, .pill, .fcard, .seg, .toggle-row, .lv-card, .lv-ico, .ship-ico, .meta-ico, .lv-rows, .lv-build, .bi, .pause-panel, .modal-panel, .slot, .toast, .hint, .hp-bar, .boss-track, .need) {
   --cut: 8px;
   --rim: rgba(130, 170, 255, 0.2);
   --fa: #1a2237;
@@ -202,25 +202,48 @@ body.ready .boot {
   box-shadow: none;
 }
 
-:is(.btn, .card, .chip, .tag, .plate, .pill, .fcard, .seg, .toggle-row, .lv-card, .lv-ico, .ship-ico, .meta-ico, .lv-rows, .lv-build, .bi, .pause-panel, .modal-panel)::before,
-:is(.btn, .card, .chip, .tag, .plate, .pill, .fcard, .seg, .toggle-row, .lv-card, .lv-ico, .ship-ico, .meta-ico, .lv-rows, .lv-build, .bi, .pause-panel, .modal-panel)::after {
+:is(.btn, .card, .chip, .tag, .plate, .pill, .fcard, .seg, .toggle-row, .lv-card, .lv-ico, .ship-ico, .meta-ico, .lv-rows, .lv-build, .bi, .pause-panel, .modal-panel, .slot, .toast, .hint, .hp-bar, .boss-track, .need)::before,
+:is(.btn, .card, .chip, .tag, .plate, .pill, .fcard, .seg, .toggle-row, .lv-card, .lv-ico, .ship-ico, .meta-ico, .lv-rows, .lv-build, .bi, .pause-panel, .modal-panel, .slot, .toast, .hint, .hp-bar, .boss-track, .need)::after {
   content: '';
   position: absolute;
   z-index: -1;
   pointer-events: none;
 }
 
-:is(.btn, .card, .chip, .tag, .plate, .pill, .fcard, .seg, .toggle-row, .lv-card, .lv-ico, .ship-ico, .meta-ico, .lv-rows, .lv-build, .bi, .pause-panel, .modal-panel)::before {
+:is(.btn, .card, .chip, .tag, .plate, .pill, .fcard, .seg, .toggle-row, .lv-card, .lv-ico, .ship-ico, .meta-ico, .lv-rows, .lv-build, .bi, .pause-panel, .modal-panel, .slot, .toast, .hint, .hp-bar, .boss-track, .need)::before {
   inset: 0;
   background: var(--rim);
   clip-path: polygon(var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut));
 }
 
-:is(.btn, .card, .chip, .tag, .plate, .pill, .fcard, .seg, .toggle-row, .lv-card, .lv-ico, .ship-ico, .meta-ico, .lv-rows, .lv-build, .bi, .pause-panel, .modal-panel)::after {
+:is(.btn, .card, .chip, .tag, .plate, .pill, .fcard, .seg, .toggle-row, .lv-card, .lv-ico, .ship-ico, .meta-ico, .lv-rows, .lv-build, .bi, .pause-panel, .modal-panel, .slot, .toast, .hint, .hp-bar, .boss-track, .need)::after {
   inset: 1px;
   background: linear-gradient(180deg, var(--fa), var(--fb));
   box-shadow: inset 0 1px 0 var(--sheen), inset 0 -3px 0 var(--lip);
   clip-path: polygon(calc(var(--cut) - 0.6px) 0, 100% 0, 100% calc(100% - var(--cut) + 0.6px), calc(100% - var(--cut) + 0.6px) 100%, 0 100%, 0 calc(var(--cut) - 0.6px));
+}
+
+/* 半透明的板（战斗 HUD：装备槽 / 通知 / 提示 / 血条 / 暂停键）：
+ * 外框改成镂空的环——填充半透明时，实心的外框会透过填充把整块板染成外框的颜色。
+ * 环的内缘跟填充层的切角（--cut − 0.6px，内缩 1px）严丝合缝，所以环与填充之间没有缝也没有重叠。 */
+:is(.slot, .toast, .hint, .hp-bar, .boss-track, .need, .hud-pause)::before {
+  clip-path: polygon(
+    evenodd,
+    var(--cut) 0,
+    100% 0,
+    100% calc(100% - var(--cut)),
+    calc(100% - var(--cut)) 100%,
+    0 100%,
+    0 var(--cut),
+    var(--cut) 0,
+    calc(var(--cut) + 0.4px) 1px,
+    calc(100% - 1px) 1px,
+    calc(100% - 1px) calc(100% - var(--cut) - 0.4px),
+    calc(100% - var(--cut) - 0.4px) calc(100% - 1px),
+    1px calc(100% - 1px),
+    1px calc(var(--cut) + 0.4px),
+    calc(var(--cut) + 0.4px) 1px
+  );
 }
 
 .btn {
@@ -1746,20 +1769,24 @@ button.card {
   position: absolute;
 }
 
+/* 经验条：和菜单里的属性条同一套"格子"——填充用遮罩切成一格一格，空槽用同样的格子打底 */
 .hud-xp {
+  --cell: repeating-linear-gradient(90deg, #000 0 9px, transparent 9px 11px);
   left: 0;
   right: 0;
   top: 0;
   height: 14px;
-  background: rgba(255, 255, 255, 0.08);
+  background: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.1) 0 9px, transparent 9px 11px), rgba(4, 7, 16, 0.55);
+  box-shadow: inset 0 -1px 0 rgba(130, 170, 255, 0.16);
 }
 
 .hud-xp i {
   display: block;
   height: 100%;
   width: 0;
-  background: linear-gradient(90deg, #2ee6ff, #8f7bff 60%, #ff4fd8);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 -1px 0 rgba(0, 0, 0, 0.25);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.38), rgba(255, 255, 255, 0) 55%), linear-gradient(90deg, #2ee6ff, #8f7bff 60%, #ff4fd8);
+  -webkit-mask-image: var(--cell);
+  mask-image: var(--cell);
   transition: width 0.12s linear;
 }
 
@@ -1777,8 +1804,12 @@ button.card {
   font-size: 0.6rem;
   letter-spacing: 0.18em;
   color: #fff;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.95), 0 0 5px rgba(0, 0, 0, 0.8);
   white-space: nowrap;
+  /* 等级牌：嵌在经验条中间的深色梯形牌，字压在格子上不再发花 */
+  padding: 0 14px 0 calc(14px + 0.18em);
+  background: rgba(3, 5, 12, 0.92);
+  box-shadow: inset 0 -1px 0 rgba(130, 170, 255, 0.4);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 6px) 100%, 6px 100%);
 }
 
 .hud-tl {
@@ -1800,14 +1831,32 @@ button.card {
   filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.55));
 }
 
+/* 血条 / Boss 血条：切角的细边框（板）+ 里面一格一格的槽。
+   .bar-in 是裁成同样切角的内槽（内缩 2px，切角 = --cut − 1.17px，跟外框平行）；填充条在槽里按宽度伸缩，格子靠遮罩切出来。 */
 .hp-bar {
-  position: relative;
+  --cut: 5px;
+  --rim: rgba(109, 255, 138, 0.55);
+  --fa: rgba(3, 7, 14, 0.72);
+  --fb: rgba(3, 7, 14, 0.72);
+  --lip: transparent;
+  --sheen: transparent;
+  --cell: repeating-linear-gradient(90deg, #000 0 8px, transparent 8px 10px);
   flex: 1;
   height: 14px;
-  border-radius: 99px;
-  background: rgba(0, 0, 0, 0.5);
-  border: 1px solid rgba(109, 255, 138, 0.4);
-  overflow: hidden;
+}
+
+.bar-in {
+  position: absolute;
+  inset: 2px;
+  background: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.1) 0 8px, transparent 8px 10px);
+  clip-path: polygon(
+    calc(var(--cut) - 1.17px) 0,
+    100% 0,
+    100% calc(100% - var(--cut) + 1.17px),
+    calc(100% - var(--cut) + 1.17px) 100%,
+    0 100%,
+    0 calc(var(--cut) - 1.17px)
+  );
 }
 
 .hp-bar i {
@@ -1815,12 +1864,12 @@ button.card {
   left: 0;
   top: 0;
   bottom: 0;
-  border-radius: inherit;
+  -webkit-mask-image: var(--cell);
+  mask-image: var(--cell);
 }
 
 .hp-fill {
-  background: linear-gradient(90deg, #35e872, #8dff9f);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 -1px 0 rgba(0, 0, 0, 0.25);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0) 55%), #35e872;
   transition: width 0.1s linear;
 }
 
@@ -1859,13 +1908,12 @@ button.card {
 }
 
 .hp.low .hp-bar {
-  border-color: rgba(255, 74, 106, 0.8);
+  --rim: rgba(255, 74, 106, 0.9);
   animation: pulse 0.7s ease-in-out infinite;
 }
 
 .hp.low .hp-fill {
-  background: linear-gradient(90deg, #ff3a5e, #ff7b8f);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 -1px 0 rgba(0, 0, 0, 0.25);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0) 55%), #ff3a5e;
 }
 
 .hud-tc {
@@ -1927,21 +1975,24 @@ button.card {
 }
 
 .boss-track {
+  --cut: 5px;
+  --rim: rgba(255, 74, 106, 0.85);
+  --fa: rgba(9, 3, 8, 0.74);
+  --fb: rgba(9, 3, 8, 0.74);
+  --lip: transparent;
+  --sheen: transparent;
+  --cell: repeating-linear-gradient(90deg, #000 0 8px, transparent 8px 10px);
   margin-top: 4px;
   height: 12px;
-  border-radius: 99px;
-  background: rgba(0, 0, 0, 0.55);
-  border: 1px solid rgba(255, 74, 106, 0.7);
-  overflow: hidden;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45);
 }
 
 .boss-track i {
   display: block;
   height: 100%;
   width: 100%;
-  background: linear-gradient(90deg, #ff2f55, #ff8a5c);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 -1px 0 rgba(0, 0, 0, 0.25);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0) 55%), linear-gradient(90deg, #ff2f55, #ff8a5c);
+  -webkit-mask-image: var(--cell);
+  mask-image: var(--cell);
   transition: width 0.12s linear;
 }
 
@@ -1975,7 +2026,9 @@ button.card {
 
 .hud-pause {
   pointer-events: auto;
-  background: rgba(10, 16, 36, 0.7);
+  --rim: rgba(130, 170, 255, 0.42);
+  --fa: rgba(16, 24, 46, 0.82);
+  --fb: rgba(8, 12, 28, 0.86);
 }
 
 .hud-bl {
@@ -1993,18 +2046,21 @@ button.card {
   max-width: min(60vw, 420px);
 }
 
+/* 装备槽：切角的板，细边和顶部一线高光取武器 / 被动的主色；左下角挂一块深色的"等级牌"（斜边）。
+   进化后整块板换成金色并在金色与浅金之间呼吸，可进化时（满级且带着搭档）同样呼吸但更急。 */
 .slot {
   --c: var(--cyan);
-  position: relative;
+  --cut: 8px;
+  --rim: color-mix(in srgb, var(--c) 72%, transparent);
+  --fa: color-mix(in srgb, var(--c) 13%, rgba(12, 18, 36, 0.86));
+  --fb: rgba(4, 7, 16, 0.9);
+  --lip: rgba(0, 0, 0, 0.3);
+  --sheen: color-mix(in srgb, var(--c) 34%, transparent);
   width: clamp(38px, 4.4vw, 46px);
   height: clamp(38px, 4.4vw, 46px);
   display: grid;
   place-items: center;
-  border-radius: 10px;
   color: var(--c);
-  background: rgba(6, 10, 22, 0.78);
-  border: 1px solid color-mix(in srgb, var(--c) 58%, transparent);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .slot .ico {
@@ -2015,32 +2071,59 @@ button.card {
 
 .slot em {
   position: absolute;
-  right: 3px;
+  left: 1px;
   bottom: 1px;
+  min-width: 14px;
+  padding: 1px 5px 0 3px;
   font-style: normal;
   font-family: var(--display);
   font-weight: 800;
   font-size: 0.58rem;
+  line-height: 1.2;
+  text-align: center;
   color: #fff;
-  text-shadow: 0 1px 2px #000, 0 0 3px #000;
+  background: rgba(3, 5, 12, 0.9);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--c) 45%, transparent);
+  clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 100%, 0 100%);
 }
 
 .slot.passive {
+  --cut: 6px;
   width: clamp(30px, 3.4vw, 36px);
   height: clamp(30px, 3.4vw, 36px);
-  border-radius: 8px;
+}
+
+.slot.passive em {
+  min-width: 12px;
+  padding: 1px 4px 0 2px;
+  font-size: 0.52rem;
 }
 
 .slot.evolved {
-  box-shadow: 0 0 0 1px rgba(255, 216, 74, 0.85), inset 0 0 0 1px rgba(255, 236, 160, 0.18);
-  animation: evoSheen 1.8s ease-in-out infinite;
+  --rim: var(--gold);
+  --fa: color-mix(in srgb, var(--gold) 22%, rgba(30, 22, 6, 0.9));
+  --fb: rgba(16, 11, 3, 0.92);
+  --sheen: rgba(255, 244, 180, 0.55);
+  animation: evoRim 1.8s ease-in-out infinite;
+}
+
+.slot.evolved em {
+  color: #ffe58a;
 }
 
 .slot.evo-ready {
-  animation: evoReady 0.9s ease-in-out infinite;
+  --rim: rgba(255, 216, 74, 0.72);
+  animation: evoReadyRim 0.9s ease-in-out infinite;
 }
 
+/* "还缺搭档"的角标：右上角挂出去的小切角板，边框取搭档被动的颜色（--c 由 hud.ts 设置） */
 .slot .need {
+  --cut: 5px;
+  --rim: var(--c);
+  --fa: #0a0e1c;
+  --fb: #05060d;
+  --lip: transparent;
+  --sheen: transparent;
   position: absolute;
   top: -7px;
   right: -7px;
@@ -2048,9 +2131,6 @@ button.card {
   height: 20px;
   display: grid;
   place-items: center;
-  border-radius: 50%;
-  background: #05060d;
-  border: 1px solid currentColor;
   animation: pulse 1s ease-in-out infinite;
 }
 
@@ -2065,10 +2145,19 @@ button.card {
   transform: translateX(-50%);
 }
 
+/* 冲刺键：正八边形（切角的语言），冷却环沿着八边形外缘按角度扫过；就绪时整圈青色 + 内底微微泛青，不再靠外发光 */
+.dash-ring,
+.dash-btn,
+.joy-base,
+.joy-knob {
+  --oct: polygon(29.29% 0, 70.71% 0, 100% 29.29%, 100% 70.71%, 70.71% 100%, 29.29% 100%, 0 70.71%, 0 29.29%);
+}
+
 .dash-ring,
 .dash-btn {
   --p: 1;
   --c: var(--cyan);
+  clip-path: var(--oct);
   background: conic-gradient(var(--c) calc(var(--p) * 360deg), rgba(255, 255, 255, 0.12) 0);
 }
 
@@ -2076,7 +2165,6 @@ button.card {
   position: relative;
   width: 46px;
   height: 46px;
-  border-radius: 50%;
   display: grid;
   place-items: center;
   color: var(--dim);
@@ -2086,8 +2174,9 @@ button.card {
   content: '';
   position: absolute;
   inset: 4px;
-  border-radius: 50%;
+  clip-path: var(--oct);
   background: #070b18;
+  transition: background 0.2s;
 }
 
 .dash-ring .ico-wrap {
@@ -2096,7 +2185,10 @@ button.card {
 
 .dash-ring.ready {
   color: var(--cyan);
-  box-shadow: 0 0 0 1px rgba(61, 242, 255, 0.55), inset 0 0 0 1px rgba(61, 242, 255, 0.12);
+}
+
+.dash-ring.ready::before {
+  background: color-mix(in srgb, var(--cyan) 14%, #070b18);
 }
 
 .hud-br {
@@ -2117,7 +2209,6 @@ button.card {
   position: relative;
   width: clamp(76px, 20vmin, 104px);
   height: clamp(76px, 20vmin, 104px);
-  border-radius: 50%;
   border: 0;
   padding: 0;
   display: grid;
@@ -2134,9 +2225,10 @@ button.card {
 .dash-btn::before {
   content: '';
   position: absolute;
-  inset: 5px;
-  border-radius: 50%;
-  background: rgba(7, 11, 24, 0.9);
+  inset: 4px;
+  clip-path: var(--oct);
+  background: #070b18;
+  transition: background 0.2s;
 }
 
 .dash-btn > * {
@@ -2157,7 +2249,10 @@ button.card {
 
 .dash-btn.ready {
   color: var(--cyan);
-  box-shadow: 0 0 0 2px rgba(61, 242, 255, 0.4), 0 6px 14px rgba(0, 0, 0, 0.4);
+}
+
+.dash-btn.ready::before {
+  background: color-mix(in srgb, var(--cyan) 14%, #070b18);
 }
 
 .dash-btn:active {
@@ -2419,33 +2514,36 @@ button.card {
   gap: 6px;
 }
 
+/* 通知：切角的板；细边和顶部高光取"语气色"（--tone），文字同色。 */
 .toast {
+  --tone: var(--line-hi);
+  --cut: 8px;
+  --rim: var(--tone);
+  --fa: color-mix(in srgb, var(--tone) 9%, rgba(14, 20, 40, 0.94));
+  --fb: rgba(6, 9, 20, 0.95);
+  --sheen: color-mix(in srgb, var(--tone) 30%, transparent);
   max-width: min(86vw, 420px);
-  padding: 7px 14px;
-  border-radius: 10px;
-  border: 1px solid var(--line-hi);
-  background: rgba(8, 12, 26, 0.9);
+  padding: 8px 15px;
   color: var(--text);
   font-size: 0.85rem;
   font-weight: 700;
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
   animation: toastIn 0.25s ease-out;
   transition: opacity 0.35s, transform 0.35s;
 }
 
 .toast.good {
+  --tone: rgba(109, 255, 138, 0.78);
   color: var(--green);
-  border-color: rgba(109, 255, 138, 0.6);
 }
 
 .toast.gold {
+  --tone: rgba(255, 216, 74, 0.8);
   color: var(--gold);
-  border-color: rgba(255, 216, 74, 0.6);
 }
 
 .toast.bad {
+  --tone: rgba(255, 74, 106, 0.8);
   color: #ff8da0;
-  border-color: rgba(255, 74, 106, 0.6);
 }
 
 .toast.out {
@@ -2457,9 +2555,8 @@ button.card {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 8px 8px 8px 16px;
+  padding: 9px 9px 9px 17px;
   pointer-events: auto;
-  box-shadow: 0 6px 26px rgba(0, 0, 0, 0.55);
 }
 
 .gtoasts {
@@ -2477,18 +2574,19 @@ button.card {
 
 /* 教学提示：放进左下角的装备栏上方（流式），不会再压住装备图标或冲刺键 */
 .hint {
+  --cut: 10px;
+  --rim: rgba(61, 242, 255, 0.62);
+  --fa: rgba(10, 24, 44, 0.9);
+  --fb: rgba(5, 11, 26, 0.92);
+  --sheen: rgba(61, 242, 255, 0.2);
   display: none;
   align-self: flex-start;
   max-width: min(88vw, 520px);
-  padding: 8px 16px;
-  border-radius: 12px;
-  border: 1px solid rgba(61, 242, 255, 0.5);
-  background: rgba(6, 12, 28, 0.86);
+  padding: 9px 17px;
   color: var(--text);
   font-size: 0.88rem;
   font-weight: 700;
   line-height: 1.4;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
 }
 
 .hint.show {
@@ -2531,17 +2629,53 @@ body.left-handed .hud.touch .hint {
   user-select: none;
 }
 
+/* 摇杆：底盘是镂空的八边形环（2px），旋钮是实心八边形 + 深色细边 + 顶部一线高光；跟冲刺键同一个形状。
+   底盘元素本身不能裁剪：旋钮是它的子元素，推到边缘时本来就会探出环外，一裁就被削掉一块。
+   所以环（::before）和淡淡的底色（::after，放到旋钮下面）各自裁成八边形。 */
 .joy-base {
   display: none;
   position: absolute;
   width: 128px;
   height: 128px;
   margin: -64px 0 0 -64px;
-  border-radius: 50%;
-  border: 2px solid rgba(61, 242, 255, 0.45);
-  background: radial-gradient(circle, rgba(61, 242, 255, 0.1), rgba(61, 242, 255, 0.02) 70%);
-  box-shadow: inset 0 0 0 1px rgba(61, 242, 255, 0.18), 0 4px 14px rgba(0, 0, 0, 0.3);
   pointer-events: none;
+}
+
+.joy-base::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  clip-path: var(--oct);
+  background: rgba(61, 242, 255, 0.06);
+}
+
+.joy-base::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(61, 242, 255, 0.5);
+  clip-path: polygon(
+    evenodd,
+    29.29% 0,
+    70.71% 0,
+    100% 29.29%,
+    100% 70.71%,
+    70.71% 100%,
+    29.29% 100%,
+    0 70.71%,
+    0 29.29%,
+    29.29% 0,
+    calc(29.29% + 0.83px) 2px,
+    calc(70.71% - 0.83px) 2px,
+    calc(100% - 2px) calc(29.29% + 0.83px),
+    calc(100% - 2px) calc(70.71% - 0.83px),
+    calc(70.71% - 0.83px) calc(100% - 2px),
+    calc(29.29% + 0.83px) calc(100% - 2px),
+    2px calc(70.71% - 0.83px),
+    2px calc(29.29% + 0.83px),
+    calc(29.29% + 0.83px) 2px
+  );
 }
 
 .joy-knob {
@@ -2550,11 +2684,19 @@ body.left-handed .hud.touch .hint {
   top: 50%;
   width: 54px;
   height: 54px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 40% 35%, rgba(180, 250, 255, 0.7), rgba(61, 242, 255, 0.34));
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  clip-path: var(--oct);
+  background: #06323f;
   transform: translate(-50%, -50%);
   pointer-events: none;
+}
+
+.joy-knob::before {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  clip-path: var(--oct);
+  background: linear-gradient(180deg, rgba(200, 252, 255, 0.78), rgba(61, 242, 255, 0.42));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), inset 0 -3px 0 rgba(0, 60, 80, 0.35);
 }
 
 body:not(.touch) .kbd-only {
@@ -3952,25 +4094,15 @@ input[type='range']:focus-visible {
   }
 }
 
-@keyframes evoSheen {
+@keyframes evoReadyRim {
   0%,
   100% {
-    box-shadow: 0 0 0 1px rgba(255, 216, 74, 0.7), inset 0 0 0 1px rgba(255, 216, 74, 0.2);
+    --rim: rgba(255, 216, 74, 0.72);
+    --fa: color-mix(in srgb, var(--gold) 10%, rgba(12, 18, 36, 0.86));
   }
   50% {
-    box-shadow: 0 0 0 2px rgba(255, 236, 160, 0.95), inset 0 0 0 1px rgba(255, 244, 176, 0.45);
-  }
-}
-
-@keyframes evoReady {
-  0%,
-  100% {
-    box-shadow: 0 0 0 1px rgba(255, 216, 74, 0.35), inset 0 0 0 1px rgba(255, 216, 74, 0.1);
-    border-color: rgba(255, 216, 74, 0.7);
-  }
-  50% {
-    box-shadow: 0 0 0 2px rgba(255, 236, 160, 0.9), inset 0 0 0 1px rgba(255, 216, 74, 0.35);
-    border-color: #fff3b0;
+    --rim: #fff3b0;
+    --fa: color-mix(in srgb, var(--gold) 24%, rgba(12, 18, 36, 0.86));
   }
 }
 
