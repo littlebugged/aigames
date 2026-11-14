@@ -205,8 +205,21 @@ export class Bot {
       }
       for (const bm of w.beams) {
         if (!bm.hostile) continue
-        const dist = Math.abs((px - bm.ox) * Math.sin(bm.ang) - (py - bm.oy) * Math.cos(bm.ang))
-        if (dist < bm.width / 2 + 40) s -= 6
+        // 只有朝前的那半条才伤人；旋转的射线（熔切）除了现在的朝向，还要躲它 0.45 秒之后的朝向
+        const rx = px - bm.ox
+        const ry = py - bm.oy
+        const looks = bm.spin !== 0 ? 2 : 1
+        for (let k = 0; k < looks; k++) {
+          const a = bm.ang + bm.spin * 0.45 * k
+          const ca = Math.cos(a)
+          const sa = Math.sin(a)
+          const along = rx * ca + ry * sa
+          if (along < -40 || along > bm.len + 40) continue
+          if (Math.abs(rx * sa - ry * ca) < bm.width / 2 + 40) {
+            s -= 6
+            break
+          }
+        }
       }
       for (const rg of w.rings) {
         if (!rg.hostile) continue

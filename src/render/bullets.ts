@@ -216,6 +216,83 @@ function paintFang(ctx: Ctx, color: string): void {
   ctx.stroke()
 }
 
+/**
+ * 熔渣块（熔炉巨像）：一块有棱有角的暗色岩渣，裂缝里透出熔融的橙光，迎着前进方向的一侧被烤得发亮，
+ * 身后甩着几点火星。裂缝是实色的粗线 + 白热的细芯——不靠光晕，轮廓一眼就是"一块烧红的石头"。
+ */
+function paintEmber(ctx: Ctx, color: string): void {
+  const crust: Pt[] = [
+    [8.8, -0.8],
+    [5.6, -6.2],
+    [-0.8, -7.8],
+    [-6.8, -5],
+    [-8.6, 1.6],
+    [-4.6, 6.8],
+    [2.8, 7],
+  ]
+  const trace = (): void => {
+    ctx.beginPath()
+    crust.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)))
+    ctx.closePath()
+  }
+  // 火星：甩在身后的三点
+  for (const [x, y, r] of [
+    [-12.4, -3, 1.6],
+    [-15.2, 1.8, 1.2],
+    [-17.6, -1.2, 0.9],
+  ] as const) {
+    ctx.beginPath()
+    ctx.arc(x, y, r + 0.9, 0, TAU)
+    ctx.fillStyle = ink(0.85)
+    ctx.fill()
+    ctx.beginPath()
+    ctx.arc(x, y, r, 0, TAU)
+    ctx.fillStyle = lighten(color, 0.35)
+    ctx.fill()
+  }
+  body(ctx, trace)
+  // 岩壳：背着热的一侧近乎黑褐，迎着热的一侧泛暖
+  const g = ctx.createLinearGradient(-8.6, 0, 8.8, 0)
+  g.addColorStop(0, mixHex(color, '#07090f', 0.9))
+  g.addColorStop(0.55, mixHex(color, '#07090f', 0.78))
+  g.addColorStop(1, mixHex(color, '#07090f', 0.5))
+  ctx.fillStyle = g
+  trace()
+  ctx.fill()
+  ctx.save()
+  trace()
+  ctx.clip()
+  // 熔融的裂缝：橙色的粗底 + 白热的细芯
+  const seams: Pt[][] = [
+    [[8, -1.6], [3.4, -0.8], [0.6, 2.4], [-3.6, 1.8], [-8, 4]],
+    [[3.4, -0.8], [2.2, -5.4], [-1.2, -7.4]],
+    [[0.6, 2.4], [2.8, 6.4]],
+  ]
+  ctx.lineJoin = 'round'
+  ctx.lineCap = 'round'
+  for (const [w, c] of [
+    [2.5, color],
+    [1, lighten(color, 0.78)],
+  ] as const) {
+    ctx.lineWidth = w
+    ctx.strokeStyle = c
+    for (const s of seams) {
+      ctx.beginPath()
+      s.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)))
+      ctx.stroke()
+    }
+  }
+  ctx.restore()
+  // 迎热面的边缘高光
+  ctx.beginPath()
+  ctx.moveTo(5.6, -6.2)
+  ctx.lineTo(8.8, -0.8)
+  ctx.lineTo(2.8, 7)
+  ctx.lineWidth = 1.2
+  ctx.strokeStyle = rgba(lighten(color, 0.7), 0.85)
+  ctx.stroke()
+}
+
 /** 各类子弹的绘制函数（'orb' 仍是原来的实心球，由 sprites.ts 的 beadSprite 负责） */
 export const EBULLET_PAINT: Partial<Record<EBulletKind, (ctx: Ctx, color: string) => void>> = {
   lens: paintLens,
@@ -223,4 +300,5 @@ export const EBULLET_PAINT: Partial<Record<EBulletKind, (ctx: Ctx, color: string
   needle: paintDart,
   shard: paintShard,
   fang: paintFang,
+  ember: paintEmber,
 }

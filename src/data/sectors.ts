@@ -10,10 +10,15 @@ export interface RosterEntry {
   weight: number
 }
 
-/** 定时事件：到点触发一次。 */
+/**
+ * 定时事件：到点触发一次。
+ *  ring / wall / elite：刷怪（count 为数量，enemy 为敌人种类）；
+ *  strike：陨火打击——在玩家周围落下 count 个带预警圈的火球（熔炉星环的环境危险）；
+ *  boss-warning：Boss 即将登场的警告。
+ */
 export interface TimedEvent {
   at: number
-  kind: 'ring' | 'wall' | 'elite' | 'boss-warning'
+  kind: 'ring' | 'wall' | 'elite' | 'strike' | 'boss-warning'
   enemy?: EnemyId
   count?: number
 }
@@ -186,6 +191,54 @@ export const SECTORS: Record<SectorId, SectorDef> = {
       { at: 455, kind: 'elite', enemy: 'splitter' },
       { at: 500, kind: 'ring', enemy: 'wraith', count: 18 },
       { at: 545, kind: 'elite', enemy: 'bomber' },
+      { at: 585, kind: 'boss-warning' },
+    ],
+  },
+
+  crucible: {
+    id: 'crucible',
+    boss: 'forge',
+    length: 600,
+    palette: {
+      bg0: '#160805',
+      bg1: '#2b1007',
+      grid: '#6a2a12',
+      gridMajor: '#b8501f',
+      dust: '#ffc58a',
+      accent: '#ff8a3d',
+    },
+    spawn: { base: 2.4, perMin: 2.27, accel: 0.106 },
+    hpPerMin: 0.8,
+    hpQuad: 0.088,
+    dmgPerMin: 0.112,
+    reward: 3.4,
+    requires: 'void',
+    roster: [
+      { id: 'swarmer', from: 0, weight: 5 },
+      { id: 'drone', from: 0, to: 240, weight: 4 },
+      { id: 'bomber', from: 30, weight: 3.4 },
+      { id: 'charger', from: 90, weight: 3.2 },
+      { id: 'shooter', from: 120, weight: 3 },
+      { id: 'brute', from: 160, weight: 2.8 },
+      { id: 'splitter', from: 210, weight: 2.6 },
+      { id: 'shielder', from: 260, weight: 2.8 },
+      { id: 'wraith', from: 330, weight: 2.4 },
+    ],
+    events: [
+      { at: 40, kind: 'ring', enemy: 'bomber', count: 12 },
+      { at: 75, kind: 'strike', count: 4 },
+      { at: 110, kind: 'elite', enemy: 'charger' },
+      { at: 150, kind: 'wall', enemy: 'swarmer', count: 22 },
+      { at: 190, kind: 'strike', count: 5 },
+      { at: 230, kind: 'elite', enemy: 'shielder' },
+      { at: 270, kind: 'ring', enemy: 'charger', count: 12 },
+      { at: 310, kind: 'strike', count: 6 },
+      { at: 350, kind: 'elite', enemy: 'bomber' },
+      { at: 390, kind: 'wall', enemy: 'shooter', count: 14 },
+      { at: 430, kind: 'strike', count: 7 },
+      { at: 470, kind: 'elite', enemy: 'brute' },
+      { at: 505, kind: 'ring', enemy: 'wraith', count: 18 },
+      { at: 540, kind: 'strike', count: 8 },
       { at: 585, kind: 'boss-warning' },
     ],
   },

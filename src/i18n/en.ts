@@ -211,6 +211,7 @@ export const en: Record<Key, string> = {
   'warn.ring': 'WARNING: encirclement',
   'warn.wall': 'WARNING: charge wall',
   'warn.elite': 'Elite enemy inbound',
+  'warn.strike': 'WARNING: ember strike',
   'warn.boss': 'WARNING: massive signal approaching',
   'toast.heal': 'Repair',
   'toast.magnet': 'Magnet pulse',
@@ -229,6 +230,7 @@ export const en: Record<Key, string> = {
   'hazard.needle': 'Dart',
   'hazard.shard': 'Crystal shard',
   'hazard.fang': 'Fang',
+  'hazard.ember': 'Slag chunk',
   'hazard.beam': 'Hazard beam',
   'hazard.ring': 'Shock ring',
 
@@ -363,6 +365,8 @@ export const en: Record<Key, string> = {
   'sector.wasteland.desc': 'A collapsed data waste where bombers, gunners and wraiths take turns ambushing you.',
   'sector.void.name': 'Void Rift',
   'sector.void.desc': 'A place that swallows even light. More enemies, faster and deadlier.',
+  'sector.crucible.name': 'Crucible Belt',
+  'sector.crucible.desc': 'A belt of star-wreck smelted into slag: bombers and chargers in packs, plus ember strikes from above that show where they land. Keep moving.',
 
   // ───── Enemies ─────
   'enemy.drone.name': 'Drone',
@@ -393,6 +397,8 @@ export const en: Record<Key, string> = {
   'boss.fractal.desc': 'A geometric core that orbits you and drops telegraphed laser grids across the arena.',
   'boss.maw.name': 'The Maw',
   'boss.maw.desc': 'A gravity singularity that drags you in, spits spiral bullets and expanding shockwaves — dash through the rings!',
+  'boss.forge.name': 'Forge Colossus',
+  'boss.forge.desc': 'An armored walking furnace. It lumbers closer, lobs slag at marked circles and stomps out shockwaves; once wounded it roots itself and sweeps rotating melt-beams. Circle around it, never hug it.',
 
   // ───── Hangar upgrades ─────
   'meta.m_power.name': 'Kinetic Boost',
@@ -457,6 +463,8 @@ export const en: Record<Key, string> = {
   'ach.boss_wasteland.desc': 'Defeat the boss of Data Wasteland',
   'ach.boss_void.name': 'Into the Abyss',
   'ach.boss_void.desc': 'Defeat the boss of Void Rift',
+  'ach.boss_crucible.name': 'Fires Out',
+  'ach.boss_crucible.desc': 'Defeat the boss of Crucible Belt',
   'ach.total_kills_2k.name': 'Cull Apprentice',
   'ach.total_kills_2k.desc': 'Destroy {n} enemies in total',
   'ach.total_kills_20k.name': 'Starsea Reaper',

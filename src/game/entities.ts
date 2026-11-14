@@ -347,7 +347,11 @@ export class Telegraph {
   action = ''
   a = 0
   b = 0
+  /** 落物的画法（只影响外观）：0 = 只有地面预警；1 = 熔渣团从 (x2,y2) 抛来；2 = 陨火从高处砸下 */
+  fx: TeleFx = 0
 }
+
+export type TeleFx = 0 | 1 | 2
 
 export class Boss {
   readonly isBoss = true
@@ -369,6 +373,8 @@ export class Boss {
   t1 = 0
   t2 = 0
   t3 = 0
+  /** 第四个技能计时器（熔炉巨像：旋转熔切的冷却） */
+  t4 = 0
   ang = 0
   spin = 0
   state = 0
@@ -388,6 +394,8 @@ export class Boss {
   shielded = 0
   /** 分形核心的分身镜像 */
   clones: { x: number; y: number; a: number }[] = []
+  /** 熔炉巨像正在旋转的熔切射线（扎根期间有效，结束时清空） */
+  jets: Beam[] = []
 }
 
 export type Target = Enemy | Boss

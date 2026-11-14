@@ -5,7 +5,7 @@
 ## 1. 发布流程
 
 ```bash
-npm test                      # 145 项测试
+npm test                      # 163 项测试
 npm run build                 # 生成页面 → tsc（应用与脚本两套配置）→ vite build
 node scripts/e2e.mjs smoke    # 无头浏览器冒烟（含音频电平断言）
 node scripts/e2e.mjs mobile   # 改动了界面/触屏时再跑

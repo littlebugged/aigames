@@ -7,6 +7,7 @@ export const HAZARD_COLOR: Record<HazardId, string> = {
   needle: '#ff6a8a',
   shard: '#9dff4d',
   fang: '#c9a0ff',
+  ember: '#ff8a3d',
   beam: '#9dff4d',
   ring: '#c9a0ff',
 }

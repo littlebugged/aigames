@@ -212,6 +212,7 @@ export const zh = {
   'warn.ring': '警告：包围圈',
   'warn.wall': '警告：冲锋墙',
   'warn.elite': '精英敌人出现',
+  'warn.strike': '警告：陨火坠落',
   'warn.boss': '警告：巨大反应正在接近',
   'toast.heal': '修复',
   'toast.magnet': '磁力脉冲',
@@ -230,6 +231,7 @@ export const zh = {
   'hazard.needle': '飞镖',
   'hazard.shard': '晶刺',
   'hazard.fang': '獠牙',
+  'hazard.ember': '熔渣块',
   'hazard.beam': '警示射线',
   'hazard.ring': '扩散冲击环',
 
@@ -364,6 +366,8 @@ export const zh = {
   'sector.wasteland.desc': '崩坏的数据废土：自爆怪、炮手和幽灵轮番伏击。',
   'sector.void.name': '虚空裂隙',
   'sector.void.desc': '连光都会被吞噬的地方。敌人更多、更快，也更危险。',
+  'sector.crucible.name': '熔炉星环',
+  'sector.crucible.desc': '恒星残骸熔成的炼炉带：自爆怪与冲锋者成群，天上还会砸下带预警圈的陨火——边打边挪，别站桩。',
 
   // ───── 敌人 ─────
   'enemy.drone.name': '无人机',
@@ -394,6 +398,8 @@ export const zh = {
   'boss.fractal.desc': '绕着你旋转的几何核心，会在地面落下预警后的激光网格。',
   'boss.maw.name': '虚空之喉',
   'boss.maw.desc': '引力奇点：不断把你拖向它，吐出螺旋弹幕与扩散冲击环——冲刺穿过冲击环！',
+  'boss.forge.name': '熔炉巨像',
+  'boss.forge.desc': '重甲炼炉：缓缓压近，向预警圈里抛熔渣、震出冲击环；残血后原地扎根，放出旋转的熔切射线——绕着它跑，别贴身。',
 
   // ───── 机库升级 ─────
   'meta.m_power.name': '动能强化',
@@ -458,6 +464,8 @@ export const zh = {
   'ach.boss_wasteland.desc': '击败数据荒原的 Boss',
   'ach.boss_void.name': '直面深渊',
   'ach.boss_void.desc': '击败虚空裂隙的 Boss',
+  'ach.boss_crucible.name': '炉火熄灭',
+  'ach.boss_crucible.desc': '击败熔炉星环的 Boss',
   'ach.total_kills_2k.name': '屠夫学徒',
   'ach.total_kills_2k.desc': '累计击败 {n} 个敌人',
   'ach.total_kills_20k.name': '星海屠夫',

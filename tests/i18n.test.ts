@@ -48,5 +48,5 @@ test('所有内容 id 都有名称与描述', () => {
   for (let i = 0; i < THREAT_LEVELS.length; i++) need(`threat.${i}.name`)
   for (const k of ['damage', 'cooldown', 'count', 'pierce', 'area', 'duration', 'range', 'knock', 'chain', 'tick', 'blast']) need(`stat.${k}`)
   for (const k of ['bullet', 'beam', 'ring', 'blast']) need(`src.${k}`)
-  for (const k of ['ring', 'wall', 'elite', 'boss']) need(`warn.${k}`)
+  for (const k of ['ring', 'wall', 'elite', 'strike', 'boss']) need(`warn.${k}`)
 })

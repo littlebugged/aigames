@@ -29,6 +29,7 @@ import {
   WeaponInst,
   type InputState,
   type Target,
+  type TeleFx,
 } from './entities'
 import type { EventSink, GameEvent, PickupKind } from './events'
 import { applyOffer, buildOffers, offerKey, type Offer } from './offers'
@@ -644,7 +645,7 @@ export class World {
     y: number,
     t: number,
     action: string,
-    o: { x2?: number; y2?: number; r?: number; color?: string; a?: number; b?: number } = {},
+    o: { x2?: number; y2?: number; r?: number; color?: string; a?: number; b?: number; fx?: TeleFx } = {},
   ): Telegraph {
     const tl = this.telePool.get()
     tl.alive = true
@@ -659,6 +660,7 @@ export class World {
     tl.action = action
     tl.a = o.a ?? 0
     tl.b = o.b ?? 0
+    tl.fx = o.fx ?? 0
     this.teles.push(tl)
     return tl
   }

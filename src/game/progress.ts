@@ -72,7 +72,7 @@ export interface SaveData {
   settings: Settings
 }
 
-const rec = <T>(fill: T): Record<SectorId, T> => ({ fields: fill, wasteland: fill, void: fill })
+const rec = <T>(fill: T): Record<SectorId, T> => Object.fromEntries(SECTOR_IDS.map((id) => [id, fill])) as Record<SectorId, T>
 
 export function defaultSettings(lang: Lang = 'zh'): Settings {
   return {
@@ -401,6 +401,8 @@ export function metricValue(s: SaveData, metric: AchMetric, run?: RunSummary): n
       return s.clears.wasteland > 0 ? 1 : 0
     case 'bossVoid':
       return s.clears.void > 0 ? 1 : 0
+    case 'bossCrucible':
+      return s.clears.crucible > 0 ? 1 : 0
     case 'clearThreat':
       return Math.max(0, ...SECTOR_IDS.map((id) => s.maxThreat[id]))
   }

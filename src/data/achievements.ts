@@ -16,6 +16,7 @@ export type AchMetric =
   | 'bossFields'
   | 'bossWasteland'
   | 'bossVoid'
+  | 'bossCrucible'
   | 'clearThreat'
 
 export interface AchDef {
@@ -44,6 +45,7 @@ export const ACHIEVEMENTS: AchDef[] = [
   { id: 'boss_fields', metric: 'bossFields', target: 1, reward: 150 },
   { id: 'boss_wasteland', metric: 'bossWasteland', target: 1, reward: 250 },
   { id: 'boss_void', metric: 'bossVoid', target: 1, reward: 400 },
+  { id: 'boss_crucible', metric: 'bossCrucible', target: 1, reward: 600 },
   { id: 'total_kills_2k', metric: 'totalKills', target: 2000, reward: 50 },
   { id: 'total_kills_20k', metric: 'totalKills', target: 20000, reward: 200 },
   { id: 'runs_10', metric: 'totalRuns', target: 10, reward: 40 },

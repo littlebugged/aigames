@@ -21,7 +21,7 @@ data ──► game (模拟) ──events──► render / audio / hud
 ```
 
 - **`src/data`**：内容定义与平衡参数（`tuning.ts`）。新增内容先在 `ids.ts` 登记，TypeScript 会提示所有需要补齐的地方。
-- **`src/game`**：`World` 是唯一的权威状态，`update(dt, input)` 推进一步；阶段有 `play | levelup | won | lost`。`Director` 负责刷怪节奏，`bosses.ts` 是三个 Boss 的多阶段脚本，`offers.ts` 生成升级三选一并处理进化，`progress.ts` 负责存档、结算、成就、机库购买（纯函数，可单测）。
+- **`src/game`**：`World` 是唯一的权威状态，`update(dt, input)` 推进一步；阶段有 `play | levelup | won | lost`。`Director` 负责刷怪节奏，`bosses.ts` 是四个 Boss 的多阶段脚本，`offers.ts` 生成升级三选一并处理进化，`progress.ts` 负责存档、结算、成就、机库购买（纯函数，可单测）。
 - **事件而非回调**：模拟层通过 `world.sink = (e: GameEvent) => …` 向外发出事件（击杀、受击、拾取、Boss 阶段…）。渲染器用它生成粒子/震屏，音频用它发声，HUD 用它弹提示——模拟层完全不知道它们存在。
 - **确定性**：所有随机来自带种子的 `RNG`；相同种子 + 相同输入得到完全相同的结果（有测试守护）。这让平衡模拟和 bug 复现都变得可靠。
 - **`src/render`**：只读 `World` 并绘制。精灵（敌人、子弹、灯、宝石、飞船、Boss）启动时预渲染到离屏画布；泛光带阈值：主画布降采样到 1/2、1/4，在 1/4 分辨率上做阈值（两次自乘 ≈ c⁴），再降到 1/8，两层用 `screen` 混合叠回。绘制顺序保证玩家永远在所有特效之上，并垫一层暗色衬底，保证再乱也能一眼找到自己。
@@ -80,7 +80,7 @@ data ──► game (模拟) ──events──► render / audio / hud
 - `src/render/bossart.ts`：监察者 = 机械眼（光圈叶片 + 六条钳臂），分形核心 = 十二瓣晶体星 + 轨道碎晶，虚空之喉 = 双排獠牙 + 弯角的旋涡。
 - UI 与静态页：机库 / 结算里的飞船是 `shipPortrait()`（局内同一套部件画一张机头朝上、带尾焰的立绘）；玩法指南里的图鉴图片是 `node scripts/gen-sprites.mjs` 从真实精灵导出的 WebP（`public/img/sprites/`，已提交；`tests/assets.test.ts` 守护文件齐全）。**新增敌人 / 飞船 / Boss 或改了它们的美术后，要重跑这个脚本。**
 - 宝石按档位用四种切工（碎晶 / 祖母绿 / 明亮式 / 晶簇），不只是颜色和大小不同。
-- 验证：`node scripts/e2e.mjs art` 现在还会输出 `art-bosses-assembled.png`（用游戏里同一套绘制函数拼出的三个 Boss 整机）；`node scripts/e2e.mjs zoo` 把全部敌人以真实游戏的朝向和比例摆成一排，`--dpr 2 --clip x,y,w,h` 看细节；新造型先在 `zoo` 里过一遍，再进游戏里看人潮中的辨识度。
+- 验证：`node scripts/e2e.mjs art` 现在还会输出 `art-bosses-assembled.png`（用游戏里同一套绘制函数拼出的 Boss 整机，现为四个）；`node scripts/e2e.mjs zoo` 把全部敌人以真实游戏的朝向和比例摆成一排，`--dpr 2 --clip x,y,w,h` 看细节；新造型先在 `zoo` 里过一遍，再进游戏里看人潮中的辨识度。
 
 ### 美术方向 v1.6：拾取物与武器小件也先有轮廓
 
@@ -134,16 +134,17 @@ v1.6 之后，场上还剩两类东西是旧写法：**光束类武器**（棱�
 | 监察者 / 分形核心 | `needle` | 飞镖：三角箭头 + 金属杆 + 后掠尾翼（场上最快的子弹） |
 | 分形核心 | `shard` | 晶刺：六点刻面晶体 |
 | 虚空之喉 | `fang` | 獠牙：弯曲的牙，根部圆钝、尖端象牙白 |
+| 熔炉巨像 | `ember` | 熔渣块：七边形深色岩壳 + 橙色裂缝（粗底加白热细芯）+ 迎热面的边缘高光 + 身后三点火星；陨火 / 熔渣团在空中飞时也用它 |
 | —（后备） | `orb` | 通用实心弹珠；游戏里已没有人发射，保留作为新增弹种时的后备造型 |
 
 约定：
 
 - **敌方弹一律是带墨色描边的不透明体（危险），玩家弹丸是加色的光（友好）**——这条分界线不要打破，否则弹幕里分不清哪些是自己的。
 - `src/data/ids.ts` 登记 `EBULLET_KINDS / EBulletKind`、`BEAM_STYLES / BeamStyle`、`HAZARD_IDS`。`EnemyBullet.kind`、`Beam.style` 是**纯外观字段**，不参与判定：子弹的判定半径 `b.r`、光束的判定宽度 `width / 2` 都没变。发射方在 `spawnEnemyBullet(..., { kind })` / `addBeam().style = …` 里指定。
-- `src/render/bullets.ts` 只负责"画"五种子弹（`EBULLET_PAINT`）；缓存与取用在 `SpriteBank.ebullet(kind, color)`；`ebulletHi(kind, color, ss)` 只给导出指南小图用。新增弹种：在 `EBULLET_KINDS` 加一项 → 在 `bullets.ts` 写画法 → 发射处传 `kind` → `HAZARD_IDS` / `HAZARD_COLOR` / i18n（`hazard.*`）/ 指南文案补一行 → 重跑 `node scripts/gen-sprites.mjs`。`tests/hazards.test.ts`（每种造型有画法、画得干净、不超出精灵画布、Boss / 炮手确实在用）和 `tests/assets.test.ts`（立绘齐全）会拦住漏掉的大部分步骤。
+- `src/render/bullets.ts` 只负责"画"六种子弹（`EBULLET_PAINT`）；缓存与取用在 `SpriteBank.ebullet(kind, color)`；`ebulletHi(kind, color, ss)` 只给导出指南小图用。新增弹种：在 `EBULLET_KINDS` 加一项 → 在 `bullets.ts` 写画法 → 发射处传 `kind` → `HAZARD_IDS` / `HAZARD_COLOR` / i18n（`hazard.*`）/ 指南文案补一行 → 重跑 `node scripts/gen-sprites.mjs`。`tests/hazards.test.ts`（每种造型有画法、画得干净、不超出精灵画布、Boss / 炮手确实在用）和 `tests/assets.test.ts`（立绘齐全）会拦住漏掉的大部分步骤。
 - `src/render/beams.ts` 画光束 / 电弧 / 冲击环（`paintBeam / paintBolt / paintRing`），`Renderer.paint` 把它们暴露给导出脚本，`renderer.ts` 的 `drawBeams / drawBolts / drawRings` 只负责算出强度、宽度再调用。
 - 敌方子弹直接写屏幕矩阵（`setTransform`，和绘制敌人同一个办法），不用 `save / translate / rotate / scale / restore`——弹幕战里一屏上百颗，这一项省下的比造型本身多出来的还多。
-- 玩法指南新增「弹幕与危险」一节（五种子弹 + Boss 射线 + 冲击环；图来自 `gen-sprites.mjs`，子弹用 8× 超采样单独再画一份，射线 / 冲击环直接调 `renderer.paint` 画到透明画布上）。
+- 玩法指南新增「弹幕与危险」一节（当时五种子弹，v1.12 起六种 + Boss 射线 + 冲击环；图来自 `gen-sprites.mjs`，子弹用 8× 超采样单独再画一份，射线 / 冲击环直接调 `renderer.paint` 画到透明画布上）。
 - 性能：最坏情况的合成场景（7 条常驻光束 + 3 个冲击环 + 3 条长电弧 + 220 颗敌方子弹，软件光栅化 DPR 1，`perf --eval`）渲染 ≈ 22 ms → 26 ms（34 → 30 fps），逐类测：子弹 ≈ +0.5 ms / 220 颗，光束 ≈ +0.2 ms / 条；真实对局里同屏光束不超过三五条。GPU（Metal，DPR 2）同一场景两个版本都是 60 fps，JS 录制时间 0.5 → 0.6–0.7 ms。
 - 验证：`play --lab fx --w 1280 --h 720 [--dpr 3 --clip x,y,w,h]` 摆一张"样张"（激光 / 磁轨 / 灼痕 / 电弧 / 冲击波 / 敌方环 / 全部子弹 / 敌方射线 / 三个寿命阶段的爆炸）；`play --catch beams|bolts|rings|ebullets|hbeams|hrings [--skip N]` 在真实对局里等到该效果出现再定格（`--ff` 取小一点，避开进化白闪）；`art --only bullets` 排出子弹图鉴。
 
@@ -234,6 +235,48 @@ v1.9 刻意没碰 HUD（它叠在战场上，越不抢眼越好），结果是�
 
 **验证**：`tests/weapons.test.ts` 新增 14 条（榴弹炮：落点与半径、跟着移动目标、Boss 优先、齐射分散、最大生命缩放、进化子弹、无目标不开火与同屏上限；虹吸索：取最近 N 个互不重复的目标、滞回与补索、固定回血与纳米修复放大、满血不回、Boss 最多占一半的索、进化溅射不回血、空场 / 多重 / 范围被动）。每条都做过"拆掉实现看测试会不会红"的反向检查（例如关掉炮弹追踪，两条追踪相关的测试都会失败）。`tests/groundfx.test.ts` 守 `GroundFx` 的容量、寿命、淡出和 `clear`。数值用 `scripts/bench-weapons.ts`（单件）和 `scripts/commit-weapons.ts`（整局只押一把武器）校过：先锋号 / 要塞号 × 数据荒原 × 12 个种子（每把 24 局，误差约 ±10 个百分点）下，押榴弹炮通关 71 %、押虹吸索 63 %，对照组 58 %，其余十把在 25 %–79 % 之间——两把新武器落在已有区间内，没有明显压过其余，也没有明显垫底。`play --lab crowd` 摆出定身的人群，`--catch shells|landing|tethers` 抓到那一帧再截图。
 
+### 第 4 个星区 v1.12：熔炉星环与熔炉巨像
+
+星区是纯数据（`SectorDef`），解锁链也是数据驱动的（`settleRun` 读 `SECTORS[id].requires`，存档的 `clears / bestTime / maxThreat` 按 `SECTOR_IDS` 生成），所以加第 4 个星区不需要动导演器主干。真正新写的只有三样：**星区自己的环境事件**（陨火打击）、**新 Boss**、以及它们的**预警演出与美术**。
+
+| | 熔炉星环 `crucible` | 熔炉巨像 `forge` |
+| --- | --- | --- |
+| 定位 | 解锁条件：通关虚空裂隙。比虚空裂隙更难，晶核倍率最高（×3.4）；主题是"成群的自爆怪与冲锋者 + 天上砸下来的火" | 行动很慢，**每一招都有清楚的预警**——考的是读预警和走位，不是反应速度。血量 26000（监察者 12000 / 分形核心 16000 / 虚空之喉 22000，逐个加厚） |
+| 数值 | `spawn { base 2.4, perMin 2.27, accel 0.106 }`、`hpPerMin 0.8`、`hpQuad 0.088`、`dmgPerMin 0.112`；阵容：蜂群体 0 s 起 / 无人机 0–240 s / 自爆怪 30 s / 冲锋者 90 s / 炮手 120 s / 重装巨兽 160 s / 裂变体 210 s / 护盾者 260 s / 幽灵 330 s（自爆怪与冲锋者权重最高） | 半径 62，接触伤害 34；一 / 二 / 三阶段移速 34 / 42 / 52 px/s，**停步距离 236**（比震地范围 176 再远一圈：站着不动不会被踩，贴脸才会） |
+| 事件 | 在已有的 `ring / wall / elite / boss-warning` 之外新增 **`strike`（陨火打击）**：75 / 190 / 310 / 430 / 540 s，波次 4 / 5 / 6 / 7 / 8 发 | 状态机：0 自由行动 / 1 震地蓄力 / 2 熔切预警 / 3 熔切扫射；计时器 `t1` 余烬弹幕、`t2` 熔渣弹、`t3` 震地、`t4` 旋转熔切；**大招优先级 熔切 > 震地 > 小招**，收招后把其余招式的计时器顶到至少 0.9–2.4 s，不会攒着一股脑放出来 |
+| 美术 | 暖红的底色与点阵（`palette.accent '#ff8a3d'`）、自己的音阶（`root 36`、132 bpm） | 四条腿的行走炼炉（见下），成就勋章是铁砧 |
+
+**陨火打击**（`director.ts` 的 `case 'strike'`）：一批 `'blast'` 预警圈（半径 64、`fx: 2`）。第一发压在玩家**将要去的地方**（`p + v × 0.7`），其余落在 70–340 px 内（偏移 `v × 0.35`）；预警 `1.25 + i × 0.16` s，所以永远来得及走开，也不会同时炸；伤害 `20 × (1 + dmgPerMin × 分钟)`，随时间增长；同时播一条 `warn.strike`（"警告：陨火坠落"，严重度 1）。落地由 `runTelegraph('blast')` 结算：爆炸 + `scorch` 事件（只给渲染层留焦痕 / 烟）。
+
+**熔炉巨像的招式**（`bosses.ts` 的 `forge()`，常量在 `FORGE_*`）：
+
+| 招式 | 一阶段 | 二阶段（≤ 66 %） | 三阶段（≤ 33 %） |
+| --- | --- | --- | --- |
+| 余烬弹幕 `ember` | 一圈 10 颗，每 2.5 s，弹速 150，伤害 13 | 14 颗 / 2.2 s / 160 | 16 颗 / 1.9 s / 170 |
+| 熔渣弹（抛来的预警圈，半径 72，伤害 24，预警 1.15 s + 0.12 s × 序号） | 2 个 / 3.4 s | 3 个 / 3.0 s | 4 个 / 2.7 s |
+| 震地 `slam`（预警圈半径 176，蓄力 0.95 s，圈内 30 伤害，随后震出敌方冲击环：半径 70 → 620、速度 280、伤害 22） | 每 7.4 s，1 道环 | 6.4 s，1 道 | 5.4 s，**2 道**（第二道晚 0.55 s） |
+| 旋转熔切（二阶段起） | — | 2 条射线、ω 0.62 rad/s、扫射 2.8 s，冷却 7.5 s | 3 条、ω 0.8、扫射 3.3 s，冷却 6.2 s |
+| 转阶段 | — | 打断熔切，炉门喷出 4 只自爆怪，`t4 = 3.2` | 同上，6 只（奇数位换成冲锋者） |
+
+- 熔渣弹的第一发预判玩家走位（`p + v × 0.5`），其余散在 90–280 px 内。
+- **熔切是"先看见、再转动"**：`startSweep` 先把射线以预警状态亮出来（`warn = 1.05 s`，期间**不伤人**），第一条大致对着玩家（±0.45 rad，逼他立刻挪位）；预警期间射线已经以 `±0.28 rad/s` 朝将要转动的方向缓缓爬，玩家能预判旋转方向。扫射阶段 `len 580、width 30、每 0.1 s 伤害 20`。射线寿命比扫射时间多留 0.4 s，由巨像在收招时亲手 `killJets`（打断 / 阶段切换 / 死亡走同一个清理函数，不会留下孤儿射线）。应对：沿着旋转方向绕着它走，或冲刺穿过。
+- `Telegraph` 新增 `fx`（只影响外观）：0 = 只有地面预警；1 = 熔渣团从 `(x2, y2)` 抛来；2 = 陨火从高处砸下。`runTelegraph` 新增 `'slam'` 动作（爆炸 + 圈内伤害 + 1–2 道敌方冲击环）；`'blast'` 在 `fx > 0` 时多发一个 `scorch` 事件（`GameEvent` 新增）。伤害来源记在 `stats.hurtBy`（熔渣团与震地记 `forge`，陨火记 `blast`），结算页的"击杀者"直接就能显示。
+- **机器人躲射线的方式改了**（`bot.ts`）：旧版把敌方射线当成无限长的直线、前后都躲，旋转射线一出来机器人会逃离"根本打不到它"的那一侧；现在只算**前半条射线**（`along ∈ [-40, len + 40]`），对在转的射线再多测一次"0.45 秒后的角度"，躲得更早也更省力。这只影响平衡模拟，不影响真人。
+
+**美术与演出**：
+
+- **熔炉巨像整机**（`bossart.ts` 的 `drawForge`）：圆鼓炉体 + 四块锈色肩甲 + 四条液压腿（沿对角线，脚掌带橙黑警示斜纹）+ 四根烟囱 + 六片式炉门，中间是白热的炉心。叠放顺序：腿 → 喷管（熔切时从肩甲下面伸出）→ 炉体 → 裂缝 → 肩甲 → 炉心 → 炉门。**腿用时钟交替迈步**（对角两条一组，平移 ±3.2 px、微摆 ±0.03 rad），不用 `b.ang`——熔切开始时它会被重设成朝向玩家，会让腿突然跳一下。炉门出手前 0.55 s 张开（吐弹幕 / 抛熔渣的预兆），熔切时全开；震地蓄力时紧闭，先抬起 7 %、最后 20 % 的时间砸下；二阶段起炉体上出现橙色裂缝，熔切时 2–3 根喷管伸出来、口上有一团热焰。**第一版是"八边形炉体 + 八根散热鳍"，截图一看像方向盘 / 太阳**——轮廓没有"重"和"走"的感觉，整个换成了四足炼炉。以后画新 Boss 先看剪影，别靠对称的部件堆。
+- 熔渣块 `ember`（`bullets.ts` 的 `paintEmber`）：七边形深色岩壳 + 橙色裂缝（粗底 + 白热细芯）+ 迎热面的边缘高光 + 身后三点火星；仍在 `EBULLET_BOX` 之内，无 `shadowBlur`。同一个精灵也被"空中的东西"复用。
+- **空中的东西**（`renderer.ts` 的 `drawAirborne`，画在 Boss 与敌方子弹之上）：`fx 1` 的熔渣团沿抛物线飞向预警圈（朝弹道切线飞、飞到一半最高最大，地上有越高越小越淡的影子，带 4 个渐隐的拖影）；`fx 2` 的陨火在预警的后一半从屏幕外斜着砸下来（影子先到、越来越大，带 5 个渐隐拖影）。`scorch` 事件留下焦痕（复用 `GroundFx`，上限 16）+ 几缕烟（低画质减半）+ 火星与碎渣。
+- 指南页：Boss 卡片网格新增 `.grid-cards.wide`（每张至少 340 px，四张排成 2×2，不会剩一张落单）。
+
+**验证与工具**：
+
+- `tests/forge.test.ts`（17 条）：星区数据（排在虚空之后、奖励最高、难度不低于虚空、陨火散布且逐次增加、排在 Boss 预警之前）；熔炉巨像血量；陨火 3 条（预警 ≥ 1.25 s 依次落下 / 站着被砸、走开无事 / 伤害随时间成长且算"爆炸"）；一阶段只有余烬与熔渣弹、没有射线、压近后停步；熔渣弹（预警 1.15 s、记在巨像头上、圈数随阶段）；震地 2 条（蓄力原地不动、圈内外、冲击环数量与延迟）；熔切 4 条（条数 / 等分、预警不伤人且匀速旋转、扫到会受伤、站在空档里不会立刻被扫到）；转阶段 2 条；整场战斗无 NaN、击败后危险物清空。`tests/hazards.test.ts` 的 Boss 循环改成遍历 `BOSS_IDS`，并新增熔炉巨像的弹幕 / 冲击环 / 射线样式断言。
+- `node scripts/e2e.mjs art` 现在会输出 `art-bosses-assembled.png`（四个 Boss 并排）、`art-forge-states.png`（熔炉巨像的六个状态：待机 / 炉门将开 / 震地蓄力 / 熔切预警 / 二阶段熔切 / 三阶段熔切）和 `art-forge-zoom.png`（放大看铆钉、倒角、警示斜纹）。`play` 新增 `--lab boss`（只留 Boss：清杂兵、关导演器、卸掉玩家武器、飞船无敌）、`--bosshp 0.6`（直接把 Boss 血量设成这个比例，0.6 = 二阶段、0.25 = 三阶段）和 `--catch strike|lob|slam|forgebeams|forgewarn`（抓到陨火最后一段 / 熔渣团在半空 / 震地将落 / 熔切生效 / 熔切预警末段那一帧再暂停截图，镜头会拉回玩家身上）。例：`play --sector crucible --ff 604 --bosshp 0.6 --lab boss --catch forgebeams --skip 10`。拍宣传图时再加 `--look mid`（抓拍后把飞船摆到 Boss 左侧 260 单位、镜头放在两者中点，构图稳定）和 `--clean 1`；`--keepgear 1` 让 `--lab boss` 保留玩家武器。README 里的 `gameplay-crucible.jpg`（`--catch strike`）和 `boss-forge.jpg`（上面那条命令加 `--look mid --clean 1`）就是这么拍的，1440 × 810、JPEG 质量 84。
+
+**平衡**（机器人，`scripts/sim.ts --seeds 24`）：熔炉星环通关率 先锋号 42 % / 幻影号 29 % / 要塞号 21 % / 收割者 42 %（均值约 34 %；同口径的虚空裂隙约 50 %）。**注意 `sim.ts` 默认只跑到 660 s，也就是 Boss 出场（600 s）后只给 60 秒**——熔炉巨像血厚，杀不完就计作"没通关"，所以这个口径下偏低。不设时限（跑到 900 s、每艘 16 局）时通关 64 %，Boss 战时长中位数 63 s、p75 114 s、最慢 264 s；收割者的失败多发生在 Boss 出场之前（自爆怪是头号伤害来源，占约三分之一），其余飞船的失败多数死在 Boss 战里。熔炉巨像本身直接击杀机器人的次数很少，它是一场"血量 + 读预警"的考验。血量曾定在 28000（不设时限中位数 67 s、p75 131 s，偏拖），所以收到了 26000。
+
 ### 打击感：伤害数字分档与武器进化演出
 
 分层与前面一致：**参数与纯函数放 `src/engine/feel.ts`**（不依赖 DOM / Canvas），渲染器、音频、HUD、App 共用，并能在 Node 里直接单测；真正"画出来"的部分在 `render/floattext.ts`（飘字池）、`render/numfont.ts`（字形图集）、`renderer.ts`、`app/app.ts`。
@@ -306,6 +349,7 @@ HUD 按"区域 + 流式排布"组织，**不要再用 `position: absolute` + 魔
 | 模拟 | `tests/sim.test.ts` | 确定性、所有飞船×星区稳定（无 NaN）、Boss 按时出现且可被击败、升级/重抽/放逐/复活流程、模拟层不依赖 DOM |
 | 升级候选 | `tests/offers.test.ts` | 随机压测（24 局 × 130 次升级）：武器 ≤ 6、被动 ≤ 6、等级不超上限、满级不再出现、无重复卡；全部满级时只剩进化与保底 |
 | 武器行为 | `tests/weapons.test.ts` | 回旋飞轮：折返、一去一回各打一次、移动中也一定接得回来、同屏上限、进化冲击环、打 Boss 并束；磁轨炮：专挑厚血目标、贯穿整条线、Boss 优先、多道光轨叠在同一目标、进化灼痕；榴弹炮：落点跟着目标走、Boss 优先、齐射分散、随最大生命增伤、进化子弹；虹吸索：取最近的互不重复的目标、滞回、固定回血与纳米修复放大、满血不回、进化溅射；每把武器（含进化）单独整局不出 NaN / 泄漏、炮弹不超同屏上限 |
+| 熔炉星环 / 熔炉巨像 | `tests/forge.test.ts` | 星区数据（顺序 / 奖励 / 难度 / 陨火排布）；陨火打击（预警 ≥ 1.25 s 且依次落下、站着被砸走开无事、伤害随时间成长）；熔炉巨像：一阶段无射线、停步距离、熔渣弹数量与伤害归属、震地（圈内外 / 原地蓄力 / 冲击环数量与延迟）、旋转熔切（条数等分、预警不伤人、ω 按阶段、扎根、收招清理、空档里不会立刻被扫到）、转阶段加怪、整场战斗无 NaN |
 | 打击感参数 | `tests/feel.test.ts` | 伤害分档阈值严格递增、字号/停留/弹出逐档变大；`dmgTier` 单调且暴击上浮一档；`fmtDmg` 边界不出现 4 位数；进化时间流速连续（蓄力渐慢→定格→恢复，始终在 (0,1]），总时长 ≤ 2 秒 |
 | 进化冲击波 | `tests/evolve.test.ts` | `evolve` 事件立刻发、`evolveBoom` 延迟后只发一次；半径内削血并击退、半径外不动；威力随时间增长；不伤玩家并抹掉半径内敌弹；连续进化两把各爆一次；进化后首轮火力在冲击波之后 |
 | 分级飘字 | `tests/floattext.test.ts` | 池容量有限、满池时高档挤掉最低档里最老的一条；高档永不被低档挤掉；到期移除；高档画在最上层；弹出放大到 pop 倍后回弹落定、末尾淡出（重击更晚才开始淡）；热档弹出抖动但最终归位、非热档不抖；外观下标与缩放原样交给画笔、画完 `globalAlpha` 复位（用记录型假画笔，不依赖 Canvas） |
@@ -333,3 +377,17 @@ TypeScript 只会提醒前两项，其余靠这张表（漏了也有测试兜底
 5. `src/i18n/zh.ts` + `en.ts`：`weapon.<id>.name/desc/evoName/evoDesc`，以及需要改名的数值标签 `stat.<id>.<key>`。
 6. 跑 `npx tsx scripts/bench-weapons.ts --only <id>` 与已有武器对照强度（同档位的人潮 DPS / Boss DPS 应处在同一量级）。
 7. 静态指南页、站点地图里的武器数量都是从数据自动生成的，不用改。
+
+## 11. 新增一个星区 + Boss 的清单
+
+v1.12 加第 4 个星区时走过的路径。TypeScript 与测试会拦住漏掉的大部分（存档、成就、i18n、指南、出击页都由 `SECTOR_IDS / BOSS_IDS` 驱动）：
+
+1. `src/data/ids.ts`：`SECTOR_IDS` / `BOSS_IDS`；新弹种加到 `EBULLET_KINDS` 与 `HAZARD_IDS`（见"敌方弹幕"一节）。
+2. `src/data/sectors.ts`：`SectorDef`（调色盘、刷怪曲线、阵容、时间表事件、`requires` 解锁前置）；`src/data/hazards.ts` 的识别色；`src/engine/audio.ts` 的音乐表（每个星区一套音阶）。新的环境事件种类要在 `TimedEvent.kind` 和 `director.ts` 的 `switch` 里各加一处。
+3. `src/game/bosses.ts`：`SPEC` 加数值、`updateBoss` 分发、`onPhaseChange` 加阶段切换行为；需要新预警动作时在 `runTelegraph` 加 `action`；`Boss` 实体需要的新计时器 / 引用（如 `t4`、`jets`）加在 `entities.ts`。敌方射线 / 冲击环 / 弹幕一律走 `w.addBeam / addRing / spawnEnemyBullet`，`hurtPlayer` 传来源字符串（结算页的"击杀者"要靠它）。
+4. `src/data/achievements.ts`（Boss 击杀成就）、`src/game/progress.ts` 的记录与 `metricValue`、`src/ui/medals.ts`（指标 → 徽记）、`src/ui/icons.ts`（徽记图标；`npm run icons -- --ids <名>` 看样张、`--check` 查越界）。
+5. `src/render/bossart.ts`（整机 + `PHASE_COLOR`）、`src/render/bullets.ts`（新弹种画法）、`renderer.ts`（新事件 / 空中物）。**先看剪影**：`node scripts/e2e.mjs art` 的 `art-bosses-assembled.png` 里几个 Boss 并排，缩小后还要认得出谁是谁。
+6. `src/i18n/zh.ts` + `en.ts`：星区 / Boss / 危险物 / 成就的名称与描述、新增的 `warn.*`；`scripts/gen-pages.ts`：指南的 `bossTips`、`hazards`、`sectorText`、更新记录，以及首页 / 指南里写死的"几个星区 / Boss"。
+7. `scripts/gen-sprites.mjs`：`HAZ` 与 `radii` 各加一项，`npm run build && node scripts/gen-sprites.mjs` 导出 `boss-<id>.webp` / `hazard-<id>.webp`（已提交；`tests/assets.test.ts` 会检查）。
+8. 测试：仿 `tests/forge.test.ts`——数据顺序与难度、每招的预警与伤害、清理路径（打断 / 阶段切换 / 死亡）、整场冒烟；`tests/progress.test.ts` 与 `tests/hazards.test.ts` 是数据驱动的，一般不用改。
+9. 平衡：`npx tsx scripts/sim.ts --sector <id> --ship <飞船> --seeds 24 --causes`（别忘了它默认只给 Boss 60 秒）；e2e `play --sector <id> --ff 604 --lab boss --catch …` 逐招看一遍；`pages` / `layout` / `desktop` / `mobile` 各过一遍。

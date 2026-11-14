@@ -33,6 +33,7 @@ export const MEDAL_EMBLEM: Record<AchMetric, UiIconName> = {
   bossFields: 'bossEye',
   bossWasteland: 'bossFractal',
   bossVoid: 'bossMaw',
+  bossCrucible: 'bossForge',
   clearThreat: 'flame',
 }
 

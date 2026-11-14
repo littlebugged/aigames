@@ -4698,6 +4698,11 @@ body.reduce-flash .slot.evolved {
   margin: 16px 0;
 }
 
+/* 长文字的卡（Boss 打法）：每张至少 340px 宽，四张排成 2×2，不会剩一张落单 */
+.grid-cards.wide {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
+}
+
 .fcard {
   --c: var(--cyan);
   --cut: 14px;

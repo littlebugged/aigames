@@ -3,7 +3,7 @@ import { SHIPS } from '../data/ships'
 import { WEAPONS } from '../data/weapons'
 import { DMG_TIERS, EVOLVE_CHARGE, EVOLVE_ZOOM, HEAL_STYLE, HURT_STYLE, NUM_LOOKS, budgetClass, dmgTier, fmtDmg } from '../engine/feel'
 import { TAU, clamp, clamp01, turnToward } from '../engine/math'
-import type { Shell, WeaponInst } from '../game/entities'
+import type { Shell, Telegraph, WeaponInst } from '../game/entities'
 import type { GameEvent } from '../game/events'
 import type { World } from '../game/world'
 import { Background } from './background'
@@ -394,6 +394,20 @@ export class Renderer {
       case 'shellLand':
         this.shellLandFx(e)
         break
+      case 'scorch': {
+        // 陨火 / 熔渣的落点：只留痕迹（焦痕 + 几缕烟 + 溅开的火星和碎渣）；冲击与闪光是同时发出的 blast 事件的事
+        const R = e.r
+        this.gfx.scorch(e.x, e.y, R)
+        this.parts.spark(e.x, e.y, '#ffb35a', 8 + R * 0.1, R * 3, 0.5, 2)
+        this.parts.shards(e.x, e.y, '#2f2420', 5, R * 1.8, 4.4, 0.8)
+        const n = this.settings.quality === 'low' ? 2 : 4
+        for (let i = 0; i < n; i++) {
+          const a = Math.random() * TAU
+          const sp = R * (0.5 + Math.random() * 0.6)
+          this.gfx.smoke(e.x + Math.cos(a) * R * 0.2, e.y + Math.sin(a) * R * 0.2, Math.cos(a) * sp, Math.sin(a) * sp - 10, R * 0.2, R * 0.55, 0.9 + Math.random() * 0.5, 0.4)
+        }
+        break
+      }
       case 'heal': {
         P.spark(p.x, p.y, '#7dffb0', 5, 110, 0.5, 1.8)
         P.ring(p.x, p.y, 8, 30, '#7dffb0', 0.3, 2)
@@ -817,6 +831,7 @@ export class Renderer {
     this.drawBeams(w)
     this.drawRings(w)
     this.drawEnemyBullets(w)
+    this.drawAirborne(w)
     this.drawGhosts(w)
     this.drawPlayerWeapons(w)
     this.drawPlayerBullets(w, animDt)
@@ -989,6 +1004,86 @@ export class Renderer {
         ctx.setLineDash([])
         ctx.restore()
       }
+    }
+  }
+
+  /**
+   * 预警圈上方"飞着的东西"（只在 fx > 0 的预警里有）：
+   *  · fx 1：Boss 抛出的熔渣团，沿抛物线飞向预警圈，飞到一半最高最大；
+   *  · fx 2：陨火——预警进行到一半后从屏幕外斜着砸下来，地上先出现越来越大的影子。
+   * 画在敌人和 Boss 之上，让人看见"东西正在飞过来"，而不只是地上亮了个圈。
+   */
+  private drawAirborne(w: World): void {
+    const ctx = this.ctx
+    let any = false
+    for (const tl of w.teles) {
+      if (!tl.alive || tl.fx === 0 || tl.kind !== 'circle') continue
+      any = true
+      const p = 1 - tl.t / tl.maxT
+      if (tl.fx === 1) this.drawLob(tl, p)
+      else this.drawMeteor(tl, p)
+    }
+    if (any) ctx.globalAlpha = 1
+  }
+
+  private drawLob(tl: Telegraph, p: number): void {
+    const ctx = this.ctx
+    const s = this.bank.ebullet('ember', tl.color)
+    const dx = tl.x - tl.x2
+    const dy = tl.y - tl.y2
+    const top = Math.min(170, 55 + Math.hypot(dx, dy) * 0.3)
+    const gx = tl.x2 + dx * p
+    const gy = tl.y2 + dy * p
+    const h = Math.sin(Math.PI * p)
+    if (!this.inView(gx, gy - h * top, 80)) return
+    // 影子：贴着地面走，越高越小越淡
+    ctx.globalAlpha = 0.3 * (1 - 0.5 * h)
+    ctx.fillStyle = '#000'
+    ctx.beginPath()
+    ctx.ellipse(gx, gy + 3, 12 * (1 - 0.35 * h), 6.5 * (1 - 0.35 * h), 0, 0, TAU)
+    ctx.fill()
+    // 朝着弹道切线飞；后面跟几个更早的位置，越早越小越淡
+    const ang = Math.atan2(dy - Math.PI * Math.cos(Math.PI * p) * top, dx)
+    for (let g = 4; g >= 0; g--) {
+      const pg = Math.max(0, p - g * 0.03)
+      const hg = Math.sin(Math.PI * pg)
+      const sc = (1.9 + hg * 1.1) * (1 - g * 0.1)
+      ctx.save()
+      ctx.globalAlpha = g === 0 ? 1 : 0.3 * (1 - g / 5)
+      ctx.translate(tl.x2 + dx * pg, tl.y2 + dy * pg - hg * top)
+      ctx.rotate(ang + (g === 0 ? Math.sin(this.vt * 14 + tl.x) * 0.12 : 0))
+      ctx.scale(sc, sc)
+      ctx.drawImage(s.c, -s.w / 2, -s.h / 2, s.w, s.h)
+      ctx.restore()
+    }
+  }
+
+  private drawMeteor(tl: Telegraph, p: number): void {
+    const ctx = this.ctx
+    const q = clamp01((p - 0.5) / 0.5)
+    if (q <= 0) return
+    // 影子比陨石先到：越靠近越大越浓
+    ctx.globalAlpha = 0.34 * q
+    ctx.fillStyle = '#000'
+    ctx.beginPath()
+    ctx.ellipse(tl.x, tl.y + 4, tl.r * 0.5 * q, tl.r * 0.3 * q, 0, 0, TAU)
+    ctx.fill()
+    const s = this.bank.ebullet('ember', tl.color)
+    const H = 560
+    const ang = Math.atan2(1, -0.34)
+    for (let g = 5; g >= 0; g--) {
+      const f = 1 - q + g * 0.045
+      const mx = tl.x + f * H * 0.34
+      const my = tl.y - f * H
+      if (!this.inView(mx, my, 100)) continue
+      const sc = (2.1 + 1.5 * q) * (1 - g * 0.09)
+      ctx.save()
+      ctx.globalAlpha = g === 0 ? 1 : 0.3 * (1 - g / 6)
+      ctx.translate(mx, my)
+      ctx.rotate(ang)
+      ctx.scale(sc, sc)
+      ctx.drawImage(s.c, -s.w / 2, -s.h / 2, s.w, s.h)
+      ctx.restore()
     }
   }
 

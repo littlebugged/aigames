@@ -26,6 +26,7 @@ const MUSIC: Record<SectorId, MusicCfg> = {
   fields: { root: 33, scale: [0, 2, 3, 5, 7, 9, 10], prog: [0, 3, 0, 6], bpm: 118 },
   wasteland: { root: 38, scale: [0, 1, 3, 5, 7, 8, 10], prog: [0, 1, 0, 6], bpm: 124 },
   void: { root: 40, scale: [0, 2, 3, 5, 7, 8, 11], prog: [0, 5, 3, 4], bpm: 128 },
+  crucible: { root: 36, scale: [0, 1, 3, 5, 7, 9, 10], prog: [0, 6, 3, 0], bpm: 132 },
 }
 const BOSS_SCALE = [0, 1, 4, 5, 7, 8, 10]
 const MENU_CFG: MusicCfg = { root: 33, scale: [0, 2, 3, 5, 7, 9, 10], prog: [0, 5, 3, 4], bpm: 84 }

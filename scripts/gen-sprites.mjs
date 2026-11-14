@@ -74,7 +74,7 @@ const files = await page.evaluate(() => {
   for (const id of Object.keys(r.bank.pickup)) out[`pickup-${id}`] = bake(r.bank.pickupBare(id).c, 0, 96, 5)
 
   // 敌方弹幕：游戏里按 2.5× 超采样，放大到指南里会发软，所以按 8× 单独再画一份（朝右上角；瞳孔弹是圆的不用转）
-  const HAZ = { glob: '#ffd84a', lens: '#ff3ea5', needle: '#ff6a8a', shard: '#9dff4d', fang: '#c9a0ff' }
+  const HAZ = { glob: '#ffd84a', lens: '#ff3ea5', needle: '#ff6a8a', shard: '#9dff4d', fang: '#c9a0ff', ember: '#ff8a3d' }
   for (const [kind, color] of Object.entries(HAZ)) {
     out[`hazard-${kind}`] = bake(r.bank.ebulletHi(kind, color, 8).c, kind === 'lens' ? 0 : -Math.PI / 4, 96, 8)
   }
@@ -102,13 +102,13 @@ const files = await page.evaluate(() => {
 
   // Boss：整机（8× 超采样的部件 → 缩到 320 像素画布）
   const bossArt = new r.bossArt.constructor(4)
-  const radii = { overseer: 58, fractal: 48, maw: 64 }
+  const radii = { overseer: 58, fractal: 48, maw: 64, forge: 62 }
   for (const id of Object.keys(radii)) {
     const c = document.createElement('canvas')
     c.width = c.height = 360
     const g = c.getContext('2d')
     g.translate(180, 180)
-    const fake = { id, x: 0, y: 0, r: radii[id], phase: 0, age: 10, state: 0, ang: 0.7, flash: 0, intro: 0, orbs: [], tx: 0, ty: 0 }
+    const fake = { id, x: 0, y: 0, r: radii[id], phase: 0, age: 10, state: 0, ang: 0.7, flash: 0, intro: 0, orbs: [], tx: 0, ty: 0, t1: 9, t2: 9, t3: 9, t4: 9, stateT: 0, jets: [] }
     bossArt.draw(g, fake, 160, 40, 1.3, r.bank)
     out[`boss-${id}`] = bake(c, 0, 160, 5)
   }

@@ -7,7 +7,7 @@ import type { World } from './world'
 
 /**
  * 刷怪导演器：按"预算"放怪，预算随时间增长；
- * 同时在固定时间点触发包围圈、冲锋墙、精英怪，最后在目标时长放出 Boss。
+ * 同时在固定时间点触发包围圈、冲锋墙、精英怪、陨火打击，最后在目标时长放出 Boss。
  */
 export class Director {
   private budget = 0
@@ -110,6 +110,25 @@ export class Director {
         const pt = w.edgePoint()
         w.spawnEnemy(ev.enemy ?? 'brute', pt.x, pt.y, { elite: true, spawnT: 0.8 })
         w.emit({ t: 'warn', key: 'warn.elite', sev: 1 })
+        break
+      }
+      case 'strike': {
+        // 陨火打击：玩家周围亮起一批预警圈，间隔 0.16 秒依次砸落。
+        // 第一发压在玩家"正要去的地方"（逼他换方向），其余散落在四周；预警时间 ≥ 1.25 秒，永远来得及走开。
+        const n = ev.count ?? 4
+        const dmg = Math.round(20 * (1 + w.sector.dmgPerMin * (w.time / 60)))
+        for (let i = 0; i < n; i++) {
+          const a = w.rng.angle()
+          const d = i === 0 ? 0 : w.rng.range(70, 340)
+          const lead = i === 0 ? 0.7 : 0.35
+          w.addTele('circle', p.x + p.vx * lead + Math.cos(a) * d, p.y + p.vy * lead + Math.sin(a) * d, 1.25 + i * 0.16, 'blast', {
+            r: 64,
+            color: '#ff7a2e',
+            a: dmg,
+            fx: 2,
+          })
+        }
+        w.emit({ t: 'warn', key: 'warn.strike', sev: 1 })
         break
       }
       case 'boss-warning':

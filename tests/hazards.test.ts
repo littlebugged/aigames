@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { HAZARD_COLOR } from '../src/data/hazards'
-import { BEAM_STYLES, EBULLET_KINDS, HAZARD_IDS, WEAPON_MAX_LEVEL, type BossId, type EBulletKind, type WeaponId } from '../src/data/ids'
+import { BEAM_STYLES, BOSS_IDS, EBULLET_KINDS, HAZARD_IDS, WEAPON_MAX_LEVEL, type BossId, type EBulletKind, type WeaponId } from '../src/data/ids'
 import { tIn } from '../src/i18n'
 import { spawnBoss } from '../src/game/bosses'
 import { WeaponInst, type Enemy, type InputState } from '../src/game/entities'
@@ -288,8 +288,17 @@ test('虚空之喉：獠牙（fang）螺旋弹幕 + 敌方冲击环', () => {
   assert.ok(a.rings > 0, '应放出敌方冲击环')
 })
 
+test('熔炉巨像：熔渣块（ember）放射弹幕、震地冲击环；二阶段起熔切射线是 boss 样式', () => {
+  const a = arena('forge', 0, 14)
+  assert.ok(a.kinds.has('ember'), `应有熔渣块，实际 ${[...a.kinds]}`)
+  assert.ok(a.rings > 0, '震地应放出敌方冲击环')
+  assert.ok(![...a.styles].some((s) => s.startsWith('hostile')), '一阶段没有射线')
+  const b = arena('forge', 1, 22)
+  assert.ok(b.styles.has('hostile:boss'), `二阶段应有 boss 样式的熔切射线，实际 ${[...b.styles]}`)
+})
+
 test('所有 Boss 放出的子弹造型都登记在 EBULLET_KINDS 里；敌方光束一律是 boss 样式', () => {
-  for (const id of ['overseer', 'fractal', 'maw'] as const) {
+  for (const id of BOSS_IDS) {
     for (const ph of [0, 1, 2] as const) {
       const a = arena(id, ph, 10)
       for (const k of a.kinds) assert.ok((EBULLET_KINDS as readonly string[]).includes(k), `${id}/${ph}：未登记的造型 ${k}`)

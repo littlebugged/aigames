@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { ACHIEVEMENTS } from '../src/data/achievements'
+import { SECTOR_IDS, type SectorId } from '../src/data/ids'
 import { METAS, metaCost } from '../src/data/meta'
 import { SHIPS } from '../src/data/ships'
 import {
@@ -109,10 +110,10 @@ test('晶核账单：逐行相加恰好等于合计（含保底补足），合�
   // 简单的确定性伪随机，覆盖各种表现 / 星区 / 威胁 / 贪婪倍率
   let seed = 7
   const rnd = (): number => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32)
-  const sectors = ['fields', 'wasteland', 'void'] as const
+  const sectors = SECTOR_IDS
   for (let n = 0; n < 400; n++) {
     const st = stats({ time: Math.floor(rnd() * 900), kills: Math.floor(rnd() * 6000), level: 1 + Math.floor(rnd() * 40), evolves: Math.floor(rnd() * 5), bossKilled: rnd() < 0.3 })
-    const sector = sectors[Math.floor(rnd() * 3)]
+    const sector = sectors[Math.floor(rnd() * sectors.length)]
     const threat = Math.floor(rnd() * 4)
     const greed = 1 + Math.floor(rnd() * 4) * 0.1
     const bonus = Math.floor(rnd() * 120)
@@ -218,8 +219,8 @@ test('成就：每一条都能被满足（不存在永远无法解锁的成就�
     s.best = { time: 9999, kills: 99999, level: 99, evolves: 9, weapons: 6, noHit: 999, dashes: 999 }
     s.totals = { runs: 99, wins: 9, deaths: 9, kills: 99999, time: 1, evolves: 1, dashes: 1 }
     s.lifetimeCores = 99999
-    s.clears = { fields: 1, wasteland: 1, void: 1 }
-    s.maxThreat = { fields: 3, wasteland: 3, void: 3 }
+    s.clears = Object.fromEntries(SECTOR_IDS.map((id) => [id, 1])) as Record<SectorId, number>
+    s.maxThreat = Object.fromEntries(SECTOR_IDS.map((id) => [id, 3])) as Record<SectorId, number>
     const r = settleRun(s, run({ stats: { time: 1 } }), 1)
     assert.ok(s.ach[a.id], `成就 ${a.id} 无法被触发`)
     assert.ok(r.newAch.length > 0)

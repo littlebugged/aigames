@@ -35,7 +35,7 @@ export type PassiveId = (typeof PASSIVE_IDS)[number]
 export const SHIP_IDS = ['vanguard', 'phantom', 'bulwark', 'reaper'] as const
 export type ShipId = (typeof SHIP_IDS)[number]
 
-export const SECTOR_IDS = ['fields', 'wasteland', 'void'] as const
+export const SECTOR_IDS = ['fields', 'wasteland', 'void', 'crucible'] as const
 export type SectorId = (typeof SECTOR_IDS)[number]
 
 export const ENEMY_IDS = [
@@ -52,21 +52,21 @@ export const ENEMY_IDS = [
 ] as const
 export type EnemyId = (typeof ENEMY_IDS)[number]
 
-export const BOSS_IDS = ['overseer', 'fractal', 'maw'] as const
+export const BOSS_IDS = ['overseer', 'fractal', 'maw', 'forge'] as const
 export type BossId = (typeof BOSS_IDS)[number]
 
 export const PICKUP_IDS = ['heal', 'magnet', 'bomb', 'chest', 'cache'] as const
 export type PickupId = (typeof PICKUP_IDS)[number]
 
-/** 敌方子弹的造型：打出来的是谁一眼分得清（炮手的唾液团、监察者的镜片弹、分形核心的晶片、虚空之喉的獠牙、各 Boss 的瞄准飞镖） */
-export const EBULLET_KINDS = ['orb', 'needle', 'glob', 'lens', 'shard', 'fang'] as const
+/** 敌方子弹的造型：打出来的是谁一眼分得清（炮手的唾液团、监察者的镜片弹、分形核心的晶片、虚空之喉的獠牙、熔炉巨像的熔渣块、各 Boss 的瞄准飞镖） */
+export const EBULLET_KINDS = ['orb', 'needle', 'glob', 'lens', 'shard', 'fang', 'ember'] as const
 export type EBulletKind = (typeof EBULLET_KINDS)[number]
 
 /** 光束的样式：棱镜激光 / 磁轨炮 / 磁轨进化后留下的灼痕 / Boss 的警戒光束 */
 export const BEAM_STYLES = ['laser', 'rail', 'scar', 'boss'] as const
 export type BeamStyle = (typeof BEAM_STYLES)[number]
-/** 玩法指南「弹幕与危险」收录的条目：五种敌方子弹 + Boss 射线 + 扩散冲击环 */
-export const HAZARD_IDS = ['glob', 'lens', 'needle', 'shard', 'fang', 'beam', 'ring'] as const
+/** 玩法指南「弹幕与危险」收录的条目：六种敌方子弹 + Boss 射线 + 扩散冲击环 */
+export const HAZARD_IDS = ['glob', 'lens', 'needle', 'shard', 'fang', 'ember', 'beam', 'ring'] as const
 export type HazardId = (typeof HAZARD_IDS)[number]
 
 export const META_IDS = [

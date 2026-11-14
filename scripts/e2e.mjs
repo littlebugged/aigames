@@ -267,6 +267,38 @@ async function play(base) {
     [sector, ship, threat, ff, gear, glv, evo],
   )
   await sleep(wait * 1000)
+  // --bosshp 0.6：把当前 Boss 的血量直接设成这个比例（0.6 = 进入二阶段，0.25 = 三阶段），配合 --catch forgebeams 等看后半场的招式
+  const bossHp = Number(opt('bosshp', '0'))
+  if (bossHp > 0) {
+    await page.evaluate((k) => {
+      const b = window.__neon.game.boss
+      if (b) b.hp = b.maxHp * k
+    }, bossHp)
+    await sleep(600)
+  }
+  // --lab boss：只留 Boss——清空杂兵、关掉导演器（不再刷怪）、卸掉玩家武器，飞船原地不动（无敌），Boss 摆在右前方 250 单位处。
+  // 配合 --bosshp / --catch forgebeams 等，拍一张"干净"的 Boss 战截图（满配 build 的特效会把画面糊成一片）。
+  // --keepgear 1：保留玩家的武器（配合 --gear pulse,siphon --glv 3 用少量武器开火，拍有"交火感"的 Boss 图）；--look mid：抓拍后把飞船摆到 Boss 左侧、镜头放在两者中点
+  if (opt('lab', '') === 'boss') {
+    await page.evaluate((keep) => {
+      const a = window.__neon
+      const w = a.game
+      const p = w.player
+      a.autoPilot = false
+      a.godMode = true
+      w.director.update = () => {}
+      if (!keep) p.weapons.length = 0
+      w.recalc()
+      for (const e of w.enemies) e.alive = false
+      p.vx = p.vy = 0
+      if (w.boss) {
+        w.boss.x = p.x + 250
+        w.boss.y = p.y - 30
+      }
+      a.renderer.cam.reset(p.x, p.y)
+    }, opt('keepgear', '0') === '1')
+    await sleep(200)
+  }
   // --lab crowd：清场后把一圈定身的敌人摆在飞船四周（距离 110~215，虹吸索够得着），再在远处摆两堆人群（榴弹炮的靶子）；
   // 飞船原地不动、关掉自动驾驶，配合 --catch tethers|shells|landing 看这两把武器的造型。--evo 1 看进化版
   if (opt('lab', '') === 'crowd') {
@@ -293,13 +325,13 @@ async function play(base) {
       for (const [hx, hy] of heap) for (let k = 0; k < 14; k++) put(k % 3 === 0 ? 'swarmer' : 'drone', p.x + hx + ((k * 37) % 70) - 35, p.y + hy + ((k * 53) % 70) - 35, false)
     })
   }
-  // --catch beams|bolts|rings|ebullets|hbeams|hrings|shells|landing|tethers：一小步一小步往前跑，直到场上出现这种特效的那一帧，再暂停截图
+  // --catch beams|bolts|rings|ebullets|hbeams|hrings|shells|landing|tethers|strike|lob|slam|forgebeams|forgewarn：一小步一小步往前跑，直到场上出现这种特效的那一帧，再暂停截图
   // （武器是自动开火的，直接截图常常拍不到光束 / 电弧 / 冲击环）。--skip N 再多跑 N 小步（0.03 秒一步）
   const catchWhat = opt('catch', '')
   if (catchWhat) {
     const skip = Number(opt('skip', '0'))
     const got = await page.evaluate(
-      ([what, skip]) => {
+      ([what, skip, look]) => {
         const a = window.__neon
         const w = a.game
         const has = () => {
@@ -312,6 +344,12 @@ async function play(base) {
           // 榴弹炮：shells = 炮弹飞到半程以后（空中的炮弹 + 落点标记）；landing = 即将落地（配合 --skip 看落地后的冲击 / 烟 / 焦痕）
           if (what === 'shells') return w.shells.some((s) => s.alive && s.t / s.T > 0.55)
           if (what === 'landing') return w.shells.some((s) => s.alive && s.T - s.t < 0.04)
+          // 熔炉星环：strike = 陨火砸落的最后一段；lob = 熔渣团飞在半空；slam = 震地即将落下；forgebeams = 熔切射线生效（配合 --skip）
+          if (what === 'strike') return w.teles.some((t) => t.alive && t.fx === 2 && t.t / t.maxT < 0.3)
+          if (what === 'lob') return w.teles.some((t) => t.alive && t.fx === 1 && t.t / t.maxT < 0.55 && t.t / t.maxT > 0.35)
+          if (what === 'slam') return w.teles.some((t) => t.alive && t.action === 'slam' && t.t / t.maxT < 0.3)
+          if (what === 'forgebeams') return w.beams.some((b) => b.alive && b.hostile && b.warn <= 0)
+          if (what === 'forgewarn') return w.beams.some((b) => b.alive && b.hostile && b.warn > 0 && b.warn < 0.5)
           // 虹吸索：至少两根索都扣稳了（软管 + 能量包 + 夹爪）
           if (what === 'tethers') return w.player.weapons.some((x) => x.id === 'siphon' && x.pts.length >= 2 && x.pts.every((pt) => pt.d > 0.35))
           return false
@@ -320,9 +358,16 @@ async function play(base) {
         while (!has() && n++ < 1500) a.fastForward(0.03)
         for (let i = 0; i < skip; i++) a.fastForward(0.03)
         a.paused = true
+        // 快进不渲染，镜头会落在后面：把镜头拉回玩家身上，否则截图里常常只有一片空场
+        if (look === 'mid' && w.boss) {
+          // 构图：把飞船摆在 Boss 左侧 260 单位处（被炸弹怪推远了也能拍到两者同框），镜头放在两者中点
+          w.player.x = w.boss.x - 260
+          w.player.y = w.boss.y + 90
+          a.renderer.cam.reset((w.player.x + w.boss.x) / 2, (w.player.y + w.boss.y) / 2)
+        } else a.renderer.cam.reset(w.player.x, w.player.y)
         return { n, ok: has() }
       },
-      [catchWhat, skip],
+      [catchWhat, skip, opt('look', 'player')],
     )
     console.log('  catch:', JSON.stringify(got))
     await sleep(200)
@@ -345,6 +390,7 @@ async function play(base) {
       ['lens', '#ff3ea5', 6.5],
       ['shard', '#9dff4d', 6.5],
       ['fang', '#c9a0ff', 6],
+      ['ember', '#ff8a3d', 7],
       ['needle', '#ff6a8a', 5.5],
       ['needle', '#c8ff66', 5.5],
     ]
@@ -1529,6 +1575,7 @@ async function art(base) {
           ['lens', '#ff3ea5'],
           ['shard', '#9dff4d'],
           ['fang', '#c9a0ff'],
+          ['ember', '#ff8a3d'],
           ['needle', '#ff6a8a'],
           ['needle', '#c8ff66'],
         ].map(([k, c]) => ({ label: `${k} ${c}`, sp: bank.ebullet(k, c), s: S * 0.9 })),
@@ -1599,46 +1646,63 @@ async function art(base) {
     await page.screenshot({ path: file, clip: { x: 0, y: r.y, width: 1000, height: Math.min(r.h, sheetH - r.y) } })
     console.log('  📸', file.replace(root + '/', ''))
   }
-  // 三个 Boss 的"整机"：用游戏里同一套绘制函数拼起来（含阶段色环境光 / 阴影），放大 1.5 倍看
-  await page.evaluate(
-    ({ S }) => {
-      const a = window.__neon
-      const r = a.renderer
-      const bossArt = new r.bossArt.constructor(8)
-      const W = 1000
-      const H = 360
-      document.querySelectorAll('canvas[data-bosses]').forEach((c) => c.remove())
-      const cv = document.createElement('canvas')
-      cv.dataset.bosses = '1'
-      cv.width = W
-      cv.height = H
-      cv.style.cssText = 'position:fixed;left:0;top:0;z-index:100000;background:#080c18'
-      document.body.appendChild(cv)
-      const g = cv.getContext('2d')
-      const bg = g.createRadialGradient(W / 2, H / 2, 40, W / 2, H / 2, W * 0.7)
-      bg.addColorStop(0, '#16203d')
-      bg.addColorStop(1, '#070a14')
-      g.fillStyle = bg
-      g.fillRect(0, 0, W, H)
-      const defs = [
-        { id: 'overseer', r: 58 },
-        { id: 'fractal', r: 48 },
-        { id: 'maw', r: 64 },
-      ]
-      defs.forEach((d, i) => {
-        const fake = { id: d.id, x: 0, y: 0, r: d.r, phase: 0, age: 10, state: 0, ang: 0.7 + i, flash: 0, intro: 0, orbs: [], tx: 0, ty: 0 }
-        g.save()
-        g.translate(W * (0.17 + i * 0.33), H / 2)
-        g.scale(S, S)
-        bossArt.draw(g, fake, 160, 40, 1.3 + i, r.bank)
-        g.restore()
-      })
-    },
-    { S: Math.min(scale, 1.5) },
-  )
-  await sleep(150)
-  await page.screenshot({ path: join(out, 'art-bosses-assembled.png'), clip: { x: 0, y: 0, width: 1000, height: 360 } })
-  console.log('  📸', '.e2e/art-bosses-assembled.png')
+  // 四个 Boss 的"整机"：用游戏里同一套绘制函数拼起来（含阶段色环境光 / 阴影），放大看
+  const bossBase = { phase: 0, age: 10, state: 0, flash: 0, intro: 0, orbs: [], tx: 0, ty: 0, t1: 9, t2: 9, t3: 9, t4: 9, stateT: 0, jets: [] }
+  const paintBosses = async (file, W, H, S, defs) => {
+    await page.setViewportSize({ width: W, height: H })
+    await page.evaluate(
+      ({ W, H, S, defs, bossBase }) => {
+        const a = window.__neon
+        const r = a.renderer
+        const bossArt = new r.bossArt.constructor(8)
+        document.querySelectorAll('canvas[data-bosses]').forEach((c) => c.remove())
+        const cv = document.createElement('canvas')
+        cv.dataset.bosses = '1'
+        cv.width = W
+        cv.height = H
+        cv.style.cssText = 'position:fixed;left:0;top:0;z-index:100000;background:#080c18'
+        document.body.appendChild(cv)
+        const g = cv.getContext('2d')
+        const bg = g.createRadialGradient(W / 2, H / 2, 40, W / 2, H / 2, W * 0.7)
+        bg.addColorStop(0, '#16203d')
+        bg.addColorStop(1, '#070a14')
+        g.fillStyle = bg
+        g.fillRect(0, 0, W, H)
+        defs.forEach((d, i) => {
+          const fake = { ...bossBase, id: d.id, x: 0, y: 0, r: d.r, ang: 0.7 + i, ...d.o }
+          g.save()
+          g.translate((W * (i + 0.5)) / defs.length, H / 2)
+          g.scale(S, S)
+          bossArt.draw(g, fake, 160, 40, d.vt ?? 1.3 + i, r.bank)
+          g.restore()
+        })
+      },
+      { W, H, S, defs, bossBase },
+    )
+    await sleep(150)
+    await page.screenshot({ path: join(out, file), clip: { x: 0, y: 0, width: W, height: H } })
+    console.log('  📸', `.e2e/${file}`)
+  }
+  await paintBosses('art-bosses-assembled.png', 1200, 360, Math.min(scale, 1.35), [
+    { id: 'overseer', r: 58 },
+    { id: 'fractal', r: 48 },
+    { id: 'maw', r: 64 },
+    { id: 'forge', r: 62 },
+  ])
+  // 熔炉巨像的六个状态：待机 / 炉门将开 / 震地蓄力 / 熔切预警 / 熔切（二阶段 2 条）/ 熔切（三阶段 3 条）
+  await paintBosses('art-forge-states.png', 1500, 420, Math.min(scale, 1.45), [
+    { id: 'forge', r: 62, vt: 2.1 },
+    { id: 'forge', r: 62, vt: 2.1, o: { t1: 0.15 } },
+    { id: 'forge', r: 62, vt: 2.1, o: { state: 1, stateT: 0.55 } },
+    { id: 'forge', r: 62, vt: 2.1, o: { phase: 1, state: 2, stateT: 0.6, ang: 0.4 } },
+    { id: 'forge', r: 62, vt: 2.1, o: { phase: 1, state: 3, stateT: 2, ang: 0.4 } },
+    { id: 'forge', r: 62, vt: 2.1, o: { phase: 2, state: 3, stateT: 2, ang: 0.4 } },
+  ])
+  // 放大看细节（铆钉 / 倒角 / 警示斜纹 / 炉口）：待机 + 二阶段熔切各一台
+  await paintBosses('art-forge-zoom.png', 1100, 560, 2.2, [
+    { id: 'forge', r: 62, vt: 2.1 },
+    { id: 'forge', r: 62, vt: 2.1, o: { phase: 1, state: 3, stateT: 2, ang: 0.4 } },
+  ])
   await browser.close()
 }
 
@@ -1730,11 +1794,11 @@ const SEED_RICH = () => {
   s.ships = ['vanguard', 'phantom', 'bulwark', 'reaper']
   s.totals = { runs: 37, wins: 6, deaths: 31, kills: 12400, time: 20000, evolves: 21, dashes: 880 }
   s.best = { time: 330, kills: 560, level: 28, evolves: 2, weapons: 6, noHit: 100, dashes: 53 }
-  s.bestTime = { fields: 600, wasteland: 420, void: 0 }
-  s.clears = { fields: 4, wasteland: 1, void: 0 }
-  s.maxThreat = { fields: 1, wasteland: 0, void: -1 }
+  s.bestTime = { fields: 600, wasteland: 600, void: 480, crucible: 0 }
+  s.clears = { fields: 4, wasteland: 2, void: 1, crucible: 0 }
+  s.maxThreat = { fields: 1, wasteland: 0, void: 0, crucible: -1 }
   s.meta = { m_power: 3, m_hull: 2, m_magnet: 4, m_regen: 1, m_thruster: 2, m_learning: 1 }
-  for (const id of ['kills_100', 'kills_500', 'survive_3', 'survive_5', 'level_10', 'level_25', 'evolve_1', 'arsenal', 'boss_fields', 'boss_wasteland', 'runs_10', 'total_kills_2k', 'dash_50', 'threat_1', 'rich']) s.ach[id] = now
+  for (const id of ['kills_100', 'kills_500', 'survive_3', 'survive_5', 'level_10', 'level_25', 'evolve_1', 'arsenal', 'boss_fields', 'boss_wasteland', 'boss_void', 'runs_10', 'total_kills_2k', 'dash_50', 'threat_1', 'rich']) s.ach[id] = now
   window.__neon.refreshAll?.()
 }
 

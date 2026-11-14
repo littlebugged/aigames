@@ -99,7 +99,7 @@ const ZH: Copy = {
   siteName: '霓虹浪涌 NEON SURGE',
   home: {
     title: '霓虹浪涌 NEON SURGE — 免费在线霓虹肉鸽生存游戏，网页即点即玩',
-    desc: '《霓虹浪涌》是一款免费的网页霓虹风割草肉鸽（Roguelite）生存游戏：自动开火、收集晶体、升级并进化武器，击败三大星区 Boss。无需下载注册，支持电脑、手机触屏与手柄。',
+    desc: '《霓虹浪涌》是一款免费的网页霓虹风割草肉鸽（Roguelite）生存游戏：自动开火、收集晶体、升级并进化武器，击败四大星区 Boss。无需下载注册，支持电脑、手机触屏与手柄。',
     h1: '霓虹浪涌 NEON SURGE：免费在线霓虹肉鸽生存游戏',
     lead: '《霓虹浪涌》是一款直接在浏览器里就能玩的俯视角「割草」肉鸽（Roguelite）生存游戏。驾驶战机深入霓虹星区，武器会自动开火，你只需要专注走位——收集晶体、升级、进化武器，在 10 分钟内击败星区 Boss。无需下载，无需注册，电脑、手机、手柄都能玩。',
     ctaPlay: '立即开始游戏',
@@ -109,7 +109,7 @@ const ZH: Copy = {
       { icon: 'swords', color: '#3df2ff', title: '自动开火，专注走位', text: '没有复杂的瞄准，单手也能操作。真正的挑战是在怪潮与弹幕之间找到安全的路线，并利用冲刺的无敌时间反杀。' },
       { icon: 'dice', color: '#ffd84a', title: `${WEAPON_IDS.length} 种武器 × ${PASSIVE_IDS.length} 种被动`, text: '脉冲炮、环绕刃、电弧、追踪导弹、棱镜激光、地雷、新星、无人机、回旋飞轮、磁轨炮、榴弹炮、虹吸索……每次升级随机给出三选一，组合出完全不同的流派。' },
       { icon: 'play', color: '#ff4fd8', title: '武器进化系统', text: '武器升到满级并携带对应的搭档装备，就能在升级或补给箱里进化成终极形态——特效和威力都会质变。' },
-      { icon: 'skull', color: '#ff4a6a', title: '3 个星区，3 个 Boss', text: '霓虹原野的监察者、数据荒原的分形核心、虚空裂隙的虚空之喉。每个 Boss 都有多阶段弹幕和独特机制，打赢才有成就感。' },
+      { icon: 'skull', color: '#ff4a6a', title: '4 个星区，4 个 Boss', text: '霓虹原野的监察者、数据荒原的分形核心、虚空裂隙的虚空之喉、熔炉星环的熔炉巨像。每个 Boss 都有多阶段弹幕和独特机制，打赢才有成就感。' },
       { icon: 'hangar', color: '#a58bff', title: '机库永久成长', text: '每局获得的晶核可在机库购买 13 项永久升级，另有 4 艘风格迥异的飞船、4 档威胁等级，通关后还能开启无尽模式。' },
       { icon: 'gear', color: '#6dff8a', title: '手机、键盘、手柄通吃', text: '触屏浮动摇杆、键盘 WASD / 方向键、手柄全部原生支持；画质自动调节让低端设备也流畅，存档保存在本地，可离线游玩。' },
       { icon: 'sound', color: '#3df2ff', title: '实时合成的音乐音效', text: '全部音乐与音效由 WebAudio 实时合成，不下载任何音频文件。每个星区有自己的音阶与节奏，Boss 战会自动变奏提速。' },
@@ -145,7 +145,7 @@ const ZH: Copy = {
   },
   guide: {
     title: '游戏指南：武器进化、敌人图鉴、Boss 打法与机库升级 — 霓虹浪涌',
-    desc: `《霓虹浪涌》完整游戏指南：${WEAPON_IDS.length} 种武器的进化条件与搭档、${PASSIVE_IDS.length} 种被动、敌人图鉴、3 个 Boss 打法、4 艘飞船、星区与威胁等级、机库升级价格和全部成就。`,
+    desc: `《霓虹浪涌》完整游戏指南：${WEAPON_IDS.length} 种武器的进化条件与搭档、${PASSIVE_IDS.length} 种被动、敌人图鉴、4 个 Boss 打法、4 艘飞船、星区与威胁等级、机库升级价格和全部成就。`,
     h1: '霓虹浪涌 游戏指南',
     lead: '这份指南的所有数据都由游戏内的真实配置自动生成，数值与游戏保持一致。第一次玩可以先看「武器与进化」和「Boss 打法」两节。',
     toc: '目录',
@@ -203,6 +203,7 @@ const ZH: Copy = {
       overseer: '核心思路是「先清场再输出」。护卫会一波波刷新，优先用范围武器清理；环形弹幕有固定缺口，贴着缺口穿过去；最终阶段的螺旋扫射要沿着旋转方向反向绕圈。冲刺留给它的冲锋。',
       fractal: '它会绕着你转并在地面上标出激光网格，红色预警消失前一定要离开标记区域。保持中距离，别被逼到角落；预警出现的瞬间优先判断「哪个方向的格子最空」。',
       maw: '虚空之喉会持续把你往它那边拖。别和引力对抗，沿着切线方向移动；扩散冲击环是最大的威胁——看到冲击环扩散时，对着它冲刺穿过去（冲刺无敌）。',
+      forge: '熔炉巨像走得很慢，但每一招都有预警，读懂就不会挨打。橙色预警圈约 1.1 秒后爆炸，第一发会预判你的走位，别笔直逃跑；它震地时脚下会亮一大圈，别贴脸，站在圈外只剩一道冲击环，冲刺穿过去。二阶段起它会原地扎根，先亮出细线（并朝将要转动的方向缓缓爬），然后整圈旋转扫射：沿着转动方向绕着它走，就能一直待在射线之间的空档里。每次转阶段它会喷出一圈自爆怪，先拉开距离再清理。',
     },
     pickupText: '击败敌人后会在原地留下拾取物，靠近飞船时会被自动吸过来；除补给箱外，掉在地上 60 秒还没捡就会消失。认形状就能分辨：十字是医疗，马蹄铁是磁铁，带引信的圆球是炸弹，带锁的箱子是补给，底座上的晶体是晶核。',
     pickups: {
@@ -219,12 +220,13 @@ const ZH: Copy = {
       needle: { effect: '瞄准你的扇形飞镖，是场上最快的子弹，用来逼你走位：监察者二阶段三支、三阶段五支；分形核心一阶段单发、二阶段三支、三阶段五支。看到它抬手就横向移动，或者冲刺穿过去。', source: '监察者 / 分形核心' },
       shard: { effect: '分形核心每隔两秒左右向四周放射的晶刺，每一轮 8～12 颗；站进两颗晶刺之间的缝隙里就能让它们擦身而过。', source: '分形核心' },
       fang: { effect: '虚空之喉持续旋出的螺旋弹幕：2～4 条旋臂，每 0.16 秒一发。弹与弹之间的缝隙是固定的，跟着缝隙走。', source: '虚空之喉' },
-      beam: { effect: '带斜纹的粗射线。先在地面上标出预警线（约 1 秒），随后落下一道持续 0.7 秒的射线，站在里面每 0.1 秒受一次伤；预警结束前离开，或者冲刺穿过去。', source: '分形核心（二阶段起）' },
-      ring: { effect: '带尖齿的扩散冲击环，一路扩大到很远，被碰到就是一记重击；它是虚空之喉最大的威胁，看着它扩散过来时对着它冲刺穿过去。', source: '虚空之喉' },
+      ember: { effect: '熔炉巨像放出的熔渣块：一圈 10～16 颗，慢速但个头不小，一阶段每 2.5 秒一圈，之后越来越密。站进两块之间的缝隙，或者横向走位；别在它旁边来回蹭，一圈放出来时最挤。', source: '熔炉巨像' },
+      beam: { effect: '带斜纹的粗射线，站在里面每 0.1 秒受一次伤。分形核心先在地面标出预警线（约 1 秒），随后落下一道持续 0.7 秒的射线；熔炉巨像的熔切则是从机身伸出 2～3 条射线，先以细线预警约 1 秒（并朝将要转动的方向缓缓爬），随后整圈旋转扫射约 3 秒，沿着转动方向绕它走就能待在空档里。预警结束前离开，或者冲刺穿过去。', source: '分形核心 / 熔炉巨像（二阶段起）' },
+      ring: { effect: '带尖齿的扩散冲击环，一路扩大到很远，被碰到就是一记重击；虚空之喉不断放它，熔炉巨像每次震地也会震出（三阶段连震两道）。看着它扩散过来时对着它冲刺穿过去。', source: '虚空之喉 / 熔炉巨像' },
     },
     threatText: '威胁等级影响敌人血量、刷怪量和晶核收益。每个星区的更高威胁等级需要在前一档通关后解锁。至少通关一次某个星区后，可以在出击界面开启「无尽模式」：击败 Boss 后战斗继续，敌人会随时间不断变强。',
     metaText: '晶核是跨局货币：每局结算时获得（击杀、存活时间、等级、进化、击败 Boss 都会加成），可在机库购买永久升级。不满意可以随时全额退款重新分配。',
-    sectorText: '每个星区在 10 分钟时迎来该星区的 Boss。通关一个星区会解锁下一个星区。',
+    sectorText: '每个星区在 10 分钟时迎来该星区的 Boss。通关一个星区会解锁下一个星区。第四个星区「熔炉星环」有独有的“陨火打击”：地上亮起橙色预警圈，约 1.3 秒后火球依次砸落，圈内重伤——听到“警告：陨火坠落”就别站桩，走开就没事。',
     unitMin: '分钟',
     enemyHint: '数值为基础值，实际血量会随时间与威胁等级成长。',
   },
@@ -247,6 +249,7 @@ const ZH: Copy = {
     ],
     logH: '更新记录',
     log: [
+      '<strong>v1.12</strong> — 第 4 个星区「熔炉星环」与新 Boss「熔炉巨像」，通关虚空裂隙后解锁。这是一座恒星残骸熔成的炼炉带：自爆怪与冲锋者成群，另有该星区独有的“陨火打击”——地上先亮起橙色预警圈，约 1.3 秒后火球依次砸落（第一发压在你正要去的地方），圈内重伤、走开就没事，落点会留下焦痕。熔炉巨像是一台行走的炼炉：缓缓压近，放出一圈圈慢速的熔渣块，向预警圈里抛熔渣弹（第一发预判你的走位），震地时脚下先亮一大圈，落地后圈内重伤并震出冲击环（三阶段连震两道）；二阶段起它会原地扎根，亮出 2～3 条细线预警（并朝将要转动的方向缓缓爬），随后整圈旋转扫射——沿着转动方向绕它走就能一直待在空档里；每次转阶段，炉门都会喷出一圈自爆怪。新增成就“炉火熄灭”（奖励 600 晶核，勋章是铁砧与火花）、新的子弹造型“熔渣块”，以及这个星区自己的配色与音阶；机器人也学会了躲旋转的射线。',
       '<strong>v1.11</strong> — 新增两把武器「榴弹炮」和「虹吸索」（共 12 种），12 种被动终于都有了各自的搭档武器。榴弹炮是远程炮击：先在地上标出一圈锁定环，炮弹划着弧线飞过去，落地炸开并留下焦痕和烟尘；它专找敌群最密的地方，同一轮齐射会分散到不同的敌群，Boss 在射程内时所有炮弹都砸向 Boss；威力随最大生命值提高（搭档是强化舱体，进化成“饱和轰炸”后一轮 6 发，每发落地后再炸出 3 颗子弹）。虹吸索不发射弹丸：从机体伸出几条钢索钳住最近的敌人，持续撕咬并把一部分伤害变成生命——只在受伤时才回血，每次回血会飘出绿色的“+N”（搭档是纳米修复，会放大回血量；进化成“噬能之网”后咬到的敌人还会把伤害溅给周围，并放出紫色电弧）。两把武器的图标、炮弹、锁定环、钢索钳口、落点烟尘和音效都是新做的，和其他武器一样靠造型而不是发光撑场面，只有弹头和能量包用了一点亮色。连环爆炸时的屏幕震动加了上限，不会再一直糊在满屏抖动里。既有武器的数值不变；升级候选里多了两把武器，所以同一把武器出现的概率相应略降。',
       '<strong>v1.10</strong> — 战斗界面也换成同一套钢板，战斗里外风格统一：装备槽、通知和教学提示都是切角的哑光板，细边和顶部一线高光取武器或被动的主色，叠在战场上仍然是半透明的；每个槽的左下角挂一块深色的等级牌，武器进化后整块板换成金色并缓慢呼吸，满级且带着搭档（再差一步就能进化）时呼吸得更急，满级却缺搭档的武器右上角会挂出搭档图标的小角标。血条、Boss 血条和经验条改成和菜单一致的“一格一格”的槽，血条两端切角，经验条正中嵌着梯形的等级牌，字不再压在格子上发花；低血量时血条仍然会变红并闪动。冲刺键和手机上的摇杆都改成正八边形——冷却环沿着八边形外缘扫过，就绪时整圈亮起，摇杆是镂空的八边形环加实心八边形旋钮；所有外发光都去掉了。暂停键也换成同样的板。版面不变：满配（6 武器、6 被动、提示、通知、Boss 血条、横幅）在 7 种屏幕上仍然没有重叠、没有出屏。玩法与数值不变。',
       '<strong>v1.9</strong> — 整页界面重做：按钮、卡片、标签统一成切角的哑光钢板——有厚度、有倒角、没有发光，悬停时边框换色，键盘焦点是一圈镂空的切角框。主菜单有了真正的 Logo（金属挤出字）、站在底座上的飞船和三块带识别色的功能磁贴；成就页的 24 个成就都有了六边形金属勋章，按奖励分成铜、银、金、等离子四档（颜色之外还有 1 到 4 个点标记，色觉不同的玩家也分得清），顶部是收藏总览；结算页变成战果徽章、读数格（新纪录有金色丝带）、晶核账单和本局解锁的勋章。出击准备、机库、设置、暂停、升级选卡也换上同一套钢板，开关改成方头凹槽里的滑块，暂停面板在横屏手机上变成左右两栏，“继续战斗”不用再滚下去找。顺手修了几处窄屏问题：360 像素宽的手机上菜单磁贴被裁掉、“机库”标题被挤成两个字叠着、“冲刺冷却”被拆成两行；晶核账单的各行现在加起来恰好等于合计（以前逐行四舍五入会差 1，不足保底时更看不出差额从哪来，现在保底单独成一行）。玩法与数值不变。',
@@ -290,7 +293,7 @@ const EN: Copy = {
   siteName: 'NEON SURGE',
   home: {
     title: 'NEON SURGE — Free Online Neon Roguelite Survival Game | Play in Browser',
-    desc: 'NEON SURGE is a free browser neon roguelite survivor: auto-fire weapons, collect gems, level up and evolve your arsenal, and defeat three sector bosses. No download or sign-up. Works on desktop, mobile and gamepad.',
+    desc: 'NEON SURGE is a free browser neon roguelite survivor: auto-fire weapons, collect gems, level up and evolve your arsenal, and defeat four sector bosses. No download or sign-up. Works on desktop, mobile and gamepad.',
     h1: 'NEON SURGE: A Free Online Neon Roguelite Survival Game',
     lead: 'NEON SURGE is a top-down arena-survivor roguelite that runs right in your browser. Pilot a fighter into neon-drenched sectors: your weapons fire automatically, so all you have to do is move — collect gems, level up, evolve your weapons, and take down the sector boss within ten minutes. No download, no sign-up; play on desktop, mobile or with a gamepad.',
     ctaPlay: 'Play now',
@@ -300,7 +303,7 @@ const EN: Copy = {
       { icon: 'swords', color: '#3df2ff', title: 'Auto-fire, pure movement', text: 'No aiming — it is playable one-handed. The real challenge is finding a safe path through swarms and bullet patterns, then counter-attacking during your dash invincibility.' },
       { icon: 'dice', color: '#ffd84a', title: `${WEAPON_IDS.length} weapons × ${PASSIVE_IDS.length} passives`, text: 'Pulse cannon, orbit blades, arc lightning, missiles, prism laser, mines, nova, drones, chakram, railgun, howitzer, siphon tether… every level-up offers a random pick of three, so each run becomes a different build.' },
       { icon: 'play', color: '#ff4fd8', title: 'Weapon evolution', text: 'Max out a weapon and carry its partner passive to evolve it into an ultimate form from a level-up or a supply chest — in both looks and power.' },
-      { icon: 'skull', color: '#ff4a6a', title: '3 sectors, 3 bosses', text: 'The Overseer in Neon Fields, the Fractal Core in Data Wasteland, the Maw in Void Rift. Each boss has multi-phase patterns and a unique gimmick.' },
+      { icon: 'skull', color: '#ff4a6a', title: '4 sectors, 4 bosses', text: 'The Overseer in Neon Fields, the Fractal Core in Data Wasteland, the Maw in Void Rift, the Forge Colossus in Crucible Belt. Each boss has multi-phase patterns and a unique gimmick.' },
       { icon: 'hangar', color: '#a58bff', title: 'Permanent hangar upgrades', text: 'Spend cores on 13 permanent upgrades, unlock 4 distinct ships, climb 4 threat levels, and open endless mode after your first clear.' },
       { icon: 'gear', color: '#6dff8a', title: 'Touch, keyboard & gamepad', text: 'A floating touch joystick, WASD / arrow keys and gamepads are all supported natively. Adaptive quality keeps low-end devices smooth; saves are local and the game works offline.' },
       { icon: 'sound', color: '#3df2ff', title: 'Synthesized music & SFX', text: 'All music and sound effects are synthesized live with WebAudio — no audio files to download. Every sector has its own scale and tempo, and boss fights change the arrangement.' },
@@ -394,6 +397,7 @@ const EN: Copy = {
       overseer: 'Clear first, damage second. Escorts spawn in waves, so use area weapons on them. The ring patterns always have a gap — thread through it. In the final phase, circle against the spiral’s rotation, and save your dash for its charge.',
       fractal: 'It orbits you and marks a laser grid on the floor. Leave the marked cells before the red warning ends. Stay at medium range, avoid corners, and the moment a warning appears, look for the emptiest direction.',
       maw: 'The Maw keeps pulling you in. Don’t fight the gravity — move along the tangent. The expanding shock ring is the biggest threat: dash straight through it as it expands (you are invincible while dashing).',
+      forge: 'The Forge Colossus is slow, but every attack is telegraphed — read it and you will not get hit. Orange circles explode about 1.1 s later and the first one leads your movement, so don’t flee in a straight line. Its stomp lights a big circle under it: don’t hug it, and from outside the circle only a single shock ring remains — dash through. From phase 2 it roots itself and lights thin warning lines (creeping the way they are about to turn) before sweeping the whole circle: walk around it in the direction of rotation and you stay inside the gaps between the beams. Each phase change it vents a ring of bombers — back off first, then clean up.',
     },
     pickupText: 'Defeated enemies can leave pickups behind; they are pulled to your ship once you get close, and vanish after 60 seconds on the ground (supply crates never do). You can tell them apart by shape alone: a cross is repair, a horseshoe is the magnet, a round bomb with a fuse is the pulse bomb, a locked chest is the supply crate and a crystal on a pedestal is the core cache.',
     pickups: {
@@ -410,12 +414,13 @@ const EN: Copy = {
       needle: { effect: 'Aimed fans of darts — the fastest bullets in the game, meant to force you to move. The Overseer fires 3 in phase 2 and 5 in phase 3; the Fractal Core fires 1, 3 and 5 across its phases. Strafe sideways as soon as it winds up, or dash through.', source: 'The Overseer / Fractal Core' },
       shard: { effect: 'Crystal shards the Fractal Core fires in every direction every couple of seconds, 8 to 12 per burst. Stand in the gap between two shards and they pass you by.', source: 'Fractal Core' },
       fang: { effect: 'The Maw’s spiral barrage: 2 to 4 rotating arms firing every 0.16 s. The gaps between fangs are fixed — follow them.', source: 'The Maw' },
-      beam: { effect: 'A thick striped beam. A warning line is marked on the floor first (about 1 s), then the beam lands for 0.7 s and hurts every 0.1 s while you stand in it. Leave before the warning ends, or dash through.', source: 'Fractal Core (phase 2 onward)' },
-      ring: { effect: 'A spiked, expanding shock ring that reaches far and hits hard. It is the Maw’s biggest threat — dash straight through it as it passes.', source: 'The Maw' },
+      ember: { effect: 'Slag chunks fired by the Forge Colossus: rings of 10 to 16, slow but fairly big — one ring every 2.5 s in phase 1, denser later. Stand in the gap between two chunks or strafe sideways; avoid loitering right beside it, where a fresh ring is at its tightest.', source: 'Forge Colossus' },
+      beam: { effect: 'A thick striped beam that hurts every 0.1 s while you stand in it. The Fractal Core marks a warning line on the floor first (about 1 s) and then drops a beam for 0.7 s; the Forge Colossus’s melt-cut grows 2 to 3 beams from its body, warns with thin lines for about 1 s (creeping the way they are about to turn), then sweeps the whole circle for about 3 s — walk around it in the direction of rotation to stay in the gaps. Leave before the warning ends, or dash through.', source: 'Fractal Core / Forge Colossus (phase 2 onward)' },
+      ring: { effect: 'A spiked, expanding shock ring that reaches far and hits hard. The Maw keeps releasing them, and the Forge Colossus sends one out with every stomp (two in phase 3). Dash straight through it as it passes.', source: 'The Maw / Forge Colossus' },
     },
     threatText: 'Threat level scales enemy HP, spawn rate and core rewards. Each higher level of a sector unlocks after clearing the previous one. After clearing a sector once you can enable Endless Mode on the deploy screen: the run continues after the boss and enemies keep scaling up.',
     metaText: 'Cores are the cross-run currency: you earn them at the end of every run (kills, survival time, level, evolutions and boss kills all add up) and spend them on permanent upgrades. You can refund everything at any time and reallocate.',
-    sectorText: 'Each sector’s boss arrives at the 10-minute mark. Clearing a sector unlocks the next one.',
+    sectorText: 'Each sector’s boss arrives at the 10-minute mark. Clearing a sector unlocks the next one. The fourth sector, Crucible Belt, has its own hazard — ember strikes: orange warning circles light up on the ground and fireballs crash down about 1.3 s later, hurting anything inside. Listen for “WARNING: ember strike” and don’t stand still; step out and you take nothing.',
     unitMin: 'min',
     enemyHint: 'Values are base stats; actual HP grows with time and threat level.',
   },
@@ -438,6 +443,7 @@ const EN: Copy = {
     ],
     logH: 'Changelog',
     log: [
+      '<strong>v1.12</strong> — A fourth sector, Crucible Belt, and a new boss, the Forge Colossus, unlocked by clearing Void Rift. The belt is star-wreck smelted into slag: bombers and chargers in packs, plus a hazard of its own — ember strikes. Orange warning circles light up on the ground and fireballs crash down about 1.3 s later one after another (the first lands where you are about to be); anything inside is hurt, step out and you take nothing, and each impact leaves a scorch mark. The Forge Colossus is a walking furnace: it lumbers closer, fires rings of slow slag chunks and lobs slag into marked circles (the first one leads your movement). Its stomp lights a big circle under it, hurts everything inside when it lands and sends out a shock ring (two in phase 3). From phase 2 it roots itself, lights 2 to 3 thin warning lines (creeping the way they are about to turn) and then sweeps the whole circle — walk around it in the direction of rotation and you stay inside the gaps. Every phase change the furnace door vents a ring of bombers. Also new: the “Fires Out” achievement (600 cores, with an anvil-and-spark medal), the slag-chunk bullet, this sector’s own palette and scale — and the autopilot bot has learned to dodge rotating beams.',
       '<strong>v1.11</strong> — Two new weapons, the Howitzer and the Siphon Tether (12 in total), so every one of the 12 passives now has a partner weapon. The Howitzer is long-range artillery: a lock-on ring is stamped on the ground first, the shell arcs over and bursts on impact, leaving a scorch mark and drifting smoke. It goes for the densest crowd, a salvo is spread over different crowds, and when a boss is in range every shell goes for the boss; damage grows with your max hull (partner passive: Reinforced Hull, and its evolution, Saturation Barrage, fires 6 shells that each split into 3 bomblets on impact). The Siphon Tether fires no projectiles: steel cables reach out from the ship, clamp the nearest enemies and keep biting, turning part of the damage into health — only while you are actually hurt, shown as a green “+N” (partner passive: Nano Repair, which also amplifies the healing; its evolution, Devourer Web, splashes each bite onto neighbours and throws violet arcs). Icons, shells, lock-on rings, cable clamps, impact smoke and sounds are all new and carry the same matte look — form instead of glow, with only warheads and energy packets using a touch of light. Chained explosions now have a screen-shake ceiling, so the screen no longer stays smeared with shaking. Existing weapons are unchanged, but the level-up pool holds two more weapons, so each individual weapon shows up slightly less often.',
       '<strong>v1.10</strong> — The in-run HUD gets the same steel plates, so the screens before and during a run look like one game: weapon and passive slots, notifications and the tutorial hint are chamfered matte plates, with the thin border and the top highlight taking the weapon’s or passive’s colour, and they stay translucent over the battlefield. Each slot carries a dark level tab on its lower-left corner; an evolved weapon’s plate turns gold and breathes slowly, a maxed weapon whose partner you already hold (one step from evolving) breathes faster, and a maxed weapon that is still missing its partner gets a small badge with the partner’s icon on its upper-right corner. The health bar, boss bar and XP bar become the same cell-by-cell grooves as the menus — the health bar has chamfered ends, the XP bar has a trapezoid level tab in the middle so the text no longer smears across the cells — and low health still turns the bar red and makes it flash. The dash button and the touch joystick are now regular octagons: the cooldown ring sweeps along the octagon’s edge and lights up fully when ready, and the joystick is a hollow octagonal ring with a solid octagonal knob; all outer glows are gone. The pause button uses the same plate. The layout does not change: a full loadout (6 weapons, 6 passives, hint, notifications, boss bar, banners) still has no overlaps and nothing off-screen on all 7 screen profiles. Gameplay and numbers are unchanged.',
       '<strong>v1.9</strong> — Every full-page screen redone: buttons, cards and tags are now chamfered matte steel plates — with thickness and bevels, no glow, a border that changes colour on hover, and a hollow chamfered frame for keyboard focus. The main menu gets a proper logo (extruded metal letters), your ship on a pedestal and three feature tiles with their own accent colours; all 24 achievements have a hexagonal metal medal, split by reward into bronze, silver, gold and plasma (1 to 4 pips on top of the colour, so it reads for colour-blind players too) under a collection overview; the results screen is a result badge, readout tiles (new records get a gold ribbon), a core-reward bill and the medals unlocked this run. Mission setup, hangar, settings, pause and the level-up cards use the same plates, toggles became square-headed sliders in a recessed groove, and the pause panel turns into two columns on landscape phones so “Resume” is always in view. A few narrow-screen problems are fixed along the way: menu tiles clipped on 360 px phones, the “Hangar” title squeezed into two stacked characters, “Dash CD” split over two lines; and the core-reward bill now adds up exactly (rows used to be rounded one by one and could be off by 1, and a minimum payout showed up only in the total — it is now a line of its own). Gameplay and numbers are unchanged.',
@@ -770,7 +776,7 @@ ${table([col.name, col.effect, col.source], pickupRows)}
 ${table([col.name, col.desc, col.hp, col.speed, col.dmg, col.where], enemyRows)}
 
 <h2 id="bosses">${esc(g.sections.bosses)}</h2>
-<div class="grid-cards">
+<div class="grid-cards wide">
 ${bossCards.join('\n')}
 </div>
 
