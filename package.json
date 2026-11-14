@@ -1,7 +1,7 @@
 {
   "name": "neon-surge",
   "private": true,
-  "version": "1.8.0",
+  "version": "1.9.0",
   "description": "霓虹浪涌 NEON SURGE — 纯前端的霓虹生存肉鸽游戏",
   "type": "module",
   "scripts": {

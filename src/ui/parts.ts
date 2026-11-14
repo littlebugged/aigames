@@ -27,7 +27,7 @@ export function statBar(label: string, v: number, color: string, valueText?: str
     h(
       'span',
       { class: 'stat-bar' },
-      h('i', { style: { width: `${Math.round(Math.max(0.06, Math.min(1, v)) * 100)}%`, background: color, boxShadow: `0 0 10px ${color}` } }),
+      h('i', { style: { width: `${Math.round(Math.max(0.06, Math.min(1, v)) * 100)}%`, '--bar': color } }),
     ),
     valueText ? h('span', { class: 'stat-v' }, valueText) : null,
   )

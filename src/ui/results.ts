@@ -3,6 +3,7 @@ import { dictKeys, dyn, fmtInt, fmtTime, getLang, t, type Key } from '../i18n'
 import type { UiCtx } from './ctx'
 import { shipPortrait } from '../render/sprites'
 import { clear, h, iconEl } from './dom'
+import { medalBadge, medalEl } from './medals'
 
 export interface ResultsData {
   summary: RunSummary
@@ -106,11 +107,19 @@ export class ResultsScreen {
     const { summary, settlement: s, won } = d
     const st = summary.stats
     const c = s.cores
-    const title = summary.endless && st.bossKilled ? t('res.endless') : won ? t('res.win') : t('res.lose')
+    const outcome: 'won' | 'lost' | 'endless' = summary.endless && st.bossKilled ? 'endless' : won ? 'won' : 'lost'
+    const title = outcome === 'endless' ? t('res.endless') : outcome === 'won' ? t('res.win') : t('res.lose')
+    // 战果徽章：通关 = 金色奖杯，无尽 = 等离子无限符号，战败 = 红色骷髅
+    const badge =
+      outcome === 'won'
+        ? medalBadge('trophy', 'gold', 'lg')
+        : outcome === 'endless'
+          ? medalBadge('infinity', 'plasma', 'lg')
+          : medalBadge('skull', 'danger', 'lg')
     const killer = !won && st.killedBy ? killerName(st.killedBy) : ''
 
     const total = c.total + s.achCores
-    const totalEl = h('b', { class: 'cores-total' }, '0')
+    const totalEl = h('b', { class: 'cores-total', 'data-total': String(total) }, '0')
 
     const parts: [string, number][] = [
       [t('res.part.kills'), c.kills],
@@ -118,47 +127,45 @@ export class ResultsScreen {
       [t('res.part.level'), c.level],
       [t('res.part.evolves'), c.evolves],
       [t('res.part.boss'), c.boss],
+      [t('res.part.floor'), c.floor],
       [t('res.part.bonus'), c.bonus],
       [t('res.part.ach'), s.achCores],
     ]
     const rows = parts
       .filter(([, v]) => v > 0)
-      .map(([label, v], i) => h('div', { class: 'cr', style: { animationDelay: `${300 + i * 90}ms` } }, h('span', null, label), h('b', null, `+${fmtInt(v)}`)))
+      .map(([label, v], i) => h('div', { class: 'cr', style: { animationDelay: `${300 + i * 90}ms` } }, h('span', null, label), h('i', { class: 'lead' }), h('b', null, `+${fmtInt(v)}`)))
 
     const tiles = [
       { ico: iconEl('clock'), label: t('res.time'), val: fmtTime(st.time), rec: s.records.time || s.records.endless },
       { ico: iconEl('skull'), label: t('res.kills'), val: fmtInt(st.kills), rec: s.records.kills },
-      { ico: iconEl('trophy'), label: t('res.level'), val: String(st.level), rec: false },
-      { ico: iconEl('swords'), label: t('res.evolves'), val: String(st.evolves), rec: false },
+      { ico: iconEl('chevrons'), label: t('res.level'), val: String(st.level), rec: false },
+      { ico: iconEl('evolve'), label: t('res.evolves'), val: String(st.evolves), rec: false },
     ].map((x, i) =>
       h(
         'div',
-        { class: 'tile', style: { animationDelay: `${i * 80}ms` } },
-        x.ico,
-        h('span', { class: 'tile-l' }, x.label),
+        { class: `tile plate ${x.rec ? 'is-rec' : ''}`, style: { animationDelay: `${i * 80}ms` } },
+        h('div', { class: 'tile-top' }, x.ico, h('span', { class: 'tile-l' }, x.label), x.rec ? h('em', { class: 'rec plate' }, t('res.newRecord')) : null),
         h('b', null, x.val),
-        x.rec ? h('em', { class: 'rec' }, t('res.newRecord')) : null,
       ),
     )
 
     const notices: HTMLElement[] = []
-    if (s.unlockedSector) notices.push(h('div', { class: 'notice good' }, iconEl('check'), t('res.unlockSector', { name: t(dyn(`sector.${s.unlockedSector}.name`)) })))
-    if (s.unlockedThreat !== null) notices.push(h('div', { class: 'notice good' }, iconEl('check'), t('res.unlockThreat', { name: t(dyn(`threat.${s.unlockedThreat}.name`)) })))
-    for (const id of s.unlockedShips) {
-      notices.push(h('div', { class: 'notice gold' }, shipPortrait(id, 30), t('res.unlockShip', { name: t(dyn(`ship.${id}.name`)) })))
-    }
+    const ticket = (tone: 'good' | 'gold', icon: Node, text: string): HTMLElement => h('div', { class: `notice plate ${tone}` }, h('span', { class: 'stub' }, icon), text)
+    if (s.unlockedSector) notices.push(ticket('good', iconEl('check'), t('res.unlockSector', { name: t(dyn(`sector.${s.unlockedSector}.name`)) })))
+    if (s.unlockedThreat !== null) notices.push(ticket('good', iconEl('check'), t('res.unlockThreat', { name: t(dyn(`threat.${s.unlockedThreat}.name`)) })))
+    for (const id of s.unlockedShips) notices.push(ticket('gold', shipPortrait(id, 30), t('res.unlockShip', { name: t(dyn(`ship.${id}.name`)) })))
 
     const achs =
       s.newAch.length > 0
         ? h(
             'div',
-            { class: 'res-ach' },
-            h('h4', null, t('res.achievements')),
+            { class: 'res-ach plate' },
+            h('h4', null, t('res.achievements'), h('b', null, String(s.newAch.length))),
             h(
               'div',
               { class: 'ach-list' },
               ...s.newAch.map((a) =>
-                h('div', { class: 'ach-line' }, iconEl('trophy'), h('b', null, t(dyn(`ach.${a.id}.name`))), h('span', null, t('ach.reward', { n: a.reward }))),
+                h('div', { class: 'ach-line' }, medalEl(a, true, 'md'), h('div', { class: 'ach-line-text' }, h('b', null, t(dyn(`ach.${a.id}.name`))), h('span', null, t('ach.reward', { n: a.reward })))),
               ),
             ),
           )
@@ -167,19 +174,24 @@ export class ResultsScreen {
     this.el.append(
       h(
         'div',
-        { class: `res-panel ${won ? 'won' : 'lost'}` },
-        h('div', { class: 'res-head' }, h('h1', null, title), h('p', null, `${t(dyn(`sector.${summary.sector}.name`))} · ${t(dyn(`threat.${summary.threat}.name`))}`, ' · ', shipPortrait(summary.ship, 26), t(dyn(`ship.${summary.ship}.name`)))),
-        killer ? h('p', { class: 'killer' }, iconEl('skull'), t('res.killedBy'), ' ', h('b', null, killer)) : null,
+        { class: `res-panel plate ${outcome}` },
+        h(
+          'div',
+          { class: 'res-head' },
+          badge,
+          h('div', { class: 'res-head-text' }, h('h1', null, title), h('p', null, `${t(dyn(`sector.${summary.sector}.name`))} · ${t(dyn(`threat.${summary.threat}.name`))}`, ' · ', shipPortrait(summary.ship, 26), t(dyn(`ship.${summary.ship}.name`)))),
+        ),
+        killer ? h('p', { class: 'killer plate' }, iconEl('skull'), t('res.killedBy'), ' ', h('b', null, killer)) : null,
         h(
           'div',
           { class: 'res-grid' },
           h('div', { class: 'tiles' }, ...tiles),
           h(
             'div',
-            { class: 'cores-box' },
+            { class: 'cores-box plate' },
             h('div', { class: 'cores-head' }, iconEl('core'), h('span', null, t('res.cores')), h('i', { class: 'mult' }, t('res.mult', { n: c.mult.toFixed(2) }))),
             h('div', { class: 'cores-rows' }, ...rows),
-            h('div', { class: 'cores-sum' }, totalEl),
+            h('div', { class: 'cores-sum' }, h('span', null, t('res.total')), totalEl),
           ),
         ),
         notices.length > 0 ? h('div', { class: 'notices' }, ...notices) : null,

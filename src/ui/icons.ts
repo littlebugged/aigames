@@ -670,6 +670,125 @@ export const UI_ICON = {
     u(rrect(10, 20.3, 4, 1.7, 0.85)),
     line('M10.4 8.6L12 11.8L13.6 8.6', 1.4, '#000', 0.5),
   ),
+
+  // ── 勋章徽记：成就 / 结算页用，每个对应一类成就指标 ──
+  // 准星：击杀
+  crosshair: all(
+    us(circ(12, 12, 6.7), 2.4),
+    line(arc(12, 12, 6.7, 15, 165), 2.4, '#000', 0.28),
+    u(rrect(10.9, 1.8, 2.2, 6.4, 1)),
+    u(rrect(10.9, 15.8, 2.2, 6.4, 1)),
+    u(rrect(1.8, 10.9, 6.4, 2.2, 1)),
+    u(rrect(15.8, 10.9, 6.4, 2.2, 1)),
+    shade(rrect(10.9, 15.8, 2.2, 6.4, 1), 0.28),
+    shade(rrect(15.8, 10.9, 6.4, 2.2, 1), 0.28),
+    u(circ(12, 12, 2.1)),
+    shade(crescent(12, 12, 2.1, 1), 0.3),
+  ),
+  // 三道军衔：等级
+  chevrons: all(
+    ...[0, 4.8, 9.6].map((dy) =>
+      all(
+        ur(poly(3.4, 8.8 + dy, 12, 2.4 + dy, 20.6, 8.8 + dy, 20.6, 12 + dy, 12, 5.6 + dy, 3.4, 12 + dy), 1),
+        shade(poly(12, 2.4 + dy, 20.6, 8.8 + dy, 20.6, 12 + dy, 12, 5.6 + dy), 0.28),
+      ),
+    ),
+  ),
+  // 三颗四芒星：进化
+  evolve: all(
+    ur(star(10.6, 13.6, 9, 2.6, 4), 1),
+    shade(starFacets(10.6, 13.6, 9, 2.6, 4), 0.26),
+    ur(star(19, 5.6, 3.8, 1.2, 4), 0.8),
+    shade(starFacets(19, 5.6, 3.8, 1.2, 4), 0.26),
+    u(star(4.4, 5.2, 2.2, 0.7, 4)),
+  ),
+  // 弹架：同时持有多把武器
+  rack: all(
+    ...[
+      [3, 6.6],
+      [9.7, 2.4],
+      [16.4, 6.6],
+    ].map(([x, top]) => {
+      const w = 4.6
+      const knee = top + 5.4
+      const cx = x + w / 2
+      return all(
+        u(`M${x} 18.6V${num(knee)}C${x} ${num(knee - 2.4)} ${num(cx - 0.9)} ${num(top + 1.4)} ${num(cx)} ${top}C${num(cx + 0.9)} ${num(top + 1.4)} ${num(x + w)} ${num(knee - 2.4)} ${num(x + w)} ${num(knee)}V18.6Z`),
+        shade(`M${num(cx)} ${top}C${num(cx + 0.9)} ${num(top + 1.4)} ${num(x + w)} ${num(knee - 2.4)} ${num(x + w)} ${num(knee)}V18.6H${num(cx)}Z`, 0.26),
+        cut(rrect(x, knee + 0.3, w, 1.1), 0.6),
+      )
+    }),
+    u(rrect(1.8, 17.6, 20.4, 4.2, 1.5)),
+    shade(rrect(12, 17.6, 10.2, 4.2, 1.5), 0.26),
+    cut(circ(4.8, 19.7, 0.7), 0.6),
+    cut(circ(19.2, 19.7, 0.7), 0.6),
+  ),
+  // 盾徽：无伤
+  shield: all(
+    ur('M12 2.6L19.8 5.6V11.4C19.8 16 16.6 19.4 12 21.4C7.4 19.4 4.2 16 4.2 11.4V5.6Z', 1.2),
+    shade('M12 2.6L19.8 5.6V11.4C19.8 16 16.6 19.4 12 21.4Z', 0.28),
+    line('M8.4 11.6L11.2 14.4L15.8 9', 2.4, '#000', 0.72),
+  ),
+  // 监察者之眼：霓虹原野 Boss
+  bossEye: all(
+    ur('M1.8 12C4.8 7 8.2 4.8 12 4.8C15.8 4.8 19.2 7 22.2 12C19.2 17 15.8 19.2 12 19.2C8.2 19.2 4.8 17 1.8 12Z', 1),
+    shade('M1.8 12C5 13.4 8.4 14.2 12 14.2C15.6 14.2 19 13.4 22.2 12C19.2 17 15.8 19.2 12 19.2C8.2 19.2 4.8 17 1.8 12Z', 0.26),
+    cut(circ(12, 12, 5.3), 0.8),
+    u(circ(12, 12, 3.4)),
+    cut(rrect(11.1, 9.4, 1.8, 5.2, 0.9), 0.82),
+  ),
+  // 分形核心（谢尔宾斯基三角）：数据荒原 Boss
+  bossFractal: ((): string => {
+    const A: [number, number] = [12, 2.4]
+    const B: [number, number] = [21.8, 19.4]
+    const C: [number, number] = [2.2, 19.4]
+    const mid = (p: [number, number], q: [number, number]): [number, number] => [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2]
+    const shrink = (v: [number, number][], k: number): number[] => {
+      const cx = (v[0][0] + v[1][0] + v[2][0]) / 3
+      const cy = (v[0][1] + v[1][1] + v[2][1]) / 3
+      return v.flatMap(([x, y]) => [cx + (x - cx) * k, cy + (y - cy) * k])
+    }
+    const m1 = mid(A, B)
+    const m2 = mid(B, C)
+    const m3 = mid(C, A)
+    const holes = (tri: [number, number][]): string => {
+      const [p, q, r] = tri
+      return poly(...shrink([mid(p, q), mid(q, r), mid(r, p)], 0.8))
+    }
+    const top: [number, number][] = [A, m1, m3]
+    const left: [number, number][] = [m3, m2, C]
+    const right: [number, number][] = [m1, B, m2]
+    return all(
+      ue(poly(...A, ...B, ...C) + poly(...shrink([m1, m2, m3], 0.84)) + holes(top) + holes(left) + holes(right)),
+      `<path d="${poly(...m1, ...B, ...m2) + holes(right)}" fill="#000" fill-opacity="0.26" fill-rule="evenodd"/>`,
+    )
+  })(),
+  // 虚空之喉：引力奇点——吞噬一切的漩涡，两条旋臂向中心收拢
+  bossMaw: ((): string => {
+    const arm = (a0: number): string => {
+      const v: number[] = []
+      for (let i = 0; i <= 26; i++) {
+        const t = i / 26
+        v.push(...pt(12, 12, 9.3 - 8.3 * t, a0 + 330 * t))
+      }
+      return poly(...v).replace(/Z$/, '')
+    }
+    return all(u(circ(12, 12, 10.4), 0.26), us(arm(-30), 2.9), us(arm(150), 2.9), u(circ(12, 12, 1.7)))
+  })(),
+  // 终点旗：累计出击
+  flag: all(
+    u(rrect(4.2, 2.4, 2.2, 19.2, 1)),
+    shade(rrect(5.3, 2.4, 1.1, 19.2, 0.5), 0.3),
+    ur('M6.4 3.6H20.4L16.4 8.4L20.4 13.2H6.4Z', 1),
+    shade('M6.4 8.4H16.4L20.4 13.2H6.4Z', 0.28),
+    u(rrect(2.6, 20.2, 7.6, 2, 1)),
+  ),
+  // 火焰：高威胁等级
+  flame: all(
+    ur('M12 21.8C8.2 21.8 5.4 19 5.4 15.2C5.4 12.4 6.8 10.4 8.4 8.6C8.6 10 9.2 10.8 10 11.2C9.6 7.8 10.6 4.4 13 2C13.2 4.8 14.4 6.8 15.8 8.2C16.6 7.4 17.2 6.4 17.4 5.4C18.6 7.6 18.6 10.4 18.6 12.8C18.6 18 15.6 21.8 12 21.8Z', 1),
+    shade('M13 2C13.2 4.8 14.4 6.8 15.8 8.2C16.6 7.4 17.2 6.4 17.4 5.4C18.6 7.6 18.6 10.4 18.6 12.8C18.6 18 15.6 21.8 12 21.8C14.6 19.6 15 15.8 13.8 13C12.8 10.8 12.4 5.8 13 2Z', 0.22),
+    cut('M12 20.2C10 20.2 8.6 18.6 8.6 16.8C8.6 15 10.2 14 11 12.4C12.4 13.8 15.2 14.8 15.2 17.2C15.2 18.9 13.8 20.2 12 20.2Z', 0.55),
+  ),
 } as const
 
 export type UiIconName = keyof typeof UI_ICON

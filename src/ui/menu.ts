@@ -1,7 +1,9 @@
 import { ACHIEVEMENTS } from '../data/achievements'
-import { META_IDS } from '../data/ids'
+import { META_IDS, type ShipId } from '../data/ids'
 import { nextMetaCost } from '../game/progress'
+import { SHIPS } from '../data/ships'
 import { fmtInt, t } from '../i18n'
+import { shipPortrait } from '../render/sprites'
 import type { Screen, UiCtx } from './ctx'
 import { clear, h, iconEl } from './dom'
 import { coresChip } from './parts'
@@ -22,10 +24,30 @@ export function createMenu(ctx: UiCtx): Screen {
     const logo = h(
       'header',
       { class: 'logo' },
-      h('div', { class: 'logo-en', role: 'img', 'aria-label': t('app.titleEn') }, h('span', { class: 'l1' }, 'NEON'), h('span', { class: 'l2' }, 'SURGE')),
+      h(
+        'div',
+        { class: 'logo-en', role: 'img', 'aria-label': t('app.titleEn') },
+        h('span', { class: 'l1' }, 'NEON'),
+        h('span', { class: 'l2' }, 'SURGE'),
+      ),
+      h('div', { class: 'logo-rule', 'aria-hidden': 'true' }, h('i'), h('b'), h('i')),
       // 英文界面里中文名和 logo 是同一个词，不重复显示
       t('app.title') === t('app.titleEn') ? null : h('div', { class: 'logo-zh' }, t('app.title')),
       h('p', { class: 'tagline' }, t('app.tagline')),
+    )
+
+    // 英雄位：当前选中的飞船悬在发射台上（立绘按显示尺寸重画，大尺寸下也锐利）
+    const shipId: ShipId = s.ships.includes(s.last.ship) && SHIPS[s.last.ship] ? s.last.ship : 'vanguard'
+    const hero = h(
+      'div',
+      { class: 'hero', 'aria-hidden': 'true' },
+      h(
+        'div',
+        { class: 'hero-stage' },
+        h('div', { class: 'hero-pad' }, h('i'), h('i'), h('i')),
+        h('div', { class: 'hero-shadow' }),
+        h('div', { class: 'hero-ship' }, shipPortrait(shipId, 280, true)),
+      ),
     )
 
     const play = h(
@@ -145,7 +167,7 @@ export function createMenu(ctx: UiCtx): Screen {
       ),
     )
 
-    el.append(top, logo, h('div', { class: 'menu-main' }, play, nav), foot)
+    el.append(top, h('div', { class: 'menu-center' }, logo, hero), h('div', { class: 'menu-main' }, play, nav), foot)
     cores.update()
   }
 

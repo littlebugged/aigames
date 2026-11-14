@@ -4,6 +4,7 @@ import { ACHIEVEMENTS } from '../src/data/achievements'
 import { METAS, metaCost } from '../src/data/meta'
 import { SHIPS } from '../src/data/ships'
 import {
+  apportion,
   buyMeta,
   buyShip,
   defaultSave,
@@ -102,6 +103,46 @@ test('晶核结算：随表现单调上升，倍率生效，≥45 秒有保底',
   const easy = runCores(stats({ time: 600, kills: 5000, level: 36, bossKilled: true }), 'fields', 0, 1, 0)
   assert.ok(hard.total > easy.total * 4)
   assert.ok(runCores(stats({ time: 300 }), 'fields', 0, 1.4, 100).total > runCores(stats({ time: 300 }), 'fields', 0, 1, 100).total)
+})
+
+test('晶核账单：逐行相加恰好等于合计（含保底补足），合计口径与改动前一致', () => {
+  // 简单的确定性伪随机，覆盖各种表现 / 星区 / 威胁 / 贪婪倍率
+  let seed = 7
+  const rnd = (): number => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32)
+  const sectors = ['fields', 'wasteland', 'void'] as const
+  for (let n = 0; n < 400; n++) {
+    const st = stats({ time: Math.floor(rnd() * 900), kills: Math.floor(rnd() * 6000), level: 1 + Math.floor(rnd() * 40), evolves: Math.floor(rnd() * 5), bossKilled: rnd() < 0.3 })
+    const sector = sectors[Math.floor(rnd() * 3)]
+    const threat = Math.floor(rnd() * 4)
+    const greed = 1 + Math.floor(rnd() * 4) * 0.1
+    const bonus = Math.floor(rnd() * 120)
+    const c = runCores(st, sector, threat, greed, bonus)
+    const rows = c.kills + c.time + c.level + c.evolves + c.boss + c.floor + c.bonus
+    assert.equal(rows, c.total, `账单对不上：${JSON.stringify(st)} ${sector} 威胁${threat} 贪婪${greed}`)
+    // 每一行都是非负整数，且与单独四舍五入相比最多差 1
+    const mult = c.mult
+    const exact = [st.kills / 45, (st.time / 60) * 5, st.level * 1.2, st.evolves * 12, st.bossKilled ? 120 : 0].map((v) => v * mult)
+    ;[c.kills, c.time, c.level, c.evolves, c.boss].forEach((v, i) => {
+      assert.ok(Number.isInteger(v) && v >= 0, `第 ${i} 行不是非负整数`)
+      assert.ok(Math.abs(v - exact[i]) < 1 + 1e-9, `第 ${i} 行偏离精确值超过 1：${v} vs ${exact[i]}`)
+    })
+    // 合计口径不变：max(保底, 四舍五入的总和) + 额外
+    const raw = Math.round(exact.reduce((a, b) => a + b, 0))
+    assert.equal(c.total, Math.max(st.time >= 45 ? 25 : 0, raw) + Math.max(0, Math.round(bonus * greed)))
+  }
+  const short = runCores(stats({ time: 50, kills: 10, level: 2 }), 'fields', 0, 1, 0)
+  assert.ok(short.floor > 0, '很短但超过 45 秒的一局，保底补足应单独成行')
+  assert.equal(short.total, 25)
+  assert.equal(runCores(stats({ time: 600, kills: 5000, level: 36, bossKilled: true }), 'fields', 0, 1, 0).floor, 0)
+})
+
+test('apportion：最大余数法，整数之和恰好等于目标', () => {
+  assert.deepEqual(apportion([0.4, 0.4, 0.4], 1), [1, 0, 0])
+  assert.deepEqual(apportion([1.5, 2.5], 4), [2, 2])
+  assert.deepEqual(apportion([3, 4, 5], 12), [3, 4, 5])
+  assert.deepEqual(apportion([], 0), [])
+  const v = [10.34, 20.33, 30.33]
+  assert.equal(apportion(v, Math.round(v.reduce((a, b) => a + b, 0))).reduce((a, b) => a + b, 0), 61)
 })
 
 test('结算：发放晶核、更新累计与记录', () => {

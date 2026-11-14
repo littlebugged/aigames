@@ -304,10 +304,29 @@ export interface CoreBreakdown {
   level: number
   evolves: number
   boss: number
+  /** 保底补足：时间 ≥ 45 秒而各项之和不足 25 时，补到 25 的那一截（账单上单独一行，否则各项加起来对不上合计） */
+  floor: number
   /** 乘区：星区 × 威胁 × 贪婪 */
   mult: number
   bonus: number
+  /** = kills + time + level + evolves + boss + floor + bonus（账单逐行相加恰好等于它） */
   total: number
+}
+
+/**
+ * 把一组小数按"最大余数法"取整，使整数之和恰好等于 target（target 应为小数之和四舍五入的结果）。
+ * 逐项四舍五入再相加会差 1~2：账单上各行加起来和合计对不上。
+ */
+export function apportion(values: readonly number[], target: number): number[] {
+  const floors = values.map((v) => Math.floor(v + 1e-9))
+  let rest = target - floors.reduce((a, b) => a + b, 0)
+  const order = values.map((v, i) => ({ i, frac: v - floors[i] })).sort((a, b) => b.frac - a.frac || a.i - b.i)
+  for (const { i } of order) {
+    if (rest <= 0) break
+    floors[i]++
+    rest--
+  }
+  return floors
 }
 
 /** 一局的晶核收益。时间 ≥ 45 秒保底 25。 */
@@ -318,28 +337,19 @@ export function runCores(
   greedMul: number,
   bonus: number,
 ): CoreBreakdown {
-  const part = {
-    kills: stats.kills / 45,
-    time: (stats.time / 60) * 5,
-    level: stats.level * 1.2,
-    evolves: stats.evolves * 12,
-    boss: stats.bossKilled ? 120 : 0,
-  }
   const mult = SECTORS[sector].reward * THREAT_LEVELS[Math.min(THREAT_LEVELS.length - 1, Math.max(0, threat))].reward * greedMul
-  const base = part.kills + part.time + part.level + part.evolves + part.boss
-  const raw = Math.round(base * mult)
-  const floor = stats.time >= 45 ? 25 : 0
+  const parts = [
+    stats.kills / 45,
+    (stats.time / 60) * 5,
+    stats.level * 1.2,
+    stats.evolves * 12,
+    stats.bossKilled ? 120 : 0,
+  ].map((v) => v * mult)
+  const raw = Math.round(parts.reduce((a, b) => a + b, 0))
+  const [kills, time, level, evolves, boss] = apportion(parts, raw)
+  const floor = stats.time >= 45 ? Math.max(0, 25 - raw) : 0
   const b = Math.max(0, Math.round(bonus * greedMul))
-  return {
-    kills: Math.round(part.kills * mult),
-    time: Math.round(part.time * mult),
-    level: Math.round(part.level * mult),
-    evolves: Math.round(part.evolves * mult),
-    boss: Math.round(part.boss * mult),
-    mult,
-    bonus: b,
-    total: Math.max(floor, raw) + b,
-  }
+  return { kills, time, level, evolves, boss, floor, mult, bonus: b, total: raw + floor + b }
 }
 
 export interface Settlement {

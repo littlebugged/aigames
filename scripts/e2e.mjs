@@ -8,6 +8,8 @@
  *   node scripts/e2e.mjs pwa                # Service Worker：激活、离线可玩、新版本提示、清单与图标
  *   node scripts/e2e.mjs fx                 # 手感：伤害数字 8 档梯度 + 武器进化演出（蓄力 → 爆发 → 慢动作 → 横幅 → 光环），逐帧截图
  *   node scripts/e2e.mjs layout [--only 名]  # 版面审计：手机竖/横屏、平板、桌面，满配 HUD 元素互不遮挡、不出屏
+ *   node scripts/e2e.mjs ui [--only 屏幕]   # 界面样张：菜单 / 成就 / 机库 / 出击准备 / 设置 / 暂停 / 升级 / 结算（胜利、失败）逐屏截图：--w --h --dpr --touch 1 --lang en --seed rich|fresh --tag 名
+ *   node scripts/e2e.mjs pages [--only 名]  # 整页版面审计：7 种屏幕 × 中英文 × 全部整页界面，量横向溢出 / 按钮文字被撑出 / 主按钮出屏（--shots 1 顺带截图）
  *   node scripts/e2e.mjs art [--scale N]    # 美术样张：把全部预渲染精灵（敌人/飞船/宝石/拾取物/武器件/Boss 部件）放大排在一张图上，逐个检查质感
  *   node scripts/e2e.mjs zoo [选项]         # 敌人动物园：全部敌人（普通 + 精英）定身摆成三排，真实比例截图，检查缩小后的辨识度：--dpr --face --bg --clip
  *   node scripts/e2e.mjs play [选项]        # 直接开一局并快进截图：--sector --ship --threat --ff --wait --name --q --audio 1
@@ -1489,6 +1491,281 @@ async function live() {
   await browser.close()
 }
 
+// ───────────────────────── 界面样张 / 整页版面审计 ─────────────────────────
+//
+// 把整页界面（菜单 / 成就 / 机库 / 出击准备 / 设置 / 暂停 / 升级选卡 / 结算胜利与失败）逐屏截图，改界面样式后必须看一眼。
+// 存档用 --seed 预置：rich = 有进度（成就解锁一部分、晶核、机库升级、几艘飞船），fresh = 全新存档（看空状态）。
+//
+//   node scripts/e2e.mjs ui                                   # 全部屏幕，1440×810
+//   node scripts/e2e.mjs ui --only menu,ach --w 390 --h 844 --dpr 2 --touch 1
+//   node scripts/e2e.mjs ui --only win,lose --lang en --tag en
+//   node scripts/e2e.mjs pages [--only 名] [--lang zh|en|both] [--shots 1]
+//                                                              # 版面审计：7 种屏幕 × 全部整页界面，量横向溢出 / 按钮文字被截 / 主按钮出屏
+
+const UI_SCREENS = ['menu', 'ach', 'hangar', 'deploy', 'settings', 'pause', 'levelup', 'win', 'lose']
+
+const SEED_RICH = () => {
+  const s = window.__neon.save
+  const now = Date.now()
+  s.cores = 12840
+  s.lifetimeCores = 9120
+  s.ships = ['vanguard', 'phantom', 'bulwark', 'reaper']
+  s.totals = { runs: 37, wins: 6, deaths: 31, kills: 12400, time: 20000, evolves: 21, dashes: 880 }
+  s.best = { time: 330, kills: 560, level: 28, evolves: 2, weapons: 6, noHit: 100, dashes: 53 }
+  s.bestTime = { fields: 600, wasteland: 420, void: 0 }
+  s.clears = { fields: 4, wasteland: 1, void: 0 }
+  s.maxThreat = { fields: 1, wasteland: 0, void: -1 }
+  s.meta = { m_power: 3, m_hull: 2, m_magnet: 4, m_regen: 1, m_thruster: 2, m_learning: 1 }
+  for (const id of ['kills_100', 'kills_500', 'survive_3', 'survive_5', 'level_10', 'level_25', 'evolve_1', 'arsenal', 'boss_fields', 'boss_wasteland', 'runs_10', 'total_kills_2k', 'dash_50', 'threat_1', 'rich']) s.ach[id] = now
+  window.__neon.refreshAll?.()
+}
+
+const MOBILE_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'
+
+/** 开一个带预置存档的页面（每个视口配置一个独立 context） */
+async function uiSession(browser, base, o) {
+  const ctx = await browser.newContext({
+    viewport: { width: o.w, height: o.h },
+    deviceScaleFactor: o.dpr ?? 1,
+    ...(o.touch ? { isMobile: true, hasTouch: true, userAgent: MOBILE_UA } : {}),
+  })
+  const page = await ctx.newPage()
+  watch(page, o.label ?? 'ui')
+  await page.goto(`${base}${o.lang === 'en' ? '/en' : ''}/?e2e=1&q=high`, { waitUntil: 'load' })
+  await waitReady(page)
+  if ((o.seed ?? 'rich') === 'rich') await page.evaluate(SEED_RICH)
+  return page
+}
+
+/** 切到某一屏并等它稳定。返回截图文件名（不含后缀与 tag） */
+async function uiShow(page, kind, settle = 700) {
+  const go = async (id, sel) => {
+    await page.evaluate((id) => window.__neon.go(id), id)
+    await page.waitForSelector(sel, { timeout: 8000 })
+    await sleep(settle)
+  }
+  if (kind === 'menu') {
+    await go('menu', '.screen.menu')
+    await sleep(settle * 3)
+    return 'ui-menu'
+  }
+  if (kind === 'ach') {
+    await go('ach', '.screen.ach')
+    return 'ui-ach'
+  }
+  if (kind === 'hangar') {
+    await go('hangar', '.screen.hangar')
+    return 'ui-hangar'
+  }
+  if (kind === 'deploy') {
+    await go('deploy', '.screen.deploy')
+    await sleep(settle * 0.7)
+    return 'ui-deploy'
+  }
+  if (kind === 'settings') {
+    await go('menu', '.screen.menu')
+    await page.evaluate(() => window.__neon.ctx.openSettings())
+    await page.waitForSelector('.modal.settings:not([hidden])', { timeout: 8000 })
+    await sleep(settle * 0.7)
+    return 'ui-settings'
+  }
+  // 局内的两个浮层：暂停（带配装面板）、升级选卡
+  if (kind === 'pause' || kind === 'levelup') {
+    await page.evaluate((kind) => {
+      const a = window.__neon
+      a.startRun({ ship: 'vanguard', sector: 'fields', threat: 0, endless: false })
+      a.fastForward(240)
+      if (kind === 'pause') a.pause()
+      else a.game.addXp(1e6)
+    }, kind)
+    await page.waitForSelector(kind === 'pause' ? '.overlay.pause:not([hidden])' : '.overlay.levelup:not([hidden])', { timeout: 8000 })
+    await sleep(settle * 1.3)
+    return `ui-${kind}`
+  }
+  // short = 刚过 45 秒的一局：账单里会多出「最低保底」一行（不在默认的屏幕列表里，用 --only short 单独看）
+  if (kind === 'win' || kind === 'lose' || kind === 'short') {
+    await page.evaluate(
+      ([kind]) => {
+        const a = window.__neon
+        a.startRun({ ship: 'vanguard', sector: 'fields', threat: 1, endless: false })
+        a.godMode = true
+        a.autoPilot = true
+        a.fastForward(60)
+        const w = a.game
+        const st = w.stats
+        st.time = kind === 'win' ? 612 : kind === 'short' ? 52 : 318
+        st.kills = kind === 'win' ? 2466 : kind === 'short' ? 14 : 904
+        st.evolves = kind === 'win' ? 3 : 0
+        st.bossKilled = kind === 'win'
+        w.player.level = kind === 'win' ? 34 : kind === 'short' ? 2 : 17
+        if (kind !== 'win') st.killedBy = 'shooter'
+        a.finishRun()
+      },
+      [kind],
+    )
+    await page.waitForSelector('.overlay.results:not([hidden])', { timeout: 8000 })
+    await sleep(settle * 4) // 结算页的数字滚动、勋章逐个出现要等一会
+    return `ui-results-${kind}`
+  }
+  throw new Error(`未知屏幕 ${kind}`)
+}
+
+/** 离开某一屏，回到干净的菜单 */
+async function uiLeave(page, kind) {
+  if (kind === 'settings') {
+    await page.keyboard.press('Escape')
+    await sleep(250)
+  } else if (kind === 'pause' || kind === 'levelup' || kind === 'win' || kind === 'lose' || kind === 'short') {
+    await page.evaluate(() => window.__neon.go('menu'))
+    await sleep(350)
+  }
+}
+
+async function ui(base) {
+  const opt = (k, d) => (args.includes(`--${k}`) ? args[args.indexOf(`--${k}`) + 1] : d)
+  const only = new Set(opt('only', UI_SCREENS.join(',')).split(','))
+  const tag = opt('tag', '')
+  const suffix = tag ? `-${tag}` : ''
+  const browser = await launch()
+  const page = await uiSession(browser, base, {
+    w: Number(opt('w', '1440')),
+    h: Number(opt('h', '810')),
+    dpr: Number(opt('dpr', '1')),
+    touch: opt('touch', '0') === '1',
+    lang: opt('lang', 'zh'),
+    seed: opt('seed', 'rich'),
+  })
+  for (const kind of [...UI_SCREENS, 'short']) {
+    if (!only.has(kind)) continue
+    const name = await uiShow(page, kind)
+    await shot(page, `${name}${suffix}`)
+    await uiLeave(page, kind)
+  }
+  await browser.close()
+}
+
+/**
+ * 页面里量：当前可见的整页界面 / 浮层有没有
+ *   ① 文档或滚动容器横向溢出（> 4px，留给聚焦环的 3px 外扩）
+ *   ② 按钮 / 分段 / 开关 / 标签 的文字被撑出自己的盒子，或整个盒子伸出视口
+ *   ③ 被 text-overflow: ellipsis 吃掉的文字（标题被省略号截断）
+ *   ④ 该屏的"主操作"有没有完整落在视口里（菜单的出击、出击准备的开始、暂停的继续、设置的关闭）
+ * 返回 { issues, notes }：issues 会让 e2e 失败；notes 只是提示（比如需要滚动才能看全的屏）。
+ */
+function pageAuditInPage(kind) {
+  const issues = []
+  const notes = []
+  const vw = window.innerWidth
+  const vh = window.innerHeight
+  const hiddenUp = (el) => !!el.closest('[hidden]')
+  const shown = (el) => {
+    if (hiddenUp(el)) return false
+    const r = el.getBoundingClientRect()
+    if (r.width < 1 || r.height < 1) return false
+    const cs = getComputedStyle(el)
+    return cs.visibility !== 'hidden' && cs.display !== 'none'
+  }
+  const name = (el) => `${el.tagName.toLowerCase()}.${String(el.className).split(/\s+/).filter(Boolean).slice(0, 3).join('.')}${el.textContent ? `「${el.textContent.trim().slice(0, 12)}」` : ''}`
+
+  const de = document.documentElement
+  if (de.scrollWidth > vw + 4) issues.push(`文档横向溢出 ${de.scrollWidth}>${vw}`)
+
+  const layers = [...document.querySelectorAll('.screen, .overlay, .modal-panel, .modal-body')].filter(shown)
+  for (const L of layers) {
+    if (L.scrollWidth > L.clientWidth + 4) issues.push(`${name(L)} 横向溢出 ${L.scrollWidth}>${L.clientWidth}`)
+  }
+
+  const inLayer = (el) => layers.some((L) => L.contains(el))
+  for (const el of document.querySelectorAll('.btn, .seg, .toggle-row, .chip, .tag, .lvtag, .lv-badge, .tile, .card')) {
+    if (!shown(el) || !inLayer(el)) continue
+    const r = el.getBoundingClientRect()
+    if (r.left < -1 || r.right > vw + 1) issues.push(`${name(el)} 伸出视口 [${Math.round(r.left)}, ${Math.round(r.right)}] / ${vw}`)
+    if (el.scrollWidth > el.clientWidth + 4 && getComputedStyle(el).overflowX !== 'auto') issues.push(`${name(el)} 内容撑出盒子 ${el.scrollWidth}>${el.clientWidth}`)
+  }
+
+  for (const el of document.querySelectorAll('.scr-head h2, .card-title b, .lv-card h3, .tile-l, .ach-card h4')) {
+    if (!shown(el) || !inLayer(el)) continue
+    if (getComputedStyle(el).textOverflow === 'ellipsis' && el.scrollWidth > el.clientWidth + 1) issues.push(`${name(el)} 文字被省略号截断`)
+  }
+
+  const must = {
+    menu: ['.screen.menu .btn.play'],
+    deploy: ['.screen.deploy .btn.start'],
+    pause: ['.overlay.pause:not([hidden]) .pause-actions .btn.primary'],
+    settings: ['.modal.settings:not([hidden]) .modal-head .btn'],
+  }[kind]
+  for (const sel of must ?? []) {
+    const el = document.querySelector(sel)
+    if (!el) {
+      issues.push(`找不到主操作 ${sel}`)
+      continue
+    }
+    const r = el.getBoundingClientRect()
+    if (r.top < -1 || r.bottom > vh + 1 || r.left < -1 || r.right > vw + 1) issues.push(`主操作 ${sel} 不在视口内 [${Math.round(r.left)},${Math.round(r.top)} → ${Math.round(r.right)},${Math.round(r.bottom)}] / ${vw}×${vh}`)
+  }
+
+  // 升级选卡：三张卡的上沿都应该在首屏里（需要滚动才看得到选项的话，提示一下）
+  if (kind === 'levelup') {
+    const cards = [...document.querySelectorAll('.overlay.levelup:not([hidden]) .lv-card')]
+    const lastBottom = Math.max(0, ...cards.map((c) => c.getBoundingClientRect().bottom))
+    if (lastBottom > vh + 1) notes.push(`升级选卡需要滚动才能看全（末张卡底 ${Math.round(lastBottom)} > ${vh}）`)
+    if (cards.some((c) => c.getBoundingClientRect().top > vh - 40)) issues.push('升级选卡有卡片完全在首屏之外')
+  }
+  if (kind === 'win' || kind === 'lose' || kind === 'short') {
+    // 账单：逐行相加必须恰好等于合计（合计元素带 data-total，不必等数字滚完）
+    const rows = [...document.querySelectorAll('.overlay.results:not([hidden]) .cores-rows .cr b')].map((b) => Number(b.textContent.replace(/[^0-9]/g, '')))
+    const total = Number(document.querySelector('.overlay.results:not([hidden]) .cores-total')?.dataset.total)
+    const sum = rows.reduce((a, b) => a + b, 0)
+    if (!(total > 0)) issues.push('结算页没有合计')
+    else if (sum !== total) issues.push(`晶核账单对不上：各行之和 ${sum} ≠ 合计 ${total}（${rows.join(' + ')}）`)
+    const btn = document.querySelector('.overlay.results:not([hidden]) .res-actions .btn')
+    if (btn) {
+      const r = btn.getBoundingClientRect()
+      if (r.bottom > vh + 1) notes.push(`结算页按钮需要滚动才能点到（底 ${Math.round(r.bottom)} > ${vh}）`)
+    }
+  }
+  return { issues, notes }
+}
+
+async function pages(base) {
+  const profiles = [
+    { name: 'phone-port', w: 390, h: 844, touch: true },
+    { name: 'phone-port-s', w: 360, h: 640, touch: true },
+    { name: 'phone-land', w: 844, h: 390, touch: true },
+    { name: 'phone-land-s', w: 667, h: 360, touch: true },
+    { name: 'tablet-port', w: 820, h: 1180, touch: true },
+    { name: 'desktop', w: 1280, h: 720, touch: false },
+    { name: 'desktop-s', w: 1024, h: 600, touch: false },
+  ]
+  const opt = (k, d) => (args.includes(`--${k}`) ? args[args.indexOf(`--${k}`) + 1] : d)
+  const only = opt('only', null)
+  const langs = opt('lang', 'both') === 'both' ? ['zh', 'en'] : [opt('lang', 'zh')]
+  const shots = opt('shots', '0') === '1'
+  const screens = opt('screens', UI_SCREENS.join(',')).split(',')
+  const browser = await launch()
+  let checked = 0
+  for (const lang of langs) {
+    for (const pf of profiles) {
+      if (only && pf.name !== only) continue
+      const label = `pages-${pf.name}-${lang}`
+      const page = await uiSession(browser, base, { ...pf, dpr: shots ? 2 : 1, lang, label })
+      for (const kind of screens) {
+        const name = await uiShow(page, kind, 350)
+        const { issues, notes } = await page.evaluate(pageAuditInPage, kind)
+        checked++
+        for (const i of issues) problems.push(`[${label}/${kind}] ${i}`)
+        for (const n of notes) console.log(`  ℹ ${label}/${kind}: ${n}`)
+        if (shots) await shot(page, `${name.replace('ui-', 'pg-')}-${pf.name}-${lang}`)
+        await uiLeave(page, kind)
+      }
+      await page.context().close()
+      console.log(`  ${label}: ${screens.length} 屏`)
+    }
+  }
+  console.log(`  共审计 ${checked} 屏`)
+  await browser.close()
+}
+
 // ───────────────────────── 入口 ─────────────────────────
 
 let srv = null
@@ -1521,6 +1798,8 @@ try {
   else if (mode === 'fx') await fx(base)
   else if (mode === 'layout') await layout(base)
   else if (mode === 'art') await art(base)
+  else if (mode === 'ui') await ui(base)
+  else if (mode === 'pages') await pages(base)
   else throw new Error(`未知模式 ${mode}`)
 } finally {
   srv?.server.close()

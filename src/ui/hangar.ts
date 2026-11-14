@@ -88,6 +88,7 @@ export function createHangar(ctx: UiCtx): Screen {
         class: `btn sm ${confirmRefund ? 'danger' : 'ghost'}`,
         disabled: hasAny ? null : true,
         title: t('hangar.refundDesc'),
+        'aria-label': confirmRefund ? t('common.confirm') : t('hangar.refund'),
         onClick: () => {
           if (!confirmRefund) {
             confirmRefund = true
@@ -105,7 +106,7 @@ export function createHangar(ctx: UiCtx): Screen {
         },
       },
       iconEl('refresh'),
-      confirmRefund ? t('common.confirm') : t('hangar.refund'),
+      h('span', { class: confirmRefund ? 'lbl keep' : 'lbl' }, confirmRefund ? t('common.confirm') : t('hangar.refund')),
     )
 
     el.append(

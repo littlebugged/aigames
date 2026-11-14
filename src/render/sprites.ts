@@ -80,11 +80,14 @@ function shipSprite(id: ShipId, ss: number, flash: boolean): Sprite {
 /**
  * 机库 / 结算界面的飞船立绘：和局内同一套部件，机头朝上并带尾焰。
  * 独立画布（不依赖 SpriteBank，菜单阶段就能用）；px 是 CSS 像素边长，内部按设备像素比超采样。
+ * sharp = true（主菜单的大立绘）：精灵按"最终显示的像素数"重新画一遍，不是把局内用的小精灵放大——放大 3 倍会发糊。
  */
-export function shipPortrait(id: ShipId, px: number): HTMLCanvasElement {
+export function shipPortrait(id: ShipId, px: number, sharp = false): HTMLCanvasElement {
   const dpr = Math.min(3, Math.max(1, Math.round(globalThis.devicePixelRatio || 1)))
-  const spr = shipSprite(id, Math.max(2, dpr * 1.5), false)
-  const flame = flameSprite(SHIPS[id].color, 2)
+  const base = Math.ceil(SHIP_R * SHIP_ART[id].reach + 4) * 2
+  const ss = sharp ? Math.min(10, Math.max(2, (px * dpr * 0.9) / base)) : Math.max(2, dpr * 1.5)
+  const spr = shipSprite(id, ss, false)
+  const flame = flameSprite(SHIPS[id].color, sharp ? Math.max(2, ss / 2) : 2)
   const c = document.createElement('canvas')
   c.width = c.height = Math.round(px * dpr)
   c.style.width = c.style.height = `${px}px`
