@@ -448,6 +448,12 @@ export class AudioEngine {
       case 'evolve':
         this.evolveSting()
         break
+      case 'surge':
+        this.surgeSting()
+        break
+      case 'multi':
+        this.multiSting(e.tier)
+        break
       case 'end':
         if (e.won) this.fanfare()
         else this.defeat()
@@ -549,6 +555,25 @@ export class AudioEngine {
     this.arp([84, 88, 91, 96], 0.06, { type: 'triangle', vol: 0.07 }, T + 0.08)
     this.tone(mtof(96), 1.2, { type: 'sine', vol: 0.07, delay: T + 0.4, attack: 0.02 })
     this.duckMusic(0.3, 1.5)
+  }
+
+  /** 浪涌释放：一声压下来的低频冲击 + 向外铺开的"哗"+ 一串上行的亮音——比炸弹更宽，比进化更短 */
+  private surgeSting(): void {
+    this.tone(74, 0.85, { type: 'sine', f1: 28, vol: 0.4 })
+    this.tone(148, 0.4, { type: 'triangle', f1: 62, vol: 0.14 })
+    this.noise(0.75, { type: 'bandpass', f0: 420, f1: 5400, q: 0.8, vol: 0.2, attack: 0.05 })
+    this.noise(0.5, { type: 'highpass', f0: 3200, f1: 9000, vol: 0.08, delay: 0.06 })
+    this.arp([84, 88, 91, 96], 0.05, { type: 'sine', vol: 0.09 }, 0.08)
+    this.duckMusic(0.5, 0.8)
+  }
+
+  /** 群杀播报：档位越高，上行的音越多、越高，≥3 档再垫一记低音 */
+  private multiSting(tier: number): void {
+    if (!this.ok('multi', 0.3)) return
+    const base = 79 + tier * 2
+    const notes = [0, 4, 7, 12, 16].slice(0, Math.min(5, 2 + tier)).map((s) => base + s)
+    this.arp(notes, 0.045, { type: 'triangle', vol: 0.07 + tier * 0.012 }, 0.05)
+    if (tier >= 3) this.tone(mtof(base - 28), 0.5, { type: 'sine', f1: mtof(base - 40), vol: 0.16 + tier * 0.02 })
   }
 
   private pickup(kind: string): void {

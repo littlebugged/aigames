@@ -36,6 +36,8 @@ export interface BestRun {
   weapons: number
   noHit: number
   dashes: number
+  /** 0.6 秒窗口内的最高击杀数（群杀） */
+  multi: number
 }
 
 export interface Totals {
@@ -100,7 +102,7 @@ export function defaultSave(lang: Lang = 'zh'): SaveData {
     bestEndless: rec(0),
     clears: rec(0),
     maxThreat: rec(-1),
-    best: { time: 0, kills: 0, level: 0, evolves: 0, weapons: 0, noHit: 0, dashes: 0 },
+    best: { time: 0, kills: 0, level: 0, evolves: 0, weapons: 0, noHit: 0, dashes: 0, multi: 0 },
     totals: { runs: 0, wins: 0, deaths: 0, kills: 0, time: 0, evolves: 0, dashes: 0 },
     ach: {},
     last: { ship: 'vanguard', sector: 'fields', threat: 0, endless: false },
@@ -162,6 +164,7 @@ export function sanitize(raw: unknown, lang: Lang = 'zh'): SaveData {
       weapons: Math.floor(num(b.weapons, 0, 99, 0)),
       noHit: num(b.noHit, 0, 86400, 0),
       dashes: Math.floor(num(b.dashes, 0, BIG, 0)),
+      multi: Math.floor(num(b.multi, 0, BIG, 0)),
     }
   }
   if (isObj(raw.totals)) {
@@ -329,6 +332,13 @@ export function apportion(values: readonly number[], target: number): number[] {
   return floors
 }
 
+/**
+ * 多少次击杀折合 1 颗晶核。
+ * v1.13 割草改版后一局的击杀数是以前的 2~3 倍（杂兵一两下就倒、场上人潮更密），
+ * 所以这个系数从 45 调到 120，让一局的晶核收益与改版前基本持平——击杀多了，不等于升级机库变快。
+ */
+export const KILLS_PER_CORE = 120
+
 /** 一局的晶核收益。时间 ≥ 45 秒保底 25。 */
 export function runCores(
   stats: RunStats,
@@ -339,7 +349,7 @@ export function runCores(
 ): CoreBreakdown {
   const mult = SECTORS[sector].reward * THREAT_LEVELS[Math.min(THREAT_LEVELS.length - 1, Math.max(0, threat))].reward * greedMul
   const parts = [
-    stats.kills / 45,
+    stats.kills / KILLS_PER_CORE,
     (stats.time / 60) * 5,
     stats.level * 1.2,
     stats.evolves * 12,
@@ -363,7 +373,7 @@ export interface Settlement {
   unlockedSector: SectorId | null
   /** 新解锁的威胁等级（该星区） */
   unlockedThreat: number | null
-  records: { time: boolean; kills: boolean; endless: boolean }
+  records: { time: boolean; kills: boolean; endless: boolean; multi: boolean }
   cleared: boolean
 }
 
@@ -389,6 +399,8 @@ export function metricValue(s: SaveData, metric: AchMetric, run?: RunSummary): n
       return Math.max(s.best.noHit, rs?.noHitBest ?? 0)
     case 'runDashes':
       return Math.max(s.best.dashes, rs?.dashes ?? 0)
+    case 'runMulti':
+      return Math.max(s.best.multi, rs?.bestMulti ?? 0)
     case 'totalKills':
       return s.totals.kills
     case 'totalRuns':
@@ -448,7 +460,7 @@ export function settleRun(s: SaveData, run: RunSummary, now = Date.now()): Settl
     unlockedShips: [],
     unlockedSector: null,
     unlockedThreat: null,
-    records: { time: false, kills: false, endless: false },
+    records: { time: false, kills: false, endless: false, multi: false },
     cleared,
   }
 
@@ -465,6 +477,7 @@ export function settleRun(s: SaveData, run: RunSummary, now = Date.now()): Settl
     out.records.endless = true
   }
   if (st.kills > s.best.kills) out.records.kills = true
+  if (st.bestMulti > s.best.multi && s.best.multi > 0) out.records.multi = true
 
   // 最好成绩（成就进度）
   const b = s.best
@@ -475,6 +488,7 @@ export function settleRun(s: SaveData, run: RunSummary, now = Date.now()): Settl
   b.weapons = Math.max(b.weapons, st.maxWeapons)
   b.noHit = Math.max(b.noHit, st.noHitBest)
   b.dashes = Math.max(b.dashes, st.dashes)
+  b.multi = Math.max(b.multi, st.bestMulti)
 
   // 累计
   const t = s.totals

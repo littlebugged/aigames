@@ -96,10 +96,16 @@ export function resolveWeaponStats(id: WeaponId, level: number, evolved: boolean
   }
 }
 
-/** 升到下一级所需经验 */
-/** 升级所需经验 = round(a + b*L + c*L²)。可调，仅供平衡测试覆盖。 */
-export const XP_CURVE = { a: 5.6, b: 3.6, c: 0.28 }
+/**
+ * 升到下一级所需经验 = round(a + b·L + c·L² + d·L³)。可调，仅供平衡测试覆盖。
+ *
+ * v1.13 割草改版：一局的击杀数是以前的 2~3 倍，而且越到后期击杀越快（每秒几十只）。
+ * 如果曲线不变，十分钟会升到 60 级，选卡界面把战斗打断几十次、装备也早早练满。
+ * 所以前几级比以前更便宜（尽快凑出 3~4 把武器，开局不饿肚子），后面用三次项把升级越拉越贵——
+ * 十分钟大约 40~45 级，升级的节奏从"一直在选卡"变成"偶尔弹出一次"。
+ */
+export const XP_CURVE = { a: 5, b: 2.4, c: 0.27, d: 0.015 }
 
 export function xpForLevel(level: number): number {
-  return Math.round(XP_CURVE.a + XP_CURVE.b * level + XP_CURVE.c * level * level)
+  return Math.round(XP_CURVE.a + XP_CURVE.b * level + XP_CURVE.c * level * level + XP_CURVE.d * level * level * level)
 }

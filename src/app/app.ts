@@ -33,6 +33,9 @@ import { detectLang, loadSave, writeSave } from './storage'
 type State = 'menu' | 'play' | 'results'
 
 const MAX_STEP = 1 / 30
+/** 浪涌的演出：顿帧时长 / 整段慢放时长（真实秒） */
+const SURGE_HITSTOP = 0.07
+const SURGE_SLOW_TOTAL = 0.55
 
 export class App {
   private save: SaveData
@@ -64,6 +67,8 @@ export class App {
    * t 是事件发生后的真实秒数，只在对局进行中才走（暂停 / 选卡时冻结）。
    */
   private cine: { t: number; w: WeaponId; boomed: boolean } | null = null
+  /** 浪涌释放后的"顿帧 → 慢放回弹"：距离释放过去的真实时间（秒），< 0 表示没有在播 */
+  private surgeT = -1
   private endT = -1
   private lastT = 0
   private sel: Selection
@@ -468,6 +473,7 @@ export class App {
     this.paused = false
     this.endT = -1
     this.cine = null
+    this.surgeT = -1
     this.tutStep = 0
     this.lastBonus = 0
     this.renderer.attach(w)
@@ -560,6 +566,17 @@ export class App {
         this.hud.showEvolve(e.w)
         this.input.buzz([30, 30, 70])
         break
+      case 'surge':
+        this.surgeT = 0
+        this.hud.fireSurge()
+        this.input.buzz([20, 20, 40])
+        // 第一次放出来的时候解释一下它是什么（只在新手第一局）
+        if (!this.save.tutorialDone) this.hud.showHint(t('tut.surge'), 8)
+        break
+      case 'multi':
+        this.hud.showMulti(e.n, e.tier)
+        if (e.tier >= 3) this.input.buzz(e.tier >= 5 ? [30, 30, 60] : 30)
+        break
       case 'revive':
         this.hud.toast(t('hud.revived'), 'good', 2800)
         this.input.buzz([40, 30, 80])
@@ -581,6 +598,7 @@ export class App {
         break
       case 'end':
         this.cine = null
+        this.surgeT = -1
         this.endT = e.won ? 1.0 : 1.6
         this.input.enabled = false
         this.audio.musicMode('off')
@@ -671,7 +689,7 @@ export class App {
       }
       if (this.godMode) w.player.hp = w.player.maxHp
       // 进化演出的时间流速（1 = 正常）
-      ts = this.cineScale(dt)
+      ts = Math.min(this.cineScale(dt), this.surgeScale(dt))
       const sdt = dt * ts
       // 帧率低时分多步模拟，保持游戏速度；单步不超过 1/30 秒
       const steps = Math.min(3, Math.max(1, Math.ceil(sdt / MAX_STEP)))
@@ -723,6 +741,20 @@ export class App {
       return 1
     }
     return evolveTimeScale(c.t)
+  }
+
+  /** 浪涌的时间流速：先顿一帧半（砸下去的感觉），再从慢放平滑回到正常 */
+  private surgeScale(dt: number): number {
+    if (this.surgeT < 0) return 1
+    this.surgeT += dt
+    const t0 = this.surgeT
+    if (t0 >= SURGE_SLOW_TOTAL) {
+      this.surgeT = -1
+      return 1
+    }
+    if (t0 < SURGE_HITSTOP) return 0.1
+    const k = (t0 - SURGE_HITSTOP) / (SURGE_SLOW_TOTAL - SURGE_HITSTOP)
+    return 0.42 + 0.58 * k * k
   }
 
   private intensityOf(w: World): number {

@@ -10,6 +10,7 @@ import {
   buyShip,
   defaultSave,
   isSectorUnlocked,
+  KILLS_PER_CORE,
   maxSelectableThreat,
   parseSave,
   refundMeta,
@@ -34,6 +35,8 @@ const stats = (o: Partial<RunStats> = {}): RunStats => ({
   cleared: false,
   killedBy: '',
   hurtBy: {},
+  bestMulti: 0,
+  surges: 0,
   ...o,
 })
 
@@ -112,7 +115,7 @@ test('晶核账单：逐行相加恰好等于合计（含保底补足），合�
   const rnd = (): number => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32)
   const sectors = SECTOR_IDS
   for (let n = 0; n < 400; n++) {
-    const st = stats({ time: Math.floor(rnd() * 900), kills: Math.floor(rnd() * 6000), level: 1 + Math.floor(rnd() * 40), evolves: Math.floor(rnd() * 5), bossKilled: rnd() < 0.3 })
+    const st = stats({ time: Math.floor(rnd() * 900), kills: Math.floor(rnd() * 20000), level: 1 + Math.floor(rnd() * 40), evolves: Math.floor(rnd() * 5), bossKilled: rnd() < 0.3 })
     const sector = sectors[Math.floor(rnd() * sectors.length)]
     const threat = Math.floor(rnd() * 4)
     const greed = 1 + Math.floor(rnd() * 4) * 0.1
@@ -122,7 +125,7 @@ test('晶核账单：逐行相加恰好等于合计（含保底补足），合�
     assert.equal(rows, c.total, `账单对不上：${JSON.stringify(st)} ${sector} 威胁${threat} 贪婪${greed}`)
     // 每一行都是非负整数，且与单独四舍五入相比最多差 1
     const mult = c.mult
-    const exact = [st.kills / 45, (st.time / 60) * 5, st.level * 1.2, st.evolves * 12, st.bossKilled ? 120 : 0].map((v) => v * mult)
+    const exact = [st.kills / KILLS_PER_CORE, (st.time / 60) * 5, st.level * 1.2, st.evolves * 12, st.bossKilled ? 120 : 0].map((v) => v * mult)
     ;[c.kills, c.time, c.level, c.evolves, c.boss].forEach((v, i) => {
       assert.ok(Number.isInteger(v) && v >= 0, `第 ${i} 行不是非负整数`)
       assert.ok(Math.abs(v - exact[i]) < 1 + 1e-9, `第 ${i} 行偏离精确值超过 1：${v} vs ${exact[i]}`)
@@ -134,7 +137,7 @@ test('晶核账单：逐行相加恰好等于合计（含保底补足），合�
   const short = runCores(stats({ time: 50, kills: 10, level: 2 }), 'fields', 0, 1, 0)
   assert.ok(short.floor > 0, '很短但超过 45 秒的一局，保底补足应单独成行')
   assert.equal(short.total, 25)
-  assert.equal(runCores(stats({ time: 600, kills: 5000, level: 36, bossKilled: true }), 'fields', 0, 1, 0).floor, 0)
+  assert.equal(runCores(stats({ time: 600, kills: 15000, level: 36, bossKilled: true }), 'fields', 0, 1, 0).floor, 0)
 })
 
 test('apportion：最大余数法，整数之和恰好等于目标', () => {
@@ -193,11 +196,11 @@ test('结算：无尽模式不影响通关次数，只更新无尽记录', () =>
 
 test('成就：达成即发奖励，只发一次；奖励可连锁触发其它成就；飞船随成就解锁', () => {
   const s = defaultSave()
-  const r = settleRun(s, run({ stats: { time: 190, kills: 120, level: 11 } }), 1)
+  const r = settleRun(s, run({ stats: { time: 190, kills: 450, level: 11 } }), 1)
   const ids = r.newAch.map((a) => a.id)
   assert.ok(ids.includes('kills_100') && ids.includes('survive_3') && ids.includes('level_10'))
   assert.equal(r.achCores, r.newAch.reduce((a, b) => a + b.reward, 0))
-  const r2 = settleRun(s, run({ stats: { time: 190, kills: 120, level: 11 } }), 2)
+  const r2 = settleRun(s, run({ stats: { time: 190, kills: 450, level: 11 } }), 2)
   assert.equal(r2.newAch.length, 0)
 
   const t = defaultSave()
@@ -216,8 +219,8 @@ test('成就：每一条都能被满足（不存在永远无法解锁的成就�
   for (const a of ACHIEVEMENTS) {
     const s = defaultSave()
     // 构造一个足够好的存档去触发
-    s.best = { time: 9999, kills: 99999, level: 99, evolves: 9, weapons: 6, noHit: 999, dashes: 999 }
-    s.totals = { runs: 99, wins: 9, deaths: 9, kills: 99999, time: 1, evolves: 1, dashes: 1 }
+    s.best = { time: 9999, kills: 999999, level: 99, evolves: 9, weapons: 6, noHit: 999, dashes: 999, multi: 999 }
+    s.totals = { runs: 99, wins: 9, deaths: 9, kills: 999999, time: 1, evolves: 1, dashes: 1 }
     s.lifetimeCores = 99999
     s.clears = Object.fromEntries(SECTOR_IDS.map((id) => [id, 1])) as Record<SectorId, number>
     s.maxThreat = Object.fromEntries(SECTOR_IDS.map((id) => [id, 3])) as Record<SectorId, number>

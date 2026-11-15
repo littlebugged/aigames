@@ -352,14 +352,15 @@ const hash = (i: number): number => {
  * 冲击环。r 是当前半径，maxR 是最大半径；p = r / maxR 越大越淡。
  * 友方：一道有厚度的波前（外缘最亮、向内渐隐）+ 分段的装甲环 + 向内的尾迹线；
  * 敌方：同样的波前，但外缘长着一圈朝外的尖齿，颜色更饱和——远远一看就是"必须冲刺穿过去"的东西。
+ * wide：波前粗细倍率（浪涌的冲击波比普通环宽得多）。
  */
-export function paintRing(ctx: Ctx, x: number, y: number, r: number, maxR: number, color: string, hostile: boolean, vt: number): void {
+export function paintRing(ctx: Ctx, x: number, y: number, r: number, maxR: number, color: string, hostile: boolean, vt: number, wide = 1): void {
   const p = clamp01(r / maxR)
   const a = 1 - p * 0.75
   // 波前自己的色相：武器色常是近白的（冰蓝 / 奶油），拿来做色带会发灰，所以把饱和度提上去
   const [hh, ss] = toHsl(color)
   const band = fromHsl(hh, Math.max(0.6, ss), hostile ? 0.64 : 0.6)
-  const bw = clamp(r * (hostile ? 0.16 : 0.2), 9, hostile ? 30 : 38) * (1 - 0.3 * p)
+  const bw = clamp(r * (hostile ? 0.16 : 0.2) * wide, 9, (hostile ? 30 : 38) * wide) * (1 - 0.3 * p)
   const r0 = Math.max(0, r - bw)
   // 波前的厚度：外缘亮、向内渐隐
   const g = ctx.createRadialGradient(x, y, r0, x, y, r)

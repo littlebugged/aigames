@@ -325,7 +325,7 @@ async function play(base) {
       for (const [hx, hy] of heap) for (let k = 0; k < 14; k++) put(k % 3 === 0 ? 'swarmer' : 'drone', p.x + hx + ((k * 37) % 70) - 35, p.y + hy + ((k * 53) % 70) - 35, false)
     })
   }
-  // --catch beams|bolts|rings|ebullets|hbeams|hrings|shells|landing|tethers|strike|lob|slam|forgebeams|forgewarn：一小步一小步往前跑，直到场上出现这种特效的那一帧，再暂停截图
+  // --catch beams|bolts|rings|ebullets|hbeams|hrings|shells|landing|tethers|strike|lob|slam|forgebeams|forgewarn|surge|multi：一小步一小步往前跑，直到场上出现这种特效的那一帧，再暂停截图
   // （武器是自动开火的，直接截图常常拍不到光束 / 电弧 / 冲击环）。--skip N 再多跑 N 小步（0.03 秒一步）
   const catchWhat = opt('catch', '')
   if (catchWhat) {
@@ -338,6 +338,13 @@ async function play(base) {
           if (what === 'beams') return w.beams.some((b) => b.alive && !b.hostile)
           if (what === 'bolts') return w.bolts.some((b) => b.alive)
           if (what === 'rings') return w.rings.some((r) => r.alive && !r.hostile && r.delay <= 0 && r.r > 40)
+          // 浪涌：冲击波扫到屏幕中段的那一帧（--skip 再往后看杀戮的"尾波"）；multi = 群杀播报正在显示
+          if (what === 'surge') return w.rings.some((r) => r.alive && r.quiet && r.delay <= 0 && r.r > 260)
+          if (what === 'multi') {
+            // 播报的 CSS 动画放完之后 .show 还在（opacity 回到 0），所以要看真实的透明度
+            const c = document.querySelector('.callout.show')
+            return !!c && Number(getComputedStyle(c).opacity) > 0.7
+          }
           if (what === 'ebullets') return w.ebullets.length > 12
           if (what === 'hbeams') return w.beams.some((b) => b.alive && b.hostile)
           if (what === 'hrings') return w.rings.some((r) => r.alive && r.hostile && r.r > 120)

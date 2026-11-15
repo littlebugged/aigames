@@ -32,8 +32,16 @@ export class Hud {
   private readonly evoBanner = h('div', { class: 'evo-banner' })
   private readonly toasts = h('div', { class: 'toasts' })
   private readonly hint = h('div', { class: 'hint' })
+  /** 浪涌充能条：图标 + 切角细框里的格子条 + 文字 */
+  private readonly surgeFill = h('i', { class: 'surge-fill' })
+  private readonly surgeLab = h('span', { class: 'surge-lab' }, t('hud.surge'))
+  private readonly surge: HTMLElement
+  /** 群杀播报：大号 ×N + 一块切角的名牌 */
+  private readonly callNum = h('b', { class: 'call-num' })
+  private readonly callWord = h('span', { class: 'call-word' })
+  private readonly call = h('div', { class: 'callout' }, this.callNum, h('div', { class: 'call-plate' }, this.callWord))
 
-  private last = { xp: -1, lv: -1, hp: -1, hpMax: -1, time: -1, kills: -1, boss: -1, dash: -1 }
+  private last = { xp: -1, lv: -1, hp: -1, hpMax: -1, time: -1, kills: -1, boss: -1, dash: -1, surge: -1 }
   private wSig = ''
   private pSig = ''
   private bannerT = 0
@@ -48,6 +56,7 @@ export class Hud {
     // 血条 / Boss 血条 = 切角的细边框（板）+ 里面裁成同样切角的内槽（.bar-in），填充条在槽里按宽度伸缩
     this.hpWrap = h('div', { class: 'hp' }, iconEl('heal', 'hp-ico'), h('div', { class: 'hp-bar' }, h('div', { class: 'bar-in' }, this.hpTrail, this.hpFill)), this.hpText)
     this.bossBar = h('div', { class: 'boss-bar', hidden: true }, this.bossName, h('div', { class: 'boss-track' }, h('div', { class: 'bar-in' }, this.bossFill)))
+    this.surge = h('div', { class: 'hud-sg' }, iconEl('surge', 'sg-ico'), h('div', { class: 'hp-bar surge-bar' }, h('div', { class: 'bar-in' }, this.surgeFill)), this.surgeLab)
     this.dash = h('div', { class: 'dash-ring ready' }, iconEl('dash'))
     this.dashBtn = h('button', { class: 'dash-btn ready', tabindex: -1, 'aria-label': t('hud.dash') }, iconEl('dash'), h('span', null, t('hud.dash')))
     this.dashBtn.addEventListener('pointerdown', (e) => {
@@ -77,6 +86,8 @@ export class Hud {
       h('div', { class: 'hud-tl' }, this.hpWrap),
       h('div', { class: 'hud-tc' }, this.timer, this.eta, this.bossBar, h('div', { class: 'hud-stack' }, this.banner, this.evoBanner, this.toasts)),
       h('div', { class: 'hud-tr' }, h('div', { class: 'kills' }, iconEl('skull'), this.kills), pauseBtn),
+      this.surge,
+      this.call,
       h('div', { class: 'hud-bl' }, this.hint, this.weapons, this.passives),
       h('div', { class: 'hud-bc' }, this.dash),
       h('div', { class: 'hud-br' }, this.dashBtn),
@@ -93,7 +104,9 @@ export class Hud {
 
   /** 新的一局：清空所有状态 */
   reset(w: World): void {
-    this.last = { xp: -1, lv: -1, hp: -1, hpMax: -1, time: -1, kills: -1, boss: -1, dash: -1 }
+    this.last = { xp: -1, lv: -1, hp: -1, hpMax: -1, time: -1, kills: -1, boss: -1, dash: -1, surge: -1 }
+    this.call.className = 'callout'
+    this.surge.classList.remove('ready', 'fire')
     this.wSig = ''
     this.pSig = ''
     this.bannerT = 0
@@ -152,6 +165,15 @@ export class Hud {
     if (w.stats.kills !== L.kills) {
       L.kills = w.stats.kills
       this.kills.textContent = fmtInt(L.kills)
+    }
+    // 浪涌充能：按 2% 一档写 DOM；满了换成"就绪"
+    const sq = Math.round(w.mow.charge * 50) / 50
+    if (sq !== L.surge) {
+      L.surge = sq
+      this.surgeFill.style.width = `${(sq * 100).toFixed(0)}%`
+      const ready = sq >= 1
+      this.surge.classList.toggle('ready', ready)
+      this.surgeLab.textContent = ready ? t('hud.surgeReady') : t('hud.surge')
     }
 
     // Boss 血条
@@ -278,6 +300,22 @@ export class Hud {
     void this.evoBanner.offsetWidth
     this.evoBanner.className = 'evo-banner show'
     this.evoT = EVOLVE_BANNER_SECS
+  }
+
+  /** 群杀播报：×N + 档位名牌（颜色随档位）；同一时刻只留最新的一条，重启动画 */
+  showMulti(n: number, tier: number): void {
+    this.callNum.textContent = `×${fmtInt(n)}`
+    this.callWord.textContent = t(dyn(`multi.${tier}`))
+    this.call.className = 'callout'
+    void this.call.offsetWidth
+    this.call.className = `callout show tier${tier}`
+  }
+
+  /** 浪涌释放的那一下：充能条闪一下 */
+  fireSurge(): void {
+    this.surge.classList.remove('fire')
+    void this.surge.offsetWidth
+    this.surge.classList.add('fire')
   }
 
   toast(text: string, kind: 'info' | 'good' | 'gold' | 'bad' = 'info', ms = 2400): void {

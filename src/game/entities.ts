@@ -266,6 +266,10 @@ export class Ring {
   hostile = false
   delay = 0
   hitPlayer = false
+  /** 波前的粗细倍率（只影响外观；浪涌的冲击波比普通环宽得多） */
+  wide = 1
+  /** 静默：命中杂兵时不出伤害数字 / 命中火花（一次扫过几百只时，满屏数字等于没有数字） */
+  quiet = false
 }
 
 export class Mine {

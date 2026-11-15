@@ -30,6 +30,10 @@ export type GameEvent =
   /** 进化冲击波引爆（选卡之后 EVOLVE_SHOCK.delay 秒）：渲染层在这一刻放大招 */
   | { t: 'evolveBoom'; w: WeaponId }
   | { t: 'toast'; key: string; n?: number }
+  /** 浪涌释放：以飞船为圆心的清场冲击波（n = 本局第几次） */
+  | { t: 'surge'; x: number; y: number; r: number; n: number }
+  /** 群杀播报：0.6 秒内击杀数突增（n = 窗口内击杀数，tier 1~5） */
+  | { t: 'multi'; n: number; tier: number }
   | { t: 'end'; won: boolean }
 
 export type EventSink = (e: GameEvent) => void

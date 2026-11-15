@@ -57,7 +57,7 @@ test('半透明的板：镂空外框列表里的类名都在套件里（暂停�
 })
 
 test('血条：HP 与 Boss 的填充条都包在 .bar-in 里，CSS 里有 .bar-in 的切角裁剪', () => {
-  assert.equal((hudSrc.match(/class: 'bar-in'/g) ?? []).length, 2, 'hud.ts 里应有两处 .bar-in（血条、Boss 血条）')
+  assert.equal((hudSrc.match(/class: 'bar-in'/g) ?? []).length, 3, 'hud.ts 里应有三处 .bar-in（血条、Boss 血条、浪涌条）')
   assert.ok(/\.bar-in \{[^}]*clip-path: polygon\(/s.test(css), '.bar-in 没有切角裁剪')
 })
 

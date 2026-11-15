@@ -10,6 +10,7 @@ export type AchMetric =
   | 'runWeapons'
   | 'runNoHit'
   | 'runDashes'
+  | 'runMulti'
   | 'totalKills'
   | 'totalRuns'
   | 'totalCores'
@@ -28,9 +29,10 @@ export interface AchDef {
 }
 
 export const ACHIEVEMENTS: AchDef[] = [
-  { id: 'kills_100', metric: 'runKills', target: 100, reward: 20 },
-  { id: 'kills_500', metric: 'runKills', target: 500, reward: 40 },
-  { id: 'kills_1500', metric: 'runKills', target: 1500, reward: 90 },
+  // 注意：击杀类成就的 id 里的数字是历史遗留（存档按 id 记录，不能改）；v1.13 割草改版后目标值整体上调，以 target 为准
+  { id: 'kills_100', metric: 'runKills', target: 400, reward: 20 },
+  { id: 'kills_500', metric: 'runKills', target: 2500, reward: 40 },
+  { id: 'kills_1500', metric: 'runKills', target: 8000, reward: 90 },
   { id: 'survive_3', metric: 'runTime', target: 180, reward: 20 },
   { id: 'survive_5', metric: 'runTime', target: 300, reward: 40 },
   { id: 'survive_8', metric: 'runTime', target: 480, reward: 90 },
@@ -42,12 +44,14 @@ export const ACHIEVEMENTS: AchDef[] = [
   { id: 'arsenal', metric: 'runWeapons', target: 6, reward: 50 },
   { id: 'no_hit_2', metric: 'runNoHit', target: 120, reward: 60 },
   { id: 'dash_50', metric: 'runDashes', target: 50, reward: 30 },
+  { id: 'multi_100', metric: 'runMulti', target: 100, reward: 60 },
+  { id: 'multi_250', metric: 'runMulti', target: 250, reward: 160 },
   { id: 'boss_fields', metric: 'bossFields', target: 1, reward: 150 },
   { id: 'boss_wasteland', metric: 'bossWasteland', target: 1, reward: 250 },
   { id: 'boss_void', metric: 'bossVoid', target: 1, reward: 400 },
   { id: 'boss_crucible', metric: 'bossCrucible', target: 1, reward: 600 },
-  { id: 'total_kills_2k', metric: 'totalKills', target: 2000, reward: 50 },
-  { id: 'total_kills_20k', metric: 'totalKills', target: 20000, reward: 200 },
+  { id: 'total_kills_2k', metric: 'totalKills', target: 6000, reward: 50 },
+  { id: 'total_kills_20k', metric: 'totalKills', target: 100000, reward: 200 },
   { id: 'runs_10', metric: 'totalRuns', target: 10, reward: 40 },
   { id: 'runs_50', metric: 'totalRuns', target: 50, reward: 150 },
   { id: 'rich', metric: 'totalCores', target: 2000, reward: 100 },

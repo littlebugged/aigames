@@ -9,6 +9,7 @@ import { angleTo, clamp, clamp01, segmentClosestT, turnToward } from '../engine/
 import { Pool, compact } from '../engine/pool'
 import { RNG } from '../engine/rng'
 import { Director } from './director'
+import { Mow } from './mow'
 import { runTelegraph, updateBoss } from './bosses'
 import { updateEnemies } from './enemies'
 import {
@@ -66,12 +67,18 @@ export interface RunStats {
   killedBy: string
   /** 各来源累计造成的伤害（平衡遥测用） */
   hurtBy: Record<string, number>
+  /** 0.6 秒窗口内的最高击杀数（群杀） */
+  bestMulti: number
+  /** 浪涌释放次数 */
+  surges: number
 }
 
 export interface HitOpts {
   noCrit?: boolean
   stun?: number
   slow?: number
+  /** 杂兵被命中时不发 hit 事件（不出数字 / 火花 / 命中音）；精英仍然正常显示 */
+  quiet?: boolean
 }
 
 const GEM_CAP = 260
@@ -122,6 +129,8 @@ export class World {
 
   readonly grid = new SpatialHash<Enemy>(96, 46)
   readonly director: Director
+  /** 割草节奏层：浪涌 + 群杀播报 */
+  readonly mow = new Mow()
   stats: RunStats
 
   /** 视口半宽/半高（世界单位），由渲染层根据屏幕尺寸告知 */
@@ -202,6 +211,8 @@ export class World {
       cleared: false,
       killedBy: '',
       hurtBy: {},
+      bestMulti: 0,
+      surges: 0,
     }
   }
 
@@ -242,6 +253,7 @@ export class World {
     this.updateProjectiles(dt)
     this.updateEnemyBullets(dt)
     this.updateEffects(dt)
+    this.mow.update(this, dt)
     this.updatePickups(dt)
     this.cleanup()
 
@@ -417,7 +429,7 @@ export class World {
     const e = this.enemyPool.get()
     const m = this.time / 60
     const sc = this.sector
-    const hpMul = (1 + sc.hpPerMin * m + sc.hpQuad * m * m) * this.threat.hp * (o.hpMul ?? 1)
+    const hpMul = (1 + (sc.hpPerMin * m + sc.hpQuad * m * m) * TUNE.hpGrow * def.grow) * this.threat.hp * (o.hpMul ?? 1)
     e.def = def
     e.alive = true
     e.id = ++this.nextId
@@ -590,6 +602,8 @@ export class World {
     r.slow = 0
     r.delay = 0
     r.hitPlayer = false
+    r.wide = 1
+    r.quiet = false
     r.serial = ++this.ringSerial
     this.rings.push(r)
     return r
@@ -689,7 +703,7 @@ export class World {
       if (o.stun && o.stun > e.stun) e.stun = o.stun
       if (o.slow && o.slow > e.slow) e.slow = o.slow
     }
-    this.emit({ t: 'hit', x: e.x, y: e.y, dmg: d, crit, color: e.def.color, boss: false })
+    if (!o?.quiet || e.elite) this.emit({ t: 'hit', x: e.x, y: e.y, dmg: d, crit, color: e.def.color, boss: false })
     if (e.hp <= 0) {
       this.killEnemy(e)
       return true
@@ -720,6 +734,7 @@ export class World {
     const def = e.def
     this.emit({ t: 'kill', x: e.x, y: e.y, r: e.r, color: def.color, elite: e.elite, big: e.r >= 18 })
     this.addGem(e.x, e.y, e.xp)
+    this.mow.onKill(this, e)
 
     if (def.ai === 'splitter') {
       for (let i = 0; i < 3; i++) {
@@ -1055,7 +1070,7 @@ export class World {
         e.lastRing = rg.serial
         const nx = (e.x - rg.x) / (d || 1)
         const ny = (e.y - rg.y) / (d || 1)
-        this.damageEnemy(e, rg.dmg, nx * rg.knock, ny * rg.knock, { slow: rg.slow })
+        this.damageEnemy(e, rg.dmg, nx * rg.knock, ny * rg.knock, rg.quiet ? { slow: rg.slow, quiet: true, noCrit: true } : { slow: rg.slow })
       }
       const boss = this.boss
       if (boss && boss.alive && boss.lastRing !== rg.serial) {

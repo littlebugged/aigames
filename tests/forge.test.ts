@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { BOSS_IDS, SECTOR_IDS } from '../src/data/ids'
 import { SECTORS } from '../src/data/sectors'
+import { TUNE } from '../src/data/tuning'
 import { spawnBoss } from '../src/game/bosses'
 import type { Boss, InputState } from '../src/game/entities'
 import { World } from '../src/game/world'
@@ -81,7 +82,7 @@ test('熔炉巨像：血量 = 基础值 × 威胁倍率，比虚空之喉更厚'
   spawnBoss(w, 'maw')
   const m = w.boss!
   assert.ok(f.maxHp > m.maxHp, '熔炉巨像应当是目前最厚的 Boss')
-  assert.ok(Math.abs(f.maxHp - 26000 * w.threat.hp) < 1)
+  assert.ok(Math.abs(f.maxHp - 26000 * TUNE.bossHp * w.threat.hp) < 1)
 })
 
 // ───────────────────────── 陨火打击 ─────────────────────────

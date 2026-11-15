@@ -21,7 +21,9 @@ import { HAZARD_COLOR } from '../src/data/hazards'
 import { PICKUP_COLOR } from '../src/data/pickups'
 import { SECTORS, THREAT_LEVELS } from '../src/data/sectors'
 import { SHIPS } from '../src/data/ships'
+import { MULTI, SURGE, TUNE } from '../src/data/tuning'
 import { WEAPONS } from '../src/data/weapons'
+import { KILLS_PER_CORE } from '../src/game/progress'
 import { dyn, tIn } from '../src/i18n'
 import { passiveIcon, uiIcon, weaponIcon } from '../src/ui/icons'
 import { PAGE_KEYS, SITE_URL, pageFile, pagePath, type PageKey, type SiteLang } from './site'
@@ -31,6 +33,25 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const PASSIVE_TOP_LEVEL = Math.max(...PASSIVE_IDS.map((id) => PASSIVES[id].maxLevel))
 const YEAR = new Date().getFullYear()
 const TODAY = new Date().toISOString().slice(0, 10)
+/** 第一个“单局击杀”成就的目标（首页文案引用） */
+const FIRST_KILLS_TARGET = ACHIEVEMENTS.find((a) => a.metric === 'runKills')?.target ?? 100
+/** 指南里“浪涌与群杀”一节的占位符：文案里写 {need} 之类，渲染时从真实配置填进去，数值改了页面自动跟着变 */
+const SURGE_NUMS: Record<string, string | number> = {
+  need: SURGE.need0,
+  step: SURGE.needStep,
+  max: SURGE.needMax,
+  elite: SURGE.eliteWeight,
+  gap: SURGE.minGap,
+  near: SURGE.nearCount,
+  radius: SURGE.radius,
+  inv: SURGE.invuln,
+  vac: SURGE.vacuumAfter,
+  span: MULTI.span,
+  tiers: MULTI.tiers.join(' / '),
+  boss: TUNE.bossHp,
+  kpc: KILLS_PER_CORE,
+}
+const fill = (text: string): string => text.replace(/\{(\w+)\}/g, (_, k: string) => String(SURGE_NUMS[k] ?? `{${k}}`))
 
 const esc = (s: string): string => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 const n0 = (n: number): string => n.toLocaleString('en-US')
@@ -69,13 +90,14 @@ interface Copy {
     h1: string
     lead: string
     toc: string
-    sections: Record<'weapons' | 'passives' | 'pickups' | 'enemies' | 'bosses' | 'hazards' | 'ships' | 'sectors' | 'meta' | 'threat' | 'ach' | 'evo', string>
+    sections: Record<'weapons' | 'passives' | 'pickups' | 'surge' | 'enemies' | 'bosses' | 'hazards' | 'ships' | 'sectors' | 'meta' | 'threat' | 'ach' | 'evo', string>
     evoText: string
     capsText: string
     col: Record<string, string>
     bossTips: Record<string, string>
     pickupText: string
     pickups: Record<string, { effect: string; source: string }>
+    surgeText: string[]
     hazardText: string
     hazards: Record<HazardId, { effect: string; source: string }>
     threatText: string
@@ -106,14 +128,14 @@ const ZH: Copy = {
     ctaGuide: '查看游戏指南',
     featuresH: '游戏特色',
     features: [
-      { icon: 'swords', color: '#3df2ff', title: '自动开火，专注走位', text: '没有复杂的瞄准，单手也能操作。真正的挑战是在怪潮与弹幕之间找到安全的路线，并利用冲刺的无敌时间反杀。' },
+      { icon: 'swords', color: '#3df2ff', title: '自动开火，一路割草', text: '没有复杂的瞄准，单手也能操作。杂兵一两下就倒，人潮从开局起就很密；每次击杀都会给「浪涌」充能，充满后自动放出清场冲击波。真正的挑战是在怪潮、精英与弹幕之间找到安全的路线，并利用冲刺的无敌时间反杀。' },
       { icon: 'dice', color: '#ffd84a', title: `${WEAPON_IDS.length} 种武器 × ${PASSIVE_IDS.length} 种被动`, text: '脉冲炮、环绕刃、电弧、追踪导弹、棱镜激光、地雷、新星、无人机、回旋飞轮、磁轨炮、榴弹炮、虹吸索……每次升级随机给出三选一，组合出完全不同的流派。' },
       { icon: 'play', color: '#ff4fd8', title: '武器进化系统', text: '武器升到满级并携带对应的搭档装备，就能在升级或补给箱里进化成终极形态——特效和威力都会质变。' },
       { icon: 'skull', color: '#ff4a6a', title: '4 个星区，4 个 Boss', text: '霓虹原野的监察者、数据荒原的分形核心、虚空裂隙的虚空之喉、熔炉星环的熔炉巨像。每个 Boss 都有多阶段弹幕和独特机制，打赢才有成就感。' },
       { icon: 'hangar', color: '#a58bff', title: '机库永久成长', text: '每局获得的晶核可在机库购买 13 项永久升级，另有 4 艘风格迥异的飞船、4 档威胁等级，通关后还能开启无尽模式。' },
       { icon: 'gear', color: '#6dff8a', title: '手机、键盘、手柄通吃', text: '触屏浮动摇杆、键盘 WASD / 方向键、手柄全部原生支持；画质自动调节让低端设备也流畅，存档保存在本地，可离线游玩。' },
       { icon: 'sound', color: '#3df2ff', title: '实时合成的音乐音效', text: '全部音乐与音效由 WebAudio 实时合成，不下载任何音频文件。每个星区有自己的音阶与节奏，Boss 战会自动变奏提速。' },
-      { icon: 'trophy', color: '#ffd84a', title: `${ACHIEVEMENTS.length} 个成就`, text: '从「单局击败 100 个敌人」到「在灾厄难度通关」，成就会奖励晶核，其中一些还会解锁新的飞船。' },
+      { icon: 'trophy', color: '#ffd84a', title: `${ACHIEVEMENTS.length} 个成就`, text: `从「单局击败 ${n0(FIRST_KILLS_TARGET)} 个敌人」到「在灾厄难度通关」，成就会奖励晶核，其中一些还会解锁新的飞船。` },
     ],
     controlsH: '操作方式',
     controls: [
@@ -128,12 +150,14 @@ const ZH: Copy = {
       '<strong>专精一把主力武器。</strong>把同一把武器升到高等级，通常比每把都升一点强得多，再配一个它的搭档被动。',
       '<strong>留意进化提示。</strong>战斗界面左下角武器栏闪烁金边，说明满足进化条件，下一次升级或开补给箱就会出现进化选项。',
       '<strong>学会冲刺。</strong>冲刺期间无敌，用来穿过 Boss 的环形弹幕或从包围里突围，冷却好了就别省着。',
+      '<strong>盯着浪涌条。</strong>右上角青色的条充满时，冲进人堆——它会自动清场并把宝石吸回来，是割草节奏里最爽的一拍。',
     ],
     faqH: '常见问题',
     faq: [
       { q: '这个游戏免费吗？需要下载或注册吗？', a: '完全免费。打开网页就能玩，不需要下载安装，也不需要注册或登录。' },
       { q: '手机上能玩吗？', a: '可以。游戏针对触屏做了浮动摇杆和冲刺按钮，建议横屏体验更好。iPhone 的 Safari 不支持网页全屏，可以把网页「添加到主屏幕」获得更接近全屏的体验。' },
       { q: '存档保存在哪里？换设备怎么办？', a: '存档保存在你浏览器的本地存储里，不会上传到任何服务器。清除浏览器数据会丢失存档。需要换设备时，在「设置 → 导出存档」复制存档文本，到另一台设备的「设置 → 导入存档」粘贴即可。' },
+      { q: '什么是「浪涌」？为什么屏幕会自己清场？', a: `每次击杀都会给右上角的浪涌条充能，充满后只要身边有 ${SURGE.nearCount} 只以上的敌人（或 Boss 逼近），就会自动放出一道横扫全屏的冲击波：杂兵全灭、精英和 Boss 被削掉一截，同时清掉近处的敌方弹幕、给你 ${SURGE.invuln} 秒无敌，并把地图上的经验石全部吸回来。放完之后至少要等 ${SURGE.minGap} 秒才会再次触发。` },
       { q: '武器怎么进化？', a: '把一把武器升到满级（8 级），同时持有它对应的搭档被动道具（任意等级即可），下一次升级或打开补给箱时就会出现进化选项。完整的搭档对照表见游戏指南。' },
       { q: '武器和被动道具有数量、等级上限吗？', a: `有。一局最多同时携带 ${MAX_WEAPONS} 把武器和 ${MAX_PASSIVES} 件被动道具；武器最高 ${WEAPON_MAX_LEVEL} 级，被动道具最高 ${PASSIVE_TOP_LEVEL} 级。已经满级的不会再出现在升级选项里，栏位占满后也不会再出现新的武器或道具。升级界面下方会显示当前栏位（如 6/6）和各自的等级，满级的标有 MAX。` },
       { q: '游戏有点卡怎么办？', a: '默认开启了自动画质：帧率持续偏低时会自动降低特效。你也可以在「设置 → 画质」里手动改成「中」或「低」，并关闭屏幕震动和伤害数字。' },
@@ -154,6 +178,7 @@ const ZH: Copy = {
       weapons: '武器',
       passives: '被动道具',
       pickups: '拾取物',
+      surge: '浪涌与群杀',
       enemies: '敌人图鉴',
       bosses: 'Boss 打法',
       hazards: '弹幕与危险',
@@ -213,6 +238,12 @@ const ZH: Copy = {
       chest: { effect: '拾取后获得一次额外的升级选择，也是触发武器进化的机会；箱子上方有一道光柱，远处也看得见。', source: '击败精英必掉；击败 Boss 时掉落两个。不会自行消失。' },
       cache: { effect: '本局结算时额外获得一笔晶核。', source: '与补给箱一同掉落：精英 20 起，Boss 120 起，数量随局内时间增长。' },
     },
+    surgeText: [
+      '战斗是「割草」手感：杂兵一两下就倒，场上的人潮从开局起就很密、越往后越厚；真正难缠的是精英、冲锋者、自爆怪、射手和 Boss。',
+      '浪涌：每次击杀都会给右上角的浪涌条充能（第一次需要 {need} 次击杀，一只精英顶 {elite} 只杂兵；之后每放一次，下一次多 {step} 次，最多 {max} 次）。充满之后，只要身边有 {near} 只以上的敌人、或者 Boss 逼近，就会自动放出一道以飞船为圆心、半径约 {radius} 像素的三环冲击波：沿途的杂兵全灭，精英和 Boss 只被削掉一截；同时清掉近处的敌方弹幕，并给你 {inv} 秒无敌；约 {vac} 秒后整张地图的经验石都会飞回来。两次浪涌之间至少间隔 {gap} 秒。',
+      '群杀播报：{span} 秒内击杀数突然冲高，屏幕上会弹出「×N」，按击杀数分为连杀、群杀、屠戮、横扫千军、万夫莫敌五档（分别从 {tiers} 只起）。它只看“突增”——日常割草不会刷屏，浪涌、进化冲击波和炸弹这样的大场面才会点亮它。',
+      '数值也随之重新调过：升级所需经验的前几级更便宜、后期越来越贵（十分钟大约 45 级），Boss 血量是原来的 {boss} 倍，击杀折合晶核的比例改为每 {kpc} 只 1 颗、击杀类成就的目标上调——击杀数暴涨不会让机库升级变快。',
+    ],
     hazardText: '敌方的攻击都做成了能一眼认出的样子：每种子弹有自己的外形，Boss 的射线和冲击环带着警示纹。冲刺期间无敌，任何一种都可以直接穿过去；脉冲炸弹则会清除场上所有的敌方子弹。',
     hazards: {
       glob: { effect: '炮手吐出的黄色液滴，朝你当前所在的位置直线飞来，速度不快，横向走位就能躲开；精英炮手一口吐出三颗，呈扇形散开。', source: '炮手（精英为三连发）' },
@@ -228,7 +259,7 @@ const ZH: Copy = {
     metaText: '晶核是跨局货币：每局结算时获得（击杀、存活时间、等级、进化、击败 Boss 都会加成），可在机库购买永久升级。不满意可以随时全额退款重新分配。',
     sectorText: '每个星区在 10 分钟时迎来该星区的 Boss。通关一个星区会解锁下一个星区。第四个星区「熔炉星环」有独有的“陨火打击”：地上亮起橙色预警圈，约 1.3 秒后火球依次砸落，圈内重伤——听到“警告：陨火坠落”就别站桩，走开就没事。',
     unitMin: '分钟',
-    enemyHint: '数值为基础值，实际血量会随时间与威胁等级成长。',
+    enemyHint: '数值为基础值。实际血量会随时间与威胁等级成长，但杂兵只吃一部分成长（一两下就倒），重甲、盾卫吃得更多；分裂碎片不成长。',
   },
   about: {
     title: '关于《霓虹浪涌》— 设计理念、技术与更新记录',
@@ -249,6 +280,7 @@ const ZH: Copy = {
     ],
     logH: '更新记录',
     log: [
+      '<strong>v1.13</strong> — 「割草」手感改版。杂兵一两下就倒（血量随时间的成长大幅下调，每种敌人再按自己的 grow 微调），开局就有仗打、中后期人潮越来越厚；真正难缠的是精英、冲锋者、自爆怪和 Boss。新增<strong>浪涌</strong>：击杀给右上角的浪涌条充能，充满后敌群够密时自动放出三环清场冲击波（清弹幕、短暂无敌、随后把全图经验石吸回来）；以及<strong>群杀播报</strong>：0.6 秒内击杀突增时弹出 ×N（连杀 → 万夫莫敌五档），只看突增、日常割草不刷屏。击杀特效按帧限额，整屏同时倒下也不会卡。经验曲线前几级更便宜、后期用三次项拉贵（十分钟约 45 级）；Boss 血量 ×2；击杀折合晶核改为每 120 只 1 颗；击杀类成就目标上调，并新增「一击百杀」「万军辟易」。指南新增「浪涌与群杀」一节。',
       '<strong>v1.12</strong> — 第 4 个星区「熔炉星环」与新 Boss「熔炉巨像」，通关虚空裂隙后解锁。这是一座恒星残骸熔成的炼炉带：自爆怪与冲锋者成群，另有该星区独有的“陨火打击”——地上先亮起橙色预警圈，约 1.3 秒后火球依次砸落（第一发压在你正要去的地方），圈内重伤、走开就没事，落点会留下焦痕。熔炉巨像是一台行走的炼炉：缓缓压近，放出一圈圈慢速的熔渣块，向预警圈里抛熔渣弹（第一发预判你的走位），震地时脚下先亮一大圈，落地后圈内重伤并震出冲击环（三阶段连震两道）；二阶段起它会原地扎根，亮出 2～3 条细线预警（并朝将要转动的方向缓缓爬），随后整圈旋转扫射——沿着转动方向绕它走就能一直待在空档里；每次转阶段，炉门都会喷出一圈自爆怪。新增成就“炉火熄灭”（奖励 600 晶核，勋章是铁砧与火花）、新的子弹造型“熔渣块”，以及这个星区自己的配色与音阶；机器人也学会了躲旋转的射线。',
       '<strong>v1.11</strong> — 新增两把武器「榴弹炮」和「虹吸索」（共 12 种），12 种被动终于都有了各自的搭档武器。榴弹炮是远程炮击：先在地上标出一圈锁定环，炮弹划着弧线飞过去，落地炸开并留下焦痕和烟尘；它专找敌群最密的地方，同一轮齐射会分散到不同的敌群，Boss 在射程内时所有炮弹都砸向 Boss；威力随最大生命值提高（搭档是强化舱体，进化成“饱和轰炸”后一轮 6 发，每发落地后再炸出 3 颗子弹）。虹吸索不发射弹丸：从机体伸出几条钢索钳住最近的敌人，持续撕咬并把一部分伤害变成生命——只在受伤时才回血，每次回血会飘出绿色的“+N”（搭档是纳米修复，会放大回血量；进化成“噬能之网”后咬到的敌人还会把伤害溅给周围，并放出紫色电弧）。两把武器的图标、炮弹、锁定环、钢索钳口、落点烟尘和音效都是新做的，和其他武器一样靠造型而不是发光撑场面，只有弹头和能量包用了一点亮色。连环爆炸时的屏幕震动加了上限，不会再一直糊在满屏抖动里。既有武器的数值不变；升级候选里多了两把武器，所以同一把武器出现的概率相应略降。',
       '<strong>v1.10</strong> — 战斗界面也换成同一套钢板，战斗里外风格统一：装备槽、通知和教学提示都是切角的哑光板，细边和顶部一线高光取武器或被动的主色，叠在战场上仍然是半透明的；每个槽的左下角挂一块深色的等级牌，武器进化后整块板换成金色并缓慢呼吸，满级且带着搭档（再差一步就能进化）时呼吸得更急，满级却缺搭档的武器右上角会挂出搭档图标的小角标。血条、Boss 血条和经验条改成和菜单一致的“一格一格”的槽，血条两端切角，经验条正中嵌着梯形的等级牌，字不再压在格子上发花；低血量时血条仍然会变红并闪动。冲刺键和手机上的摇杆都改成正八边形——冷却环沿着八边形外缘扫过，就绪时整圈亮起，摇杆是镂空的八边形环加实心八边形旋钮；所有外发光都去掉了。暂停键也换成同样的板。版面不变：满配（6 武器、6 被动、提示、通知、Boss 血条、横幅）在 7 种屏幕上仍然没有重叠、没有出屏。玩法与数值不变。',
@@ -300,14 +332,14 @@ const EN: Copy = {
     ctaGuide: 'Read the guide',
     featuresH: 'Features',
     features: [
-      { icon: 'swords', color: '#3df2ff', title: 'Auto-fire, pure movement', text: 'No aiming — it is playable one-handed. The real challenge is finding a safe path through swarms and bullet patterns, then counter-attacking during your dash invincibility.' },
+      { icon: 'swords', color: '#3df2ff', title: 'Auto-fire, pure mowing', text: 'No aiming — it is playable one-handed. Regular enemies fall in a hit or two and the swarm is dense from the very first minute; every kill charges the Surge meter, and a full meter releases a screen-clearing shockwave on its own. The real challenge is finding a safe path through swarms, elites and bullet patterns, then counter-attacking during dashes.' },
       { icon: 'dice', color: '#ffd84a', title: `${WEAPON_IDS.length} weapons × ${PASSIVE_IDS.length} passives`, text: 'Pulse cannon, orbit blades, arc lightning, missiles, prism laser, mines, nova, drones, chakram, railgun, howitzer, siphon tether… every level-up offers a random pick of three, so each run becomes a different build.' },
       { icon: 'play', color: '#ff4fd8', title: 'Weapon evolution', text: 'Max out a weapon and carry its partner passive to evolve it into an ultimate form from a level-up or a supply chest — in both looks and power.' },
       { icon: 'skull', color: '#ff4a6a', title: '4 sectors, 4 bosses', text: 'The Overseer in Neon Fields, the Fractal Core in Data Wasteland, the Maw in Void Rift, the Forge Colossus in Crucible Belt. Each boss has multi-phase patterns and a unique gimmick.' },
       { icon: 'hangar', color: '#a58bff', title: 'Permanent hangar upgrades', text: 'Spend cores on 13 permanent upgrades, unlock 4 distinct ships, climb 4 threat levels, and open endless mode after your first clear.' },
       { icon: 'gear', color: '#6dff8a', title: 'Touch, keyboard & gamepad', text: 'A floating touch joystick, WASD / arrow keys and gamepads are all supported natively. Adaptive quality keeps low-end devices smooth; saves are local and the game works offline.' },
       { icon: 'sound', color: '#3df2ff', title: 'Synthesized music & SFX', text: 'All music and sound effects are synthesized live with WebAudio — no audio files to download. Every sector has its own scale and tempo, and boss fights change the arrangement.' },
-      { icon: 'trophy', color: '#ffd84a', title: `${ACHIEVEMENTS.length} achievements`, text: 'From “defeat 100 enemies in one run” to “clear Cataclysm difficulty”. Achievements pay out cores, and some unlock new ships.' },
+      { icon: 'trophy', color: '#ffd84a', title: `${ACHIEVEMENTS.length} achievements`, text: `From “defeat ${n0(FIRST_KILLS_TARGET)} enemies in one run” to “clear Cataclysm difficulty”. Achievements pay out cores, and some unlock new ships.` },
     ],
     controlsH: 'Controls',
     controls: [
@@ -322,12 +354,14 @@ const EN: Copy = {
       '<strong>Specialize in one main weapon.</strong> One heavily upgraded weapon beats a little of everything. Add its partner passive.',
       '<strong>Watch for evolution.</strong> A flashing golden frame in the bottom-left weapon bar means the next level-up or chest will offer the evolution.',
       '<strong>Dash with purpose.</strong> You are invincible while dashing — use it to cross boss rings or break out of encirclements, and don’t hoard it.',
+      '<strong>Watch the Surge meter.</strong> When the cyan bar in the top-right is full, dive into a crowd — it auto-clears the screen and pulls every gem back, the best beat in the mowing rhythm.',
     ],
     faqH: 'FAQ',
     faq: [
       { q: 'Is it free? Do I need to download or sign up?', a: 'It is completely free. Open the page and play — no download, no sign-up, no login.' },
       { q: 'Can I play on mobile?', a: 'Yes. The game has a floating joystick and a dash button for touch screens; landscape orientation feels best. iPhone Safari does not support web fullscreen, but you can “Add to Home Screen” for a near-fullscreen experience.' },
       { q: 'Where is my save stored? What about switching devices?', a: 'Your save lives in your browser’s local storage and is never uploaded. Clearing browser data deletes it. To move to another device, use Settings → Export save, then paste the text into Settings → Import save on the other device.' },
+      { q: 'What is the Surge meter, and why does the screen clear by itself?', a: `Every kill charges the meter in the top-right corner. Once it is full and ${SURGE.nearCount} or more enemies are near you (or a boss closes in), it automatically fires a screen-wide shockwave: regular enemies are wiped out, elites and bosses lose a chunk, nearby enemy bullets are cleared, you are invincible for ${SURGE.invuln} s and every XP gem on the map is pulled back to you. After a release it takes at least ${SURGE.minGap} s to trigger again.` },
       { q: 'How do I evolve a weapon?', a: 'Level a weapon to the maximum (level 8) while owning its partner passive (any level). The evolution is then offered at your next level-up or supply chest. The full partner table is in the guide.' },
       { q: 'Is there a limit on weapons, passives and their levels?', a: `Yes. You can carry at most ${MAX_WEAPONS} weapons and ${MAX_PASSIVES} passives per run; weapons top out at level ${WEAPON_MAX_LEVEL} and passives at level ${PASSIVE_TOP_LEVEL}. Maxed items are never offered again, and once the slots are full no new weapons or passives show up. The level-up screen shows your current slots (e.g. 6/6) and each item's level, with maxed ones marked MAX.` },
       { q: 'The game feels laggy — what can I do?', a: 'Adaptive quality is on by default and lowers effects when the frame rate stays low. You can also set Settings → Quality to Medium or Low and turn off screen shake and damage numbers.' },
@@ -348,6 +382,7 @@ const EN: Copy = {
       weapons: 'Weapons',
       passives: 'Passives',
       pickups: 'Pickups',
+      surge: 'Surge & multi-kills',
       enemies: 'Bestiary',
       bosses: 'Boss strategies',
       hazards: 'Bullets & hazards',
@@ -407,6 +442,12 @@ const EN: Copy = {
       chest: { effect: 'Grants one extra upgrade choice, which is also a chance to evolve a weapon. A beam of light marks it from afar.', source: 'Always dropped by elites; the boss drops two. Never despawns.' },
       cache: { effect: 'Adds a bonus stack of cores when the run ends.', source: 'Drops together with the supply crate: from 20 cores for elites and 120 for bosses, growing with run time.' },
     },
+    surgeText: [
+      'Combat is built to feel like mowing: regular enemies fall in a hit or two, and the swarm is dense from the first minute and thicker every minute after. What is actually dangerous is elites, chargers, bombers, shooters and bosses.',
+      'Surge: every kill charges the meter in the top-right corner (the first charge takes {need} kills; an elite counts as {elite} regular enemies; each release makes the next one {step} kills more, up to {max}). Once it is full, as soon as {near} or more enemies are near you — or a boss closes in — it fires a three-ring shockwave centred on your ship with a radius of about {radius} px: regular enemies in its path are wiped out, elites and bosses only lose a chunk. It also clears nearby enemy bullets, makes you invincible for {inv} s, and about {vac} s later every XP gem on the map flies back to you. Two surges are at least {gap} s apart.',
+      'Multi-kill callouts: when the number of kills inside a {span}-second window spikes, a “×N” appears on screen in five tiers — Multi-kill, Mass Kill, Slaughter, Sweep and Unstoppable (from {tiers} kills). It only reacts to spikes, so everyday mowing never spams it; surges, evolution shockwaves and bombs are what light it up.',
+      'The numbers were retuned to match: early levels cost less and late levels cost much more (about level 45 after ten minutes), bosses have {boss}× their old HP, kills are worth 1 core per {kpc} kills, and the kill achievements have higher targets — a huge kill count does not make hangar upgrades faster.',
+    ],
     hazardText: 'Every enemy attack is drawn so you can read it at a glance: each bullet type has its own silhouette, and boss beams and shock rings carry hazard stripes or spikes. You are invincible while dashing, so you can dash straight through any of them; a pulse bomb wipes every enemy bullet on the field.',
     hazards: {
       glob: { effect: 'Yellow droplets spat by Gunners. They fly straight at where you were standing and are slow, so a sidestep avoids them; elite Gunners spit three at once in a fan.', source: 'Gunner (elites: triple shot)' },
@@ -443,6 +484,7 @@ const EN: Copy = {
     ],
     logH: 'Changelog',
     log: [
+      '<strong>v1.13</strong> — Mowing-feel overhaul. Regular enemies fall in a hit or two (time-based HP growth is dialled way down, then tuned per enemy with a grow factor), fights start immediately and the swarm thickens every minute; what is actually dangerous is elites, chargers, bombers and bosses. New <strong>Surge</strong>: every kill charges the top-right meter, and when it is full and enemies are dense enough it auto-fires a three-ring clearing shockwave (clears nearby bullets, brief invulnerability, then pulls every XP gem on the map back to you). New <strong>multi-kill callouts</strong>: a spike of kills inside 0.6 s pops a ×N on screen in five tiers — only spikes, so everyday mowing never spams it. Kill FX are budgeted per frame so a full-screen wipe does not hitch. Early levels cost less and late levels cost much more via a cubic XP term (about level 45 after ten minutes); bosses have 2× HP; kills are worth 1 core per 120; kill achievements have higher targets, plus two new ones for multi-kills. The guide gains a “Surge & multi-kills” section.',
       '<strong>v1.12</strong> — A fourth sector, Crucible Belt, and a new boss, the Forge Colossus, unlocked by clearing Void Rift. The belt is star-wreck smelted into slag: bombers and chargers in packs, plus a hazard of its own — ember strikes. Orange warning circles light up on the ground and fireballs crash down about 1.3 s later one after another (the first lands where you are about to be); anything inside is hurt, step out and you take nothing, and each impact leaves a scorch mark. The Forge Colossus is a walking furnace: it lumbers closer, fires rings of slow slag chunks and lobs slag into marked circles (the first one leads your movement). Its stomp lights a big circle under it, hurts everything inside when it lands and sends out a shock ring (two in phase 3). From phase 2 it roots itself, lights 2 to 3 thin warning lines (creeping the way they are about to turn) and then sweeps the whole circle — walk around it in the direction of rotation and you stay inside the gaps. Every phase change the furnace door vents a ring of bombers. Also new: the “Fires Out” achievement (600 cores, with an anvil-and-spark medal), the slag-chunk bullet, this sector’s own palette and scale — and the autopilot bot has learned to dodge rotating beams.',
       '<strong>v1.11</strong> — Two new weapons, the Howitzer and the Siphon Tether (12 in total), so every one of the 12 passives now has a partner weapon. The Howitzer is long-range artillery: a lock-on ring is stamped on the ground first, the shell arcs over and bursts on impact, leaving a scorch mark and drifting smoke. It goes for the densest crowd, a salvo is spread over different crowds, and when a boss is in range every shell goes for the boss; damage grows with your max hull (partner passive: Reinforced Hull, and its evolution, Saturation Barrage, fires 6 shells that each split into 3 bomblets on impact). The Siphon Tether fires no projectiles: steel cables reach out from the ship, clamp the nearest enemies and keep biting, turning part of the damage into health — only while you are actually hurt, shown as a green “+N” (partner passive: Nano Repair, which also amplifies the healing; its evolution, Devourer Web, splashes each bite onto neighbours and throws violet arcs). Icons, shells, lock-on rings, cable clamps, impact smoke and sounds are all new and carry the same matte look — form instead of glow, with only warheads and energy packets using a touch of light. Chained explosions now have a screen-shake ceiling, so the screen no longer stays smeared with shaking. Existing weapons are unchanged, but the level-up pool holds two more weapons, so each individual weapon shows up slightly less often.',
       '<strong>v1.10</strong> — The in-run HUD gets the same steel plates, so the screens before and during a run look like one game: weapon and passive slots, notifications and the tutorial hint are chamfered matte plates, with the thin border and the top highlight taking the weapon’s or passive’s colour, and they stay translucent over the battlefield. Each slot carries a dark level tab on its lower-left corner; an evolved weapon’s plate turns gold and breathes slowly, a maxed weapon whose partner you already hold (one step from evolving) breathes faster, and a maxed weapon that is still missing its partner gets a small badge with the partner’s icon on its upper-right corner. The health bar, boss bar and XP bar become the same cell-by-cell grooves as the menus — the health bar has chamfered ends, the XP bar has a trapezoid level tab in the middle so the text no longer smears across the cells — and low health still turns the bar red and makes it flash. The dash button and the touch joystick are now regular octagons: the cooldown ring sweeps along the octagon’s edge and lights up fully when ready, and the joystick is a hollow octagonal ring with a solid octagonal knob; all outer glows are gone. The pause button uses the same plate. The layout does not change: a full loadout (6 weapons, 6 passives, hint, notifications, boss bar, banners) still has no overlaps and nothing off-screen on all 7 screen profiles. Gameplay and numbers are unchanged.',
@@ -750,7 +792,7 @@ function guidePage(l: SiteLang): string {
     return `<tr><td><strong>${esc(T(l, `ach.${a.id}.name`))}</strong></td><td>${esc(T(l, `ach.${a.id}.desc`, { n: n0(a.target) }))}${extra}</td><td>${esc(T(l, 'ach.reward', { n: a.reward }))}</td></tr>`
   })
 
-  const toc = (['evo', 'weapons', 'passives', 'pickups', 'enemies', 'bosses', 'hazards', 'ships', 'sectors', 'threat', 'meta', 'ach'] as const).map((k) => `<a class="pill" href="#${k}">${esc(g.sections[k])}</a>`).join(' ')
+  const toc = (['evo', 'weapons', 'passives', 'pickups', 'surge', 'enemies', 'bosses', 'hazards', 'ships', 'sectors', 'threat', 'meta', 'ach'] as const).map((k) => `<a class="pill" href="#${k}">${esc(g.sections[k])}</a>`).join(' ')
 
   const body = `<h1>${esc(g.h1)}</h1>
 <p class="lead">${esc(g.lead)}</p>
@@ -770,6 +812,9 @@ ${table([col.name, col.effect, col.usedBy], passiveRows)}
 <h2 id="pickups">${esc(g.sections.pickups)}</h2>
 <p>${esc(g.pickupText)}</p>
 ${table([col.name, col.effect, col.source], pickupRows)}
+
+<h2 id="surge">${esc(g.sections.surge)}</h2>
+${g.surgeText.map((t) => `<p>${esc(fill(t))}</p>`).join('\n')}
 
 <h2 id="enemies">${esc(g.sections.enemies)}</h2>
 <p>${esc(g.enemyHint)}</p>

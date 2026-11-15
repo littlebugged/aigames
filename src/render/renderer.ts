@@ -62,6 +62,10 @@ const ENEMY_SPAWN_FADE = 0.5
 
 /** 命中火花数量：随伤害档位增长 */
 const HIT_SPARKS = [2, 3, 3, 5, 7, 9, 12, 16]
+/** 每帧"完整击杀特效"的名额（按画质）：一次扫过几十上百只时，超出的只留一个小爆点，帧时间不会被杀戮本身拖垮 */
+const KILL_FX: Record<Quality, number> = { high: 26, medium: 16, low: 9 }
+/** 浪涌释放时的镜头推近（比例） */
+const SURGE_ZOOM = 0.045
 /** 重击（T4+）的屏幕震动 */
 const HIT_TRAUMA = [0, 0, 0, 0, 0.02, 0.035, 0.055, 0.1]
 /** 飘字限流桶（小数字 / 中等 / 重击）：容量与每秒补充量 */
@@ -154,6 +158,8 @@ export class Renderer {
   private bossDmgBudget = 4
   /** 重击特效（冲击环 + 震屏）额度，防止一次大范围爆炸触发几十次 */
   private fxBudget = 3
+  /** 本帧还剩多少个完整的击杀特效名额（每帧按画质重置） */
+  private killBudget = KILL_FX.high
   /** 视口基础缩放（不含进化变焦） */
   private kBase = 1
   /** 进化爆发的镜头变焦（比例）与蓄力阶段的目标变焦 */
@@ -341,9 +347,14 @@ export class Renderer {
         const big = e.big || e.elite
         // 击杀瞬间的白色闪点：让每一次击杀都有"啪"的一下
         P.dot(e.x, e.y, 0, 0, '#ffffff', 11 + e.r * 0.55, 0.11)
-        P.burst(e.x, e.y, e.color, big ? 16 : 6, 120 + e.r * 7, 5 + e.r * 0.28, 0.5)
-        P.shards(e.x, e.y, e.color, big ? 12 : 4, 150 + e.r * 7, 3.4, 0.55)
-        P.ring(e.x, e.y, e.r * 0.4, e.r * (big ? 3.6 : 2.3), e.color, big ? 0.45 : 0.32, big ? 3.2 : 2)
+        if (big || this.killBudget-- > 0) {
+          P.burst(e.x, e.y, e.color, big ? 16 : 6, 120 + e.r * 7, 5 + e.r * 0.28, 0.5)
+          P.shards(e.x, e.y, e.color, big ? 12 : 4, 150 + e.r * 7, 3.4, 0.55)
+          P.ring(e.x, e.y, e.r * 0.4, e.r * (big ? 3.6 : 2.3), e.color, big ? 0.45 : 0.32, big ? 3.2 : 2)
+        } else {
+          // 名额用完（整屏同时倒下）：只留一小团碎屑，闪点已经保证了"每只都有一下"
+          P.burst(e.x, e.y, e.color, 2, 110 + e.r * 5, 4 + e.r * 0.2, 0.36)
+        }
         if (e.elite) {
           this.cam.addTrauma(0.26)
           P.ring(e.x, e.y, e.r, e.r * 5, '#ffd84a', 0.55, 3)
@@ -420,6 +431,24 @@ export class Renderer {
       case 'boss':
         this.bossEvent(e.what)
         break
+      case 'surge': {
+        // 冲击波本体是世界里的三道友方环（drawRings 画）；这里补"出手"的那一下：白闪、飞船脚下的光爆、镜头一推
+        P.dot(p.x, p.y, 0, 0, '#ffffff', 150, 0.2)
+        P.ring(p.x, p.y, 20, 240, '#ffffff', 0.4, 7)
+        P.burst(p.x, p.y, '#a9f6ff', 34, 560, 9, 0.7)
+        P.spark(p.x, p.y, '#ffffff', 44, 900, 0.55, 2.4)
+        P.shards(p.x, p.y, '#3df2ff', 14, 480, 4.4, 0.7)
+        this.flash('#bffaff', 0.34)
+        this.cam.addTrauma(0.5)
+        this.zoomPunch(SURGE_ZOOM)
+        break
+      }
+      case 'multi': {
+        // 群杀：档位越高越"重"——小档只是一记震动，大档带白闪
+        this.cam.addTrauma(0.06 + e.tier * 0.05)
+        if (e.tier >= 4) this.flash('#ffffff', 0.12 + (e.tier - 4) * 0.06)
+        break
+      }
       case 'revive':
         P.ring(e.x, e.y, 10, 340, '#ffffff', 0.8, 6)
         P.ring(e.x, e.y, 10, 220, '#6dff8a', 0.7, 4)
@@ -781,6 +810,7 @@ export class Renderer {
     for (let c = 0; c < nb.length; c++) nb[c] = Math.min(NUM_CAP[c], nb[c] + animDt * NUM_RATE[c])
     this.bossDmgBudget = Math.min(4, this.bossDmgBudget + animDt * 7)
     this.fxBudget = Math.min(3, this.fxBudget + animDt * 5)
+    this.killBudget = KILL_FX[this.settings.quality]
 
     // 预定事件（Boss 连环爆炸等）
     for (let i = this.scheduled.length - 1; i >= 0; i--) {
@@ -1381,7 +1411,7 @@ export class Renderer {
     for (const rg of w.rings) {
       if (!rg.alive || rg.delay > 0) continue
       if (!this.inView(rg.x, rg.y, rg.r + 40)) continue
-      paintRing(ctx, rg.x, rg.y, rg.r, rg.maxR, rg.color, rg.hostile, this.vt)
+      paintRing(ctx, rg.x, rg.y, rg.r, rg.maxR, rg.color, rg.hostile, this.vt, rg.wide)
     }
     ctx.globalCompositeOperation = 'source-over'
     ctx.lineCap = 'round'

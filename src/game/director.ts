@@ -1,4 +1,5 @@
 import { ENEMIES } from '../data/enemies'
+import { TUNE } from '../data/tuning'
 import type { EnemyId } from '../data/ids'
 import type { TimedEvent } from '../data/sectors'
 import { TAU, clamp01 } from '../engine/math'
@@ -32,7 +33,9 @@ export class Director {
     const m = t / 60
     let rate = (sec.spawn.base + sec.spawn.perMin * m + sec.spawn.accel * m * m) * w.threat.spawn
     if (demo) rate *= 0.5
-    rate *= 0.45 + 0.55 * clamp01(t / 90)
+    // 割草：整局刷怪量比旧版高得多（杂兵一两下就倒，场面是"人潮"而不是"血牛"），开局不空、中后期越来越厚
+    rate *= TUNE.spawnMul * (1 + TUNE.spawnLate * clamp01((t - 45) / 300))
+    rate *= TUNE.spawnOpen + (1 - TUNE.spawnOpen) * clamp01(t / 60)
     const bossFight = !!(w.boss && w.boss.alive)
     if (bossFight) rate *= 0.22
     // 无尽模式（击败 Boss 之后）持续加压
@@ -47,7 +50,8 @@ export class Director {
       const id = this.pick(w, t)
       if (!id) break
       const def = ENEMIES[id]
-      const pack = id === 'swarmer' ? w.rng.int(3, 6) : id === 'drone' && m > 3 ? w.rng.int(1, 4) : 1
+      // 成群出现：一团一团的小怪最适合一刀扫过去
+      const pack = id === 'swarmer' ? w.rng.int(3, 7) : id === 'drone' ? (m < 1 ? w.rng.int(1, 3) : m < 3 ? w.rng.int(2, 4) : w.rng.int(2, 6)) : 1
       const cost = def.cost * pack
       if (cost > this.budget + 1.5) break // 太贵就攒一会儿预算再放
       this.budget -= cost
@@ -81,7 +85,7 @@ export class Director {
     const p = w.player
     switch (ev.kind) {
       case 'ring': {
-        const n = ev.count ?? 16
+        const n = Math.round((ev.count ?? 16) * TUNE.eventMul)
         const R = w.viewR + 40
         const off = w.rng.angle()
         for (let i = 0; i < n; i++) {
@@ -92,7 +96,7 @@ export class Director {
         break
       }
       case 'wall': {
-        const n = ev.count ?? 12
+        const n = Math.round((ev.count ?? 12) * TUNE.eventMul)
         const a = w.rng.angle()
         const R = w.viewR + 50
         const cx = p.x + Math.cos(a) * R

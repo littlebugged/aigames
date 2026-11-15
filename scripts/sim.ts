@@ -9,7 +9,7 @@
 import { META_IDS, SECTOR_IDS, SHIP_IDS, type SectorId, type ShipId } from '../src/data/ids'
 import { METAS } from '../src/data/meta'
 import { SECTORS } from '../src/data/sectors'
-import { TUNE } from '../src/data/tuning'
+import { SURGE, TUNE } from '../src/data/tuning'
 import { Bot } from '../src/game/bot'
 import type { InputState } from '../src/game/entities'
 import { XP_CURVE, type MetaRanks } from '../src/game/stats'
@@ -45,6 +45,9 @@ export interface SimResult {
   hurtBy: Record<string, number>
   /** Boss 战时长（击杀时刻 - Boss 出场），未击杀为 -1 */
   bossT: number
+  /** 浪涌释放次数 / 0.6 秒窗口内的最高击杀数 */
+  surges: number
+  bestMulti: number
 }
 
 export function runSim(o: Opts): SimResult {
@@ -109,6 +112,8 @@ export function runSim(o: Opts): SimResult {
     killedBy: w.stats.killedBy,
     hurtBy: w.stats.hurtBy,
     bossT: w.stats.bossKilled ? Math.max(0, w.time - w.sector.length - 3.2) : -1,
+    surges: w.stats.surges,
+    bestMulti: w.stats.bestMulti,
   }
 }
 
@@ -137,11 +142,12 @@ function parseArgs(): { opts: Opts; all: boolean; seeds: number } {
 
 /**
  * 平衡旋钮（只改内存，不动数据文件），用于参数扫描：
- *   --tune hp=1.3,quad=2,spawn=1.2,dmg=1.2,xp=1.3,xpc=1.5,edmg=1.5,espeed=1.1,flank=0.4
+ *   --tune hp=1.3,quad=2,spawn=1.2,dmg=1.2,xp=1.3,xpc=1.5,xpd=1.2,edmg=1.5,espeed=1.1,flank=0.4,grow=0.25,smul=1.25,slate=1.4,sopen=0.6,emul=1.6,boss=3
+ *   xa/xb/xc/xd 直接设定经验曲线系数；surgegap / surgeneed / surgeneedmax / surgedmg 设定浪涌的节奏与威力
  * hp/quad/spawn/dmg 作用于所有星区；xp 同乘经验曲线三项，xpc 额外乘二次项；
- * edmg/espeed 为敌人伤害/速度整体倍率；flank 为前路刷怪概率（绝对值）。
+ * edmg/espeed 为敌人伤害/速度整体倍率；flank 为前路刷怪概率（绝对值）；grow / smul / slate / sopen / emul 为 TUNE 里对应项的绝对值。
  */
-function applyTune(spec: string): void {
+export function applyTune(spec: string): void {
   const kv: Record<string, number> = {}
   for (const part of spec.split(',').filter(Boolean)) {
     const [k, v] = part.split('=')
@@ -160,16 +166,32 @@ function applyTune(spec: string): void {
   TUNE.enemyDmg *= k('edmg')
   TUNE.enemySpeed *= k('espeed')
   if (kv.flank !== undefined) TUNE.flank = kv.flank
+  if (kv.grow !== undefined) TUNE.hpGrow = kv.grow
+  if (kv.smul !== undefined) TUNE.spawnMul = kv.smul
+  if (kv.slate !== undefined) TUNE.spawnLate = kv.slate
+  if (kv.sopen !== undefined) TUNE.spawnOpen = kv.sopen
+  if (kv.emul !== undefined) TUNE.eventMul = kv.emul
   XP_CURVE.a *= k('xp')
   XP_CURVE.b *= k('xp')
   XP_CURVE.c *= k('xp') * k('xpc')
+  XP_CURVE.d *= k('xp') * k('xpd')
+  // 曲线系数的绝对值（做曲线形状实验用）
+  if (kv.xa !== undefined) XP_CURVE.a = kv.xa
+  if (kv.xb !== undefined) XP_CURVE.b = kv.xb
+  if (kv.xc !== undefined) XP_CURVE.c = kv.xc
+  if (kv.xd !== undefined) XP_CURVE.d = kv.xd
+  if (kv.boss !== undefined) TUNE.bossHp = kv.boss
+  if (kv.surgegap !== undefined) SURGE.minGap = kv.surgegap
+  if (kv.surgeneed !== undefined) SURGE.need0 = kv.surgeneed
+  if (kv.surgeneedmax !== undefined) SURGE.needMax = kv.surgeneedmax
+  if (kv.surgedmg !== undefined) SURGE.base = kv.surgedmg
 }
 
 function fmt(r: SimResult): string {
   const mm = `${Math.floor(r.time / 60)}:${String(Math.floor(r.time % 60)).padStart(2, '0')}`
   return (
     `${r.ship.padEnd(9)} ${r.sector.padEnd(9)} ${r.phase.padEnd(6)} time=${mm}  lv=${String(r.level).padStart(2)}` +
-    `  kills=${String(r.kills).padStart(5)}  evo=${r.evolves}  boss=${r.bossHpLeft}%  peak=${String(r.maxEnemies).padStart(3)}` +
+    `  kills=${String(r.kills).padStart(5)}  evo=${r.evolves}  boss=${r.bossHpLeft}%  peak=${String(r.maxEnemies).padStart(3)}  surge=${r.surges} multi=${r.bestMulti}` +
     `  ${r.msPerTick.toFixed(3)}ms/tick  [${r.weapons}]`
   )
 }
@@ -192,7 +214,7 @@ function summarize(label: string, rs: SimResult[]): string {
     `${label.padEnd(22)} win=${String(Math.round((wins / n) * 100)).padStart(3)}% preBossDie=${String(Math.round((pre / n) * 100)).padStart(3)}%  survive=${mm(avg((r) => r.time))}` +
     `  lv=${avg((r) => r.level).toFixed(0).padStart(2)}  kills=${avg((r) => r.kills).toFixed(0).padStart(5)}` +
     `  evo=${avg((r) => r.evolves).toFixed(1)}  minHp=${(avg((r) => r.minHpRatio) * 100).toFixed(0).padStart(3)}%` +
-    `  dmgTaken=${avg((r) => r.dmgTaken).toFixed(0).padStart(5)}  bossT=${bossTimes(rs)}  n=${n}`
+    `  dmgTaken=${avg((r) => r.dmgTaken).toFixed(0).padStart(5)}  surge=${avg((r) => r.surges).toFixed(0).padStart(2)} multi=${avg((r) => r.bestMulti).toFixed(0).padStart(3)}  bossT=${bossTimes(rs)}  n=${n}`
   )
 }
 

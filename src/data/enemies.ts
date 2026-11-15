@@ -41,6 +41,11 @@ export interface EnemyDef {
   knockResist: number
   /** 生成预算点数：越强越贵，导演器按预算放怪 */
   cost: number
+  /**
+   * 吃多少"血量随时间成长"（乘在 TUNE.hpGrow 上）：杂兵小于 1——整局都是一两下就倒的割草对象；
+   * 重甲大于 1——后期仍然有分量。
+   */
+  grow: number
 }
 
 export const ENEMIES: Record<EnemyId, EnemyDef> = {
@@ -56,6 +61,7 @@ export const ENEMIES: Record<EnemyId, EnemyDef> = {
     xp: 1,
     knockResist: 0,
     cost: 1,
+    grow: 0.8,
   },
   swarmer: {
     id: 'swarmer',
@@ -69,6 +75,7 @@ export const ENEMIES: Record<EnemyId, EnemyDef> = {
     xp: 1,
     knockResist: 0,
     cost: 0.7,
+    grow: 0.7,
   },
   brute: {
     id: 'brute',
@@ -82,6 +89,7 @@ export const ENEMIES: Record<EnemyId, EnemyDef> = {
     xp: 6,
     knockResist: 0.7,
     cost: 5,
+    grow: 1.3,
   },
   shooter: {
     id: 'shooter',
@@ -95,6 +103,7 @@ export const ENEMIES: Record<EnemyId, EnemyDef> = {
     xp: 3,
     knockResist: 0.2,
     cost: 3,
+    grow: 1.0,
   },
   splitter: {
     id: 'splitter',
@@ -108,6 +117,7 @@ export const ENEMIES: Record<EnemyId, EnemyDef> = {
     xp: 3,
     knockResist: 0.3,
     cost: 3,
+    grow: 0.9,
   },
   charger: {
     id: 'charger',
@@ -121,6 +131,7 @@ export const ENEMIES: Record<EnemyId, EnemyDef> = {
     xp: 4,
     knockResist: 0.4,
     cost: 3.5,
+    grow: 1.1,
   },
   bomber: {
     id: 'bomber',
@@ -134,6 +145,7 @@ export const ENEMIES: Record<EnemyId, EnemyDef> = {
     xp: 3,
     knockResist: 0.1,
     cost: 3,
+    grow: 0.9,
   },
   shielder: {
     id: 'shielder',
@@ -147,6 +159,7 @@ export const ENEMIES: Record<EnemyId, EnemyDef> = {
     xp: 6,
     knockResist: 0.5,
     cost: 5,
+    grow: 1.3,
   },
   wraith: {
     id: 'wraith',
@@ -160,6 +173,7 @@ export const ENEMIES: Record<EnemyId, EnemyDef> = {
     xp: 4,
     knockResist: 0.1,
     cost: 3.5,
+    grow: 0.9,
   },
   shard: {
     id: 'shard',
@@ -173,5 +187,6 @@ export const ENEMIES: Record<EnemyId, EnemyDef> = {
     xp: 0,
     knockResist: 0,
     cost: 0.5,
+    grow: 0,
   },
 }

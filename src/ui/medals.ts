@@ -27,6 +27,7 @@ export const MEDAL_EMBLEM: Record<AchMetric, UiIconName> = {
   runWeapons: 'rack',
   runNoHit: 'shield',
   runDashes: 'dash',
+  runMulti: 'surge',
   totalKills: 'skull',
   totalRuns: 'flag',
   totalCores: 'core',

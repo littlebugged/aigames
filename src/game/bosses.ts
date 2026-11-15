@@ -1,4 +1,5 @@
 import type { BossId, EBulletKind } from '../data/ids'
+import { TUNE } from '../data/tuning'
 import { TAU, angleTo } from '../engine/math'
 import { Boss, type Telegraph } from './entities'
 import type { World } from './world'
@@ -9,7 +10,7 @@ interface BossSpec {
   dmg: number
 }
 
-/** Boss 基础数值（血量会再乘威胁等级） */
+/** Boss 基础数值（血量会再乘 TUNE.bossHp 与威胁等级） */
 const SPEC: Record<BossId, BossSpec> = {
   overseer: { r: 58, hp: 12000, dmg: 26 },
   fractal: { r: 48, hp: 16000, dmg: 24 },
@@ -28,7 +29,7 @@ export function spawnBoss(w: World, id: BossId): void {
   b.y = p.y + Math.sin(a) * w.viewR * 0.72
   b.r = spec.r
   b.dmg = spec.dmg
-  b.maxHp = b.hp = spec.hp * w.threat.hp
+  b.maxHp = b.hp = spec.hp * TUNE.bossHp * w.threat.hp
   b.intro = 2.4
   b.t1 = 2.5
   b.t2 = 3.5
