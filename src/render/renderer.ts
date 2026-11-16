@@ -1,4 +1,5 @@
 import type { WeaponId } from '../data/ids'
+import { WELL } from '../data/tuning'
 import { SHIPS } from '../data/ships'
 import { WEAPONS } from '../data/weapons'
 import { DMG_TIERS, EVOLVE_CHARGE, EVOLVE_ZOOM, HEAL_STYLE, HURT_STYLE, NUM_LOOKS, budgetClass, dmgTier, fmtDmg } from '../engine/feel'
@@ -160,6 +161,10 @@ export class Renderer {
   private fxBudget = 3
   /** 本帧还剩多少个完整的击杀特效名额（每帧按画质重置） */
   private killBudget = KILL_FX.high
+  /** 升级整套演出的冷却（割草时升级很密） */
+  private levelFxT = 0
+  /** 伏击预警：屏幕边缘的箭头，t 倒计时到 0 消失 */
+  private ambush: { angles: number[]; t: number; t0: number } | null = null
   /** 视口基础缩放（不含进化变焦） */
   private kBase = 1
   /** 进化爆发的镜头变焦（比例）与蓄力阶段的目标变焦 */
@@ -310,6 +315,8 @@ export class Renderer {
     this.zoom = 0
     this.charging = false
     this.k = this.kBase
+    this.levelFxT = 0
+    this.ambush = null
     this.numBudget[0] = NUM_CAP[0]
     this.numBudget[1] = NUM_CAP[1]
     this.numBudget[2] = NUM_CAP[2]
@@ -386,10 +393,14 @@ export class Renderer {
         break
       }
       case 'levelup':
-        P.ring(p.x, p.y, 14, 210, '#3df2ff', 0.65, 4)
-        P.ring(p.x, p.y, 8, 140, '#ffffff', 0.5, 2.5)
-        P.burst(p.x, p.y, '#3df2ff', 22, 300, 7, 0.7)
-        this.flash('#3df2ff', 0.2)
+        // 割草时升级很密：整套演出每 0.35 秒最多放一次，其余只留一圈细环（不闪屏）
+        if (this.levelFxT <= 0) {
+          this.levelFxT = 0.35
+          P.ring(p.x, p.y, 14, 210, '#3df2ff', 0.65, 4)
+          P.ring(p.x, p.y, 8, 140, '#ffffff', 0.5, 2.5)
+          P.burst(p.x, p.y, '#3df2ff', 22, 300, 7, 0.7)
+          this.flash('#3df2ff', 0.1)
+        } else P.ring(p.x, p.y, 10, 120, '#3df2ff', 0.4, 2)
         break
       case 'dash':
         P.sparkCone(e.x - Math.cos(e.a) * 10, e.y - Math.sin(e.a) * 10, e.a + Math.PI, 1.2, SHIPS[w.cfg.ship].accent, 18, 300, 0.32)
@@ -429,8 +440,18 @@ export class Renderer {
         P.spark(e.x, e.y, e.color, e.n, 180)
         break
       case 'boss':
-        this.bossEvent(e.what)
+        this.bossEvent(e.what, e.mini ?? 0)
         break
+      case 'ambush':
+        this.ambush = { angles: e.angles, t: e.t0 + 0.4, t0: e.t0 + 0.4 }
+        break
+      case 'well': {
+        // 引力井张开：一圈由外向内收拢的紫环 + 轻微的镜头一沉
+        P.ring(e.x, e.y, e.r, 30, '#b08cff', 0.9, 4)
+        P.ring(e.x, e.y, e.r * 0.6, 20, '#ffffff', 0.7, 2.5)
+        this.cam.addTrauma(0.18)
+        break
+      }
       case 'surge': {
         // 冲击波本体是世界里的三道友方环（drawRings 画）；这里补"出手"的那一下：白闪、飞船脚下的光爆、镜头一推
         P.dot(p.x, p.y, 0, 0, '#ffffff', 150, 0.2)
@@ -718,23 +739,46 @@ export class Renderer {
     this.scheduled.push({ t: delay, fn })
   }
 
-  private bossEvent(what: 'spawn' | 'phase' | 'dead'): void {
+  /** mini：0 = 正主；1 / 2 = 小 Boss（演出规模缩小一档） */
+  private bossEvent(what: 'spawn' | 'phase' | 'dead' | 'retire', mini = 0): void {
     const w = this.world
-    if (!w) return
+    if (!w || what === 'retire') return
     const b = w.boss
     const x = b ? b.x : this.lastBossX
     const y = b ? b.y : this.lastBossY
     const P = this.parts
+    const k = mini ? 0.55 : 1
     if (what === 'spawn') {
-      this.cam.addTrauma(0.55)
-      this.flash('#ff3e6c', 0.25)
+      this.cam.addTrauma(0.55 * k)
+      this.flash('#ff3e6c', 0.25 * k)
     } else if (what === 'phase') {
-      this.cam.addTrauma(0.7)
-      this.flash('#ffffff', 0.35)
+      this.cam.addTrauma(0.7 * k)
+      this.flash('#ffffff', 0.35 * k)
       const r = b ? b.r : 60
       P.ring(x, y, r, r * 5.5, '#ffffff', 0.7, 5)
       P.ring(x, y, r * 0.5, r * 4, '#ff3e6c', 0.6, 3)
-      P.shards(x, y, '#ff6a8a', 30, 420, 5, 0.9)
+      P.shards(x, y, '#ff6a8a', Math.round(30 * k), 420, 5, 0.9)
+    } else if (mini) {
+      // 小 Boss：一串连环爆炸 + 一道收尾的冲击环，比正主短促得多
+      const r = b ? b.r : 40
+      const cols = ['#ffffff', '#ffd84a', '#ff6a8a']
+      for (let i = 0; i < 6; i++) {
+        this.schedule(i * 0.08, () => {
+          const a = Math.random() * TAU
+          const d = Math.random() * r
+          const c = cols[i % cols.length]
+          P.burst(x + Math.cos(a) * d, y + Math.sin(a) * d, c, 12, 280, 8, 0.6)
+          P.ring(x + Math.cos(a) * d, y + Math.sin(a) * d, 6, 36 + Math.random() * 40, c, 0.35, 3)
+          this.cam.addTrauma(0.16)
+        })
+      }
+      this.schedule(0.55, () => {
+        P.ring(x, y, r, 420, '#ffffff', 0.8, 6)
+        P.burst(x, y, '#ffd84a', 40, 480, 10, 0.8)
+        P.shards(x, y, '#ffffff', 24, 440, 5, 0.8)
+        this.cam.addTrauma(0.6)
+        this.flash('#ffffff', 0.5)
+      })
     } else {
       // 连环爆炸 + 终结一击
       const r = b ? b.r : 60
@@ -811,6 +855,11 @@ export class Renderer {
     this.bossDmgBudget = Math.min(4, this.bossDmgBudget + animDt * 7)
     this.fxBudget = Math.min(3, this.fxBudget + animDt * 5)
     this.killBudget = KILL_FX[this.settings.quality]
+    this.levelFxT = Math.max(0, this.levelFxT - animDt)
+    if (this.ambush) {
+      this.ambush.t -= animDt
+      if (this.ambush.t <= 0) this.ambush = null
+    }
 
     // 预定事件（Boss 连环爆炸等）
     for (let i = this.scheduled.length - 1; i >= 0; i--) {
@@ -849,6 +898,7 @@ export class Renderer {
     // 世界空间
     this.worldT()
     this.drawMines(w)
+    this.drawWells(w)
     this.gfx.drawMarks(ctx, this.bank, this.inViewFn)
     this.drawTelegraphs(w)
     this.drawGems(w)
@@ -878,6 +928,7 @@ export class Renderer {
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     if (QUALITY[this.settings.quality].bloom) this.bloomPass()
     this.drawIndicators(w, boss)
+    this.drawAmbush()
     this.drawOverlays(w)
 
     const dt = performance.now() - t0
@@ -944,6 +995,123 @@ export class Renderer {
         ctx.globalCompositeOperation = 'source-over'
       }
     }
+  }
+
+  /**
+   * 引力井（虚空星区）：一口暗色的盆 + 向内流动的螺旋弧线 + 实心的奇点。
+   * 张开的前 1.3 秒只画一圈虚线边界和淡淡的盆（还没有拉力，给玩家看清范围的时间）。
+   */
+  private drawWells(w: World): void {
+    if (w.wells.length === 0) return
+    const ctx = this.ctx
+    for (const wl of w.wells) {
+      if (!wl.alive || !this.inView(wl.x, wl.y, wl.r + 40)) continue
+      const arm = Math.min(1, wl.age / WELL.arm)
+      const fade = Math.min(1, wl.life / 0.9)
+      const a = fade * (0.4 + 0.6 * arm)
+      const R = wl.r
+      ctx.save()
+      ctx.translate(wl.x, wl.y)
+      // 盆：中间深、边缘透明
+      const g = ctx.createRadialGradient(0, 0, WELL.core * 0.6, 0, 0, R)
+      g.addColorStop(0, 'rgba(6,3,20,0.88)')
+      g.addColorStop(0.4, 'rgba(22,10,54,0.42)')
+      g.addColorStop(1, 'rgba(22,10,54,0)')
+      ctx.globalAlpha = a
+      ctx.fillStyle = g
+      ctx.beginPath()
+      ctx.arc(0, 0, R, 0, TAU)
+      ctx.fill()
+      // 向内流动的弧线：越靠近中心越快越亮
+      ctx.lineWidth = 3
+      ctx.lineCap = 'round'
+      for (let i = 0; i < 5; i++) {
+        const f = (this.vt * 0.42 + i / 5) % 1
+        const rr = WELL.core + (R * 0.94 - WELL.core) * (1 - f * f)
+        const al = Math.sin(f * Math.PI) * 0.55 * a * arm
+        if (al < 0.02) continue
+        ctx.strokeStyle = rgba('#b9a0ff', al)
+        const a0 = this.vt * (0.9 + f * 1.8) + i * 1.27
+        ctx.beginPath()
+        ctx.arc(0, 0, rr, a0, a0 + 1.5 - f * 0.6)
+        ctx.stroke()
+      }
+      // 边界：虚线圈（张开阶段更醒目，提示"这里就是范围"）
+      ctx.setLineDash([14, 12])
+      ctx.lineDashOffset = -this.vt * 24
+      ctx.lineWidth = 2
+      ctx.strokeStyle = rgba('#c9b6ff', (0.22 + 0.16 * Math.sin(this.vt * 5)) * fade + (1 - arm) * 0.25 * fade)
+      ctx.beginPath()
+      ctx.arc(0, 0, R, 0, TAU)
+      ctx.stroke()
+      ctx.setLineDash([])
+      // 奇点：实心黑盘 + 墨线外沿 + 一圈细亮边
+      ctx.globalAlpha = fade
+      ctx.fillStyle = '#05030f'
+      ctx.beginPath()
+      ctx.arc(0, 0, WELL.core, 0, TAU)
+      ctx.fill()
+      ctx.strokeStyle = '#150b33'
+      ctx.lineWidth = 5
+      ctx.stroke()
+      ctx.strokeStyle = rgba('#d8c8ff', 0.35 + 0.65 * arm)
+      ctx.lineWidth = 1.6
+      ctx.beginPath()
+      ctx.arc(0, 0, WELL.core - 3, 0, TAU)
+      ctx.stroke()
+      ctx.restore()
+    }
+  }
+
+  /** 伏击预警：屏幕边缘朝内的双层箭头，沿来袭方向一波波推进；时间到就消失 */
+  private drawAmbush(): void {
+    const am = this.ambush
+    if (!am) return
+    const ctx = this.ctx
+    const m = 38 * this.dpr
+    const k = this.dpr
+    const fade = clamp01(am.t / 0.45) * clamp01((am.t0 - am.t) / 0.15 + 0.2)
+    const blink = 0.62 + 0.38 * Math.sin(this.vt * 16)
+    ctx.save()
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+    for (const ang of am.angles) {
+      const dx = Math.cos(ang)
+      const dy = Math.sin(ang)
+      const sc = Math.min((this.W / 2 - m) / (Math.abs(dx) || 1e-6), (this.H / 2 - m) / (Math.abs(dy) || 1e-6))
+      const px = this.W / 2 + dx * sc
+      const py = this.H / 2 + dy * sc
+      ctx.save()
+      ctx.translate(px, py)
+      ctx.rotate(ang + Math.PI) // 朝向屏幕中心：敌人是从这边压过来的
+      // 贴着屏幕边的斜纹警示带：余光也能看到"哪一边要来"（箭头只是一小个，单靠它容易漏看）
+      ctx.save()
+      ctx.beginPath()
+      ctx.rect(-32 * k, -170 * k, 18 * k, 340 * k)
+      ctx.clip()
+      ctx.fillStyle = `rgba(20,6,12,${(0.4 * fade).toFixed(3)})`
+      ctx.fillRect(-32 * k, -170 * k, 18 * k, 340 * k)
+      this.hatch(-32 * k, -170 * k, 18 * k, 340 * k, '#ff5a3c', 0.55 * fade * (0.7 + 0.3 * blink))
+      ctx.restore()
+      for (let i = 0; i < 3; i++) {
+        const f = (this.vt * 1.6 + i / 3) % 1
+        const x = -18 * k + f * 40 * k
+        const al = Math.sin(f * Math.PI) * fade * blink
+        if (al < 0.03) continue
+        ctx.beginPath()
+        ctx.moveTo(x - 9 * k, -15 * k)
+        ctx.lineTo(x + 5 * k, 0)
+        ctx.lineTo(x - 9 * k, 15 * k)
+        ctx.strokeStyle = `rgba(20,6,12,${(al * 0.9).toFixed(3)})`
+        ctx.lineWidth = 8 * k
+        ctx.stroke()
+        ctx.strokeStyle = rgba('#ff5a3c', al)
+        ctx.lineWidth = 4.2 * k
+        ctx.stroke()
+      }
+      ctx.restore()
+    }
+    ctx.restore()
   }
 
   /** 斜纹警示带：只填进调用方已经裁好的矩形里（整组平行四边形一次 fill，条纹缓慢流动） */

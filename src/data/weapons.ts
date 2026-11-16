@@ -88,9 +88,9 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
         })
       return make({
         damage: at([13, 13, 15, 15, 18, 18, 22, 26], level),
-        cooldown: at([0.78, 0.78, 0.74, 0.66, 0.66, 0.62, 0.56, 0.48], level),
-        count: at([1, 1, 2, 2, 2, 3, 3, 4], level),
-        pierce: at([0, 0, 0, 0, 1, 1, 1, 2], level),
+        cooldown: at([0.66, 0.62, 0.6, 0.56, 0.54, 0.52, 0.5, 0.48], level),
+        count: at([2, 2, 3, 3, 3, 4, 4, 4], level),
+        pierce: at([1, 1, 1, 1, 1, 2, 2, 2], level),
         speed: 540,
         area: 5,
         range: 480,
@@ -119,10 +119,10 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
         })
       return make({
         damage: at([7, 8, 8, 10, 10, 12, 12, 15], level),
-        count: at([2, 2, 3, 3, 4, 4, 5, 5], level),
-        speed: at([2.4, 2.6, 2.6, 2.9, 2.9, 3.2, 3.2, 3.5], level),
-        area: at([11, 12, 12, 13, 14, 14, 15, 16], level),
-        range: at([74, 74, 78, 82, 86, 90, 94, 100], level),
+        count: at([3, 3, 4, 4, 5, 5, 5, 5], level),
+        speed: at([2.6, 2.8, 2.8, 3.0, 3.0, 3.2, 3.2, 3.5], level),
+        area: at([13, 14, 14, 15, 15, 15, 16, 16], level),
+        range: at([84, 86, 88, 90, 92, 94, 96, 100], level),
         knock: 40,
         tick: at([0.46, 0.46, 0.42, 0.42, 0.4, 0.38, 0.36, 0.34], level),
       })
@@ -147,10 +147,10 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
         })
       return make({
         damage: at([14, 16, 16, 19, 22, 22, 26, 30], level),
-        cooldown: at([1.25, 1.25, 1.1, 1.1, 1.0, 0.9, 0.9, 0.75], level),
-        count: at([1, 1, 1, 1, 2, 2, 2, 3], level),
-        chain: at([2, 3, 3, 4, 4, 5, 6, 7], level),
-        range: 270,
+        cooldown: at([0.9, 0.9, 0.85, 0.85, 0.8, 0.8, 0.78, 0.75], level),
+        count: at([2, 2, 2, 2, 2, 3, 3, 3], level),
+        chain: at([3, 4, 4, 5, 5, 6, 6, 7], level),
+        range: 300,
       })
     },
   },
@@ -281,18 +281,19 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
           damage: 15,
           cooldown: 0.42,
           count: 6,
-          pierce: 1,
+          pierce: 3,
           speed: 620,
           range: 380,
-          area: 5,
+          area: 6,
         })
       return make({
-        damage: at([6, 7, 7, 8, 9, 9, 11, 13], level),
-        cooldown: at([0.9, 0.85, 0.8, 0.8, 0.72, 0.65, 0.6, 0.5], level),
-        count: at([1, 1, 2, 2, 2, 3, 3, 4], level),
+        damage: at([8, 9, 9, 10, 10, 11, 12, 13], level),
+        cooldown: at([0.7, 0.68, 0.64, 0.62, 0.58, 0.55, 0.52, 0.5], level),
+        count: at([2, 2, 3, 3, 3, 4, 4, 4], level),
+        pierce: at([0, 0, 1, 1, 1, 2, 2, 2], level),
         speed: 560,
         range: 340,
-        area: 4,
+        area: 5,
       })
     },
   },
@@ -414,7 +415,7 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
         })
       return make({
         damage: at([6, 6, 7, 7, 8, 9, 10, 11], level),
-        count: at([1, 2, 2, 3, 3, 4, 4, 5], level),
+        count: at([2, 2, 3, 3, 4, 4, 5, 5], level),
         range: at([190, 200, 210, 220, 235, 250, 265, 280], level),
         tick: 0.25,
         heal: at([0.12, 0.14, 0.16, 0.18, 0.2, 0.23, 0.26, 0.3], level),

@@ -88,8 +88,16 @@ export class Bot {
       const lead = 18 + 40 * Math.min(1, this.skill)
       for (const rg of w.rings) {
         if (!rg.hostile || rg.hitPlayer) continue
-        const gap = Math.hypot(p.x - rg.x, p.y - rg.y) - rg.r
-        if (gap > -4 && gap < lead) out.dash = true
+        const dist = Math.hypot(p.x - rg.x, p.y - rg.y)
+        const gap = dist - rg.r
+        if (gap > -4 && gap < lead) {
+          out.dash = true
+          // 朝环心冲：整个人穿到波前的另一侧去（背对着跑只会被更快的环追上）
+          if (dist > 1) {
+            out.mx = (rg.x - p.x) / dist
+            out.my = (rg.y - p.y) / dist
+          }
+        }
       }
     }
   }
@@ -109,23 +117,11 @@ export class Bot {
     near.length = 0
     w.grid.query(p.x, p.y, 330, near)
 
-    // 想去的目标：晶体价值/距离最优；宝箱和需要的治疗优先
+    // 想去的目标：宝箱和需要的治疗（经验是直接入账的，不用追）
     let gx = 0
     let gy = 0
     let gScore = 0
     let gDist = 1
-    for (let i = 0; i < w.gems.length; i++) {
-      const g = w.gems[i]
-      const d = Math.hypot(g.x - p.x, g.y - p.y)
-      if (d > 700) continue
-      const sc = (1 + g.tier * 0.8) / (d + 80)
-      if (sc > gScore) {
-        gScore = sc
-        gx = g.x
-        gy = g.y
-        gDist = d
-      }
-    }
     for (let i = 0; i < w.pickups.length; i++) {
       const k = w.pickups[i]
       if (k.kind === 'bomb') continue
@@ -225,6 +221,12 @@ export class Bot {
         if (!rg.hostile) continue
         const d = Math.abs(Math.hypot(px - rg.x, py - rg.y) - rg.r)
         if (d < 40) s -= 3
+      }
+      // 引力井：离奇点越近越危险，进了引力圈也尽量别往里走
+      for (const wl of w.wells) {
+        if (!wl.alive) continue
+        const d = Math.hypot(px - wl.x, py - wl.y)
+        if (d < wl.r) s -= (1 - d / wl.r) * 5 + (d < 120 ? 4 : 0)
       }
 
       if (hasGoal) {

@@ -53,6 +53,7 @@ function climb(cfg: RunConfig, levels: number, seed: number): World {
   const rng = new RNG(seed)
   for (let n = 0; n < levels; n++) {
     w.addXp(w.player.xpNext)
+    w.openPicks() // 升级选卡只在一波结束的窗口里弹出：测试里直接打开窗口
     w.update(1 / 60, input)
     assert.equal(w.phase, 'levelup')
     while (w.phase === 'levelup') {
@@ -86,6 +87,7 @@ test('候选卡：全部满级后只剩进化卡与保底（回血 / 晶核）',
   w.recalc()
 
   w.addXp(w.player.xpNext)
+  w.openPicks()
   w.update(1 / 60, input)
   assert.equal(w.phase, 'levelup')
   checkOffers(w, 'maxed')

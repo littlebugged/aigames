@@ -192,7 +192,10 @@ export class LevelUpOverlay {
   private render(animate: boolean): void {
     const w = this.world
     if (!w) return
-    this.title.textContent = w.offerSource === 'chest' ? t('lv.chestTitle') : t('lv.title')
+    // 一波结束时会连着弹出本波攒下的所有升级：标题里标出还剩几次，心里有数
+    const rest = w.queue.reduce((n, q) => n + (q === 'level' ? 1 : 0), 0)
+    const head = w.offerSource === 'chest' ? t('lv.chestTitle') : t('lv.title')
+    this.title.textContent = rest > 0 && w.offerSource !== 'chest' ? `${head} · ${t('lv.more', { n: rest })}` : head
     this.el.classList.toggle('chest', w.offerSource === 'chest')
     this.el.classList.toggle('banishing', this.banishMode)
     this.banishHint.hidden = !this.banishMode

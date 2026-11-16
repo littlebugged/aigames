@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import { BOSS_IDS, SECTOR_IDS } from '../src/data/ids'
 import { SECTORS } from '../src/data/sectors'
 import { TUNE } from '../src/data/tuning'
-import { spawnBoss } from '../src/game/bosses'
+import { BOSS_BASE_HP, spawnBoss } from '../src/game/bosses'
 import type { Boss, InputState } from '../src/game/entities'
 import { World } from '../src/game/world'
 
@@ -40,8 +40,8 @@ const step = (w: World, seconds: number, each?: () => void): void => {
   }
 }
 
-const fire = (w: World, ev: { at: number; kind: string; count?: number }): void =>
-  (w as unknown as { director: { fire(w: World, ev: unknown): void } }).director.fire(w, ev)
+/** 直接放一批陨火（导演在熔炉星环的陨火脉冲里调的就是这个） */
+const strike = (w: World, n: number): void => (w as unknown as { director: { strike(w: World, n: number): void } }).director.strike(w, n)
 
 const liveTeles = (w: World) => w.teles.filter((t) => t.alive)
 const hostileBeams = (w: World) => w.beams.filter((b) => b.alive && b.hostile)
@@ -57,22 +57,23 @@ test('第 4 星区：排在虚空裂隙之后、Boss 是熔炉巨像，奖励最
   assert.equal(c.requires, 'void')
   for (const id of SECTOR_IDS) if (id !== 'crucible') assert.ok(c.reward > SECTORS[id].reward, `熔炉星环的奖励应高于 ${id}`)
   const v = SECTORS.void
-  for (const k of ['base', 'perMin', 'accel'] as const) assert.ok(c.spawn[k] >= v.spawn[k], `刷怪 ${k} 不应低于虚空裂隙`)
+  assert.ok(c.density >= v.density, '熔炉星环的杂兵密度不应低于虚空裂隙')
   assert.ok(c.hpPerMin >= v.hpPerMin && c.dmgPerMin >= v.dmgPerMin)
 })
 
-test('第 4 星区：陨火打击散布在整局里，数量逐次增加，且都排在 Boss 预警之前', () => {
-  const strikes = SECTORS.crucible.events.filter((e) => e.kind === 'strike')
-  assert.ok(strikes.length >= 4, '陨火打击是这个星区的特色，应当反复出现')
+test('第 4 星区：陨火打击散布在整局的波次里，数量逐波增加；其它星区没有陨火', () => {
+  const strikes = SECTORS.crucible.waves.flatMap((wv, i) => wv.pulses.filter((pd) => pd.form === 'strike').map((pd) => ({ wave: i + 1, n: pd.n ?? 0 })))
+  assert.ok(strikes.length >= 6, '陨火打击是这个星区的特色，应当反复出现')
+  // 小 Boss 那几波会稍微松一口气（少一发），但整体是越来越密
   let last = 0
   for (const s of strikes) {
-    assert.ok((s.count ?? 0) >= last, '数量应当逐次增加')
-    last = s.count ?? 0
+    assert.ok(s.n >= last - 1, `第 ${s.wave} 波的陨火不该比上一次少一发以上`)
+    last = s.n
   }
-  const warn = SECTORS.crucible.events.find((e) => e.kind === 'boss-warning')!
-  assert.ok(strikes.every((s) => s.at < warn.at))
+  assert.ok(strikes[strikes.length - 1].n >= strikes[0].n + 3, '陨火数量整体应当明显增加')
+  assert.ok(strikes[0].wave <= 3, '前几波就要让玩家见识到陨火')
   // 其它星区没有陨火——它是熔炉星环独有的危险
-  for (const id of SECTOR_IDS) if (id !== 'crucible') assert.ok(!SECTORS[id].events.some((e) => e.kind === 'strike'), `${id} 不该有陨火`)
+  for (const id of SECTOR_IDS) if (id !== 'crucible') assert.ok(!SECTORS[id].waves.some((wv) => wv.pulses.some((pd) => pd.form === 'strike')), `${id} 不该有陨火`)
 })
 
 test('熔炉巨像：血量 = 基础值 × 威胁倍率，比虚空之喉更厚', () => {
@@ -82,7 +83,7 @@ test('熔炉巨像：血量 = 基础值 × 威胁倍率，比虚空之喉更厚'
   spawnBoss(w, 'maw')
   const m = w.boss!
   assert.ok(f.maxHp > m.maxHp, '熔炉巨像应当是目前最厚的 Boss')
-  assert.ok(Math.abs(f.maxHp - 26000 * TUNE.bossHp * w.threat.hp) < 1)
+  assert.ok(Math.abs(f.maxHp - BOSS_BASE_HP.forge * TUNE.bossHp * w.threat.hp) < 1)
 })
 
 // ───────────────────────── 陨火打击 ─────────────────────────
@@ -96,7 +97,7 @@ test('陨火打击：一批带预警的火球，依次落下；预警时间 ≥ 
     prev?.(e)
     if (e.t === 'warn') warns.push(e.key)
   }
-  fire(w, { at: 0, kind: 'strike', count: 6 })
+  strike(w, 6)
   const tl = liveTeles(w)
   assert.equal(tl.length, 6)
   assert.deepEqual(warns, ['warn.strike'])
@@ -119,7 +120,7 @@ test('陨火打击：站着不动会被第一发砸中；预警期间走开就�
     w.player.weapons.length = 0
     w.recalc()
     w.time = 120
-    fire(w, { at: 0, kind: 'strike', count: 5 })
+    strike(w, 5)
     let scorches = 0
     const prev = w.sink
     w.sink = (e) => {
@@ -152,7 +153,7 @@ test('陨火打击：伤害随局内时间成长，且算作"爆炸"', () => {
     w.player.st.armor = 0
     w.recalc()
     w.time = time
-    fire(w, { at: 0, kind: 'strike', count: 1 })
+    strike(w, 1)
     step(w, 1.4)
     assert.ok(w.stats.damageTaken > 0, '站在原地应当被砸中')
     assert.deepEqual(Object.keys(w.stats.hurtBy), ['blast'])

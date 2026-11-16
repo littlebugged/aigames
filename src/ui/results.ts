@@ -140,7 +140,7 @@ export class ResultsScreen {
       { ico: iconEl('skull'), label: t('res.kills'), val: fmtInt(st.kills), rec: s.records.kills },
       { ico: iconEl('chevrons'), label: t('res.level'), val: String(st.level), rec: false },
       { ico: iconEl('evolve'), label: t('res.evolves'), val: String(st.evolves), rec: false },
-      { ico: iconEl('surge'), label: t('res.surges'), val: String(st.surges), rec: false },
+      { ico: iconEl('surge'), label: t('res.waves'), val: String(st.waves), rec: false },
       { ico: iconEl('swords'), label: t('res.multi'), val: `×${fmtInt(st.bestMulti)}`, rec: s.records.multi },
     ].map((x, i) =>
       h(

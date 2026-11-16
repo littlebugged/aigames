@@ -1,3 +1,4 @@
+import { WAVE } from '../data/waves'
 import type { Enemy } from './entities'
 import type { World } from './world'
 
@@ -17,6 +18,8 @@ export function updateEnemies(w: World, dt: number): void {
   const grid = w.grid
   const sep = w.tmp
   const recycleD2 = (w.viewR * 2.4) ** 2
+  // 阵型里的杂兵在画面外会加速冲进来（"一波压上来"的感觉），进入这个距离后恢复正常速度
+  const rushR = Math.min(w.viewHalfW, w.viewHalfH) * 1.15
   const kd = Math.exp(-7 * dt)
   const tick = w.tick
 
@@ -43,7 +46,12 @@ export function updateEnemies(w: World, dt: number): void {
     let svy = 0
     const slowMul = e.slow > 0 ? 0.55 : 1
     if (e.slow > 0) e.slow -= dt
-    const sp = e.speed * slowMul
+    let rushMul = 1
+    if (e.rush > 0) {
+      if (d > rushR) rushMul = WAVE.rush
+      else e.rush = 0
+    }
+    const sp = e.speed * slowMul * rushMul
     let canHurt = true
 
     if (e.stun > 0) {
@@ -267,11 +275,12 @@ export function updateEnemies(w: World, dt: number): void {
       }
     }
 
-    // 掉队太远的小怪传送回屏幕边缘，保持压力又不浪费算力
-    if (!e.elite) {
+    // 掉队太远的敌人（含特殊兵种和精英）传送回屏幕边缘：保持压力又不浪费算力，
+    // 也让"被甩在身后的重甲"不会永远留在地图另一头（血量保留，只是重新压上来）
+    {
       const rx = p.x - e.x
       const ry = p.y - e.y
-      if (rx * rx + ry * ry > recycleD2) {
+      if (rx * rx + ry * ry > (e.def.tier === 'fodder' && !e.elite ? recycleD2 : recycleD2 * 1.4)) {
         const pt = w.edgePoint()
         e.x = pt.x
         e.y = pt.y

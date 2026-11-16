@@ -1,143 +1,455 @@
-import { ENEMIES } from '../data/enemies'
-import { TUNE } from '../data/tuning'
 import type { EnemyId } from '../data/ids'
-import type { TimedEvent } from '../data/sectors'
-import { TAU, clamp01 } from '../engine/math'
+import { SURGE, TUNE } from '../data/tuning'
+import { WAVE, waveUnit, type MiniPlan, type PulseDef, type SquadDef, type WaveDef } from '../data/waves'
+import { TAU, clamp } from '../engine/math'
 import { spawnBoss } from './bosses'
 import type { World } from './world'
 
+/** 逐只刷出的脉冲（人流 / 旋臂）：在 dur 秒里把 total 只均匀放出来 */
+interface Job {
+  form: 'stream' | 'spiral'
+  enemy: EnemyId
+  mix?: EnemyId
+  total: number
+  done: number
+  t: number
+  dur: number
+  a: number
+}
+
+/** 伏击预警之后才刷出的脉冲（方向在预警时就定下了） */
+interface Delayed {
+  t: number
+  pd: PulseDef
+  scale: number
+  a: number
+}
+
+/** 脉冲之后几秒出场的特殊兵种小队 */
+interface Pending {
+  t: number
+  sq: SquadDef
+}
+
+/** 无尽模式里循环的波（第 5~12 波的脚本），每循环一圈放大一点 */
+const ENDLESS_FROM = 4
+const ENDLESS_LOOP = 8
+const ENDLESS_GROW = 1.07
+const ENDLESS_MAX = 2.4
+
 /**
- * 刷怪导演器：按"预算"放怪，预算随时间增长；
- * 同时在固定时间点触发包围圈、冲锋墙、精英怪、陨火打击，最后在目标时长放出 Boss。
+ * 波次导演：一个星区 = N 波 + Boss（见 data/waves.ts）。
+ * 每一波按脚本在固定的时间点放出若干「脉冲」（一整群杂兵按阵型同时压上来）和「特殊兵种小队」；
+ * 小 Boss 在指定的波登场；波尾前放一道浪涌扫清杂兵，并打开本波攒下的升级卡；最后一波结束放出 Boss。
+ * Boss 战里每隔一阵补一波杂兵，让 Boss 战里也有割草。
  */
 export class Director {
-  private budget = 0
-  private eventIdx = 0
+  /** 当前是第几波（1 起；0 = 尚未开始） */
+  wave = 0
+  /** 本波已经过去的时间 / 本波总长 / 星区共几波 / 本波主题 */
+  waveT = 0
+  waveLen = 0
+  total = 0
+  tag = ''
+
+  private def: WaveDef | null = null
+  /** 无尽模式的放大系数（正常 = 1） */
+  private scale = 1
+  /** 单位量取第几波的规模 */
+  private unitWave = 1
+  private pulseIdx = 0
+  private pulseTimes: number[] = []
+  private pending: Pending[] = []
+  private jobs: Job[] = []
+  private delayed: Delayed[] = []
+  private swept = false
+  private pickT = -1
+  private miniPlan: MiniPlan | null = null
   private bossSpawned = false
+  private addsT = 0
+  private addsIdx = 0
+  private bossWarned = false
 
   update(w: World, dt: number): void {
     const sec = w.sector
-    const t = w.time
     const demo = !!w.cfg.demo
+    this.total = sec.waves.length
+    if (w.winT >= 0) return
 
-    if (!demo) {
-      if (!this.bossSpawned && t >= sec.length) {
-        this.bossSpawned = true
-        spawnBoss(w, sec.boss)
+    this.tickJobs(w, dt)
+    this.tickDelayed(w, dt)
+    this.tickPending(w, dt)
+
+    const boss = w.boss && w.boss.alive ? w.boss : null
+    if (this.bossSpawned) {
+      if (boss && boss.mini === 0) {
+        this.tickAdds(w, dt)
+        return
       }
-      while (this.eventIdx < sec.events.length && sec.events[this.eventIdx].at <= t) {
-        this.fire(w, sec.events[this.eventIdx++])
-      }
+      // 正主已倒：只有无尽模式才继续刷怪
+      if (!w.cfg.endless) return
     }
 
-    const m = t / 60
-    let rate = (sec.spawn.base + sec.spawn.perMin * m + sec.spawn.accel * m * m) * w.threat.spawn
-    if (demo) rate *= 0.5
-    // 割草：整局刷怪量比旧版高得多（杂兵一两下就倒，场面是"人潮"而不是"血牛"），开局不空、中后期越来越厚
-    rate *= TUNE.spawnMul * (1 + TUNE.spawnLate * clamp01((t - 45) / 300))
-    rate *= TUNE.spawnOpen + (1 - TUNE.spawnOpen) * clamp01(t / 60)
-    const bossFight = !!(w.boss && w.boss.alive)
-    if (bossFight) rate *= 0.22
-    // 无尽模式（击败 Boss 之后）持续加压
-    if (this.bossSpawned && !(w.boss && w.boss.alive)) rate *= 1 + Math.max(0, t - sec.length) / 120
-    if (w.winT >= 0) rate = 0
+    if (this.wave === 0) this.startWave(w, 1)
+    this.waveT += dt
+    const def = this.def!
 
-    this.budget = Math.min(this.budget + rate * dt, 24)
-    let guard = 12
-    // Boss 战期间场上杂兵保持在可控数量，让战斗焦点留在 Boss 身上
-    const cap = bossFight ? 90 : w.maxEnemies
-    while (this.budget >= 0.5 && w.enemies.length < cap && guard-- > 0) {
-      const id = this.pick(w, t)
-      if (!id) break
-      const def = ENEMIES[id]
-      // 成群出现：一团一团的小怪最适合一刀扫过去
-      const pack = id === 'swarmer' ? w.rng.int(3, 7) : id === 'drone' ? (m < 1 ? w.rng.int(1, 3) : m < 3 ? w.rng.int(2, 4) : w.rng.int(2, 6)) : 1
-      const cost = def.cost * pack
-      if (cost > this.budget + 1.5) break // 太贵就攒一会儿预算再放
-      this.budget -= cost
-      const c = w.edgePoint()
-      for (let i = 0; i < pack; i++) {
-        w.spawnEnemy(id, c.x + w.rng.range(-36, 36), c.y + w.rng.range(-36, 36))
-      }
+    // 脉冲
+    while (this.pulseIdx < def.pulses.length && this.waveT >= this.pulseTimes[this.pulseIdx]) {
+      this.firePulse(w, def.pulses[this.pulseIdx], this.pulseIdx)
+      this.pulseIdx++
     }
+
+    // 小 Boss：登场时场上必须没有别的 Boss（上一只还没打死就顺延，直到本波结束为止）
+    if (this.miniPlan && !demo && this.waveT >= WAVE.miniAt && !boss) {
+      spawnBoss(w, this.miniPlan.boss, this.miniPlan.tier)
+      this.miniPlan = null
+    }
+
+    // Boss 预警：最后一波的最后 10 秒
+    if (!this.bossWarned && !demo && !this.bossSpawned && this.wave === this.total && this.waveT >= this.waveLen - 10) {
+      this.bossWarned = true
+      w.emit({ t: 'warn', key: 'warn.boss', sev: 2 })
+    }
+
+    // 浪涌：波尾前扫清杂兵，随后弹出本波攒下的升级卡
+    if (!this.swept && this.waveT >= this.waveLen - WAVE.sweepLead) {
+      this.swept = true
+      w.waveSweep(this.wave)
+      this.pickT = SURGE.pickDelay
+    }
+    if (this.pickT >= 0) {
+      this.pickT -= dt
+      if (this.pickT < 0) w.openPicks()
+    }
+
+    if (this.waveT >= this.waveLen) this.nextWave(w)
   }
 
-  private pick(w: World, t: number): EnemyId | undefined {
-    const roster = w.sector.roster
-    let total = 0
-    for (let i = 0; i < roster.length; i++) {
-      const r = roster[i]
-      if (t < r.from || (r.to !== undefined && t > r.to)) continue
-      total += r.weight * (0.35 + 0.65 * clamp01((t - r.from) / 70))
-    }
-    if (total <= 0) return undefined
-    let x = w.rng.next() * total
-    for (let i = 0; i < roster.length; i++) {
-      const r = roster[i]
-      if (t < r.from || (r.to !== undefined && t > r.to)) continue
-      x -= r.weight * (0.35 + 0.65 * clamp01((t - r.from) / 70))
-      if (x <= 0) return r.id
-    }
-    return roster[0].id
+  // ───────────────────────── 波的起止 ─────────────────────────
+
+  /** 第 k 波的脚本（超出星区总波数时按无尽模式循环）与放大系数 */
+  private script(w: World, k: number): { def: WaveDef; scale: number; unit: number } {
+    const waves = w.sector.waves
+    if (k <= waves.length) return { def: waves[k - 1], scale: 1, unit: k }
+    const e = k - waves.length
+    const base = waves[Math.min(waves.length - 1, ENDLESS_FROM + ((e - 1) % ENDLESS_LOOP))]
+    return { def: base, scale: Math.min(ENDLESS_MAX, ENDLESS_GROW ** e), unit: waves.length }
   }
 
-  private fire(w: World, ev: TimedEvent): void {
+  private startWave(w: World, k: number): void {
+    const s = this.script(w, k)
+    const demo = !!w.cfg.demo
+    this.wave = k
+    this.waveT = 0
+    this.def = s.def
+    this.scale = s.scale * (demo ? 0.4 : 1)
+    this.unitWave = s.unit
+    this.waveLen = s.def.len
+    this.tag = s.def.tag
+    this.pulseIdx = 0
+    this.swept = false
+    this.pickT = -1
+    this.pending.length = 0
+    const n = s.def.pulses.length
+    const first = WAVE.firstAt
+    const last = Math.max(first, s.def.len - WAVE.lastGap)
+    this.pulseTimes = s.def.pulses.map((_, i) => (n <= 1 ? first : first + ((last - first) * i) / (n - 1)))
+    this.miniPlan = !demo && k <= w.sector.waves.length ? (w.sector.minis.find((m) => m.wave === k) ?? null) : null
+    w.beginWave(k)
+    w.emit({ t: 'wave', n: k, total: this.total, tag: this.tag, mini: !!this.miniPlan })
+  }
+
+  private nextWave(w: World): void {
+    const next = this.wave + 1
+    if (next > this.total && !this.bossSpawned) {
+      if (w.cfg.demo) {
+        // 主菜单背景演示：不放 Boss，从头再来一遍
+        this.startWave(w, 1)
+        return
+      }
+      this.bossSpawned = true
+      w.retireMini()
+      w.dismissField()
+      spawnBoss(w, w.sector.boss)
+      this.addsT = 8
+      return
+    }
+    this.startWave(w, next)
+  }
+
+  // ───────────────────────── 脉冲 ─────────────────────────
+
+  private firePulse(w: World, pd: PulseDef, idx: number): void {
+    const boss = w.boss && w.boss.alive
+    const scale = this.scale * (boss ? WAVE.bossScale : 1)
+    if (this.def?.squads) {
+      for (const sq of this.def.squads) if ((sq.after ?? 1) === idx) this.pending.push({ t: 3, sq })
+    }
+    if (pd.warn && pd.warn > 0 && (pd.form === 'pincer' || pd.form === 'wall' || pd.form === 'lanes' || pd.form === 'stream')) {
+      const a = this.dir(w)
+      w.emit({ t: 'ambush', angles: pd.form === 'pincer' ? [a, a + Math.PI] : [a], t0: pd.warn })
+      this.delayed.push({ t: pd.warn, pd, scale, a })
+      return
+    }
+    this.spawnPulse(w, pd, scale, this.dir(w))
+  }
+
+  /** 这一群从哪个方向压来：有一定概率堵在玩家正在跑的方向上（"一直直线跑"不再安全） */
+  private dir(w: World): number {
     const p = w.player
-    switch (ev.kind) {
+    if (TUNE.flank > 0 && p.vx * p.vx + p.vy * p.vy > 40 * 40 && w.rng.next() < TUNE.flank) {
+      return Math.atan2(p.vy, p.vx) + w.rng.range(-TUNE.flankSpread, TUNE.flankSpread)
+    }
+    return w.rng.angle()
+  }
+
+  private count(w: World, pd: PulseDef, scale: number): number {
+    const boss = w.boss && w.boss.alive ? w.boss : null
+    const capNow = boss ? WAVE.addsCap + (boss.mini ? 100 : 0) : w.maxEnemies
+    const raw = waveUnit(this.unitWave) * pd.w * w.sector.density * w.threat.spawn * scale
+    const room = capNow - w.enemies.length
+    return Math.min(WAVE.maxPulse, Math.round(raw), room)
+  }
+
+  private spawnPulse(w: World, pd: PulseDef, scale: number, a: number): void {
+    if (pd.form === 'strike') {
+      this.strike(w, pd.n ?? 4)
+      return
+    }
+    if (pd.form === 'well') {
+      this.wells(w, pd.n ?? 1)
+      return
+    }
+    const id = pd.enemy ?? 'swarmer'
+    const n = this.count(w, pd, scale)
+    if (n < 4) return
+    const p = w.player
+    const R = w.viewR + 40
+    const mix = pd.mix
+    const kind = (i: number): EnemyId => (mix && i % 5 === 4 ? mix : id)
+    const put = (i: number, x: number, y: number): void => {
+      w.spawnEnemy(kind(i), x, y, { spawnT: 0.35, rush: true })
+    }
+    // 近似正态：三个均匀数之和
+    const gauss = (sigma: number): number => (w.rng.next() + w.rng.next() + w.rng.next() - 1.5) * 2 * sigma
+
+    switch (pd.form) {
       case 'ring': {
-        const n = Math.round((ev.count ?? 16) * TUNE.eventMul)
-        const R = w.viewR + 40
-        const off = w.rng.angle()
+        const a0 = w.rng.angle()
         for (let i = 0; i < n; i++) {
-          const a = off + (i / n) * TAU
-          w.spawnEnemy(ev.enemy ?? 'swarmer', p.x + Math.cos(a) * R, p.y + Math.sin(a) * R, { spawnT: 0.6 })
+          const ai = a0 + (i / n) * TAU
+          const r = R + (i % 3) * 22
+          put(i, p.x + Math.cos(ai) * r, p.y + Math.sin(ai) * r)
         }
-        w.emit({ t: 'warn', key: 'warn.ring', sev: 1 })
         break
       }
-      case 'wall': {
-        const n = Math.round((ev.count ?? 12) * TUNE.eventMul)
-        const a = w.rng.angle()
-        const R = w.viewR + 50
+      case 'wall':
+        this.wall(w, n, a, R, put, 0)
+        break
+      case 'pincer': {
+        const h = Math.ceil(n / 2)
+        this.wall(w, h, a, R, put, 0)
+        this.wall(w, n - h, a + Math.PI, R, put, h)
+        break
+      }
+      case 'burst': {
+        const g = clamp(Math.round(n / 24), 3, 9)
+        const base = w.rng.angle()
+        let i = 0
+        for (let j = 0; j < g; j++) {
+          const aj = base + (j / g) * TAU + w.rng.range(-0.25, 0.25)
+          const d = R + w.rng.range(0, 40)
+          const cx = p.x + Math.cos(aj) * d
+          const cy = p.y + Math.sin(aj) * d
+          const per = Math.ceil((n - i) / (g - j))
+          for (let q = 0; q < per; q++) put(i++, cx + gauss(44), cy + gauss(44))
+        }
+        break
+      }
+      case 'lanes': {
+        const k = clamp(Math.round(n / 26), 3, 7)
         const cx = p.x + Math.cos(a) * R
         const cy = p.y + Math.sin(a) * R
         const px = -Math.sin(a)
         const py = Math.cos(a)
-        for (let i = 0; i < n; i++) {
-          const o = (i - (n - 1) / 2) * 38
-          w.spawnEnemy(ev.enemy ?? 'drone', cx + px * o, cy + py * o, { spawnT: 0.5 })
+        let i = 0
+        for (let j = 0; j < k; j++) {
+          const lat = (j - (k - 1) / 2) * 92
+          const per = Math.ceil((n - i) / (k - j))
+          for (let q = 0; q < per; q++) {
+            const back = q * 32 + w.rng.range(0, 6)
+            put(i++, cx + px * lat + Math.cos(a) * back, cy + py * lat + Math.sin(a) * back)
+          }
         }
-        w.emit({ t: 'warn', key: 'warn.wall', sev: 1 })
         break
       }
-      case 'elite': {
-        const pt = w.edgePoint()
-        w.spawnEnemy(ev.enemy ?? 'brute', pt.x, pt.y, { elite: true, spawnT: 0.8 })
-        w.emit({ t: 'warn', key: 'warn.elite', sev: 1 })
+      case 'stream':
+        this.jobs.push({ form: 'stream', enemy: id, mix, total: n, done: 0, t: 0, dur: clamp(3.5 + n / 38, 4, 9), a })
         break
-      }
-      case 'strike': {
-        // 陨火打击：玩家周围亮起一批预警圈，间隔 0.16 秒依次砸落。
-        // 第一发压在玩家"正要去的地方"（逼他换方向），其余散落在四周；预警时间 ≥ 1.25 秒，永远来得及走开。
-        const n = ev.count ?? 4
-        const dmg = Math.round(20 * (1 + w.sector.dmgPerMin * (w.time / 60)))
-        for (let i = 0; i < n; i++) {
-          const a = w.rng.angle()
-          const d = i === 0 ? 0 : w.rng.range(70, 340)
-          const lead = i === 0 ? 0.7 : 0.35
-          w.addTele('circle', p.x + p.vx * lead + Math.cos(a) * d, p.y + p.vy * lead + Math.sin(a) * d, 1.25 + i * 0.16, 'blast', {
-            r: 64,
-            color: '#ff7a2e',
-            a: dmg,
-            fx: 2,
-          })
-        }
-        w.emit({ t: 'warn', key: 'warn.strike', sev: 1 })
-        break
-      }
-      case 'boss-warning':
-        w.emit({ t: 'warn', key: 'warn.boss', sev: 2 })
+      case 'spiral':
+        this.jobs.push({ form: 'spiral', enemy: id, mix, total: n, done: 0, t: 0, dur: clamp(3 + n / 55, 3.5, 7), a })
         break
     }
+  }
+
+  /** 一面墙：垂直于来袭方向排开，太宽就排成几行 */
+  private wall(w: World, n: number, a: number, R: number, put: (i: number, x: number, y: number) => void, i0: number): void {
+    if (n <= 0) return
+    const p = w.player
+    const rows = Math.max(1, Math.ceil(n / 54))
+    const per = Math.ceil(n / rows)
+    const cx = p.x + Math.cos(a) * R
+    const cy = p.y + Math.sin(a) * R
+    const px = -Math.sin(a)
+    const py = Math.cos(a)
+    let k = 0
+    for (let r = 0; r < rows && k < n; r++) {
+      for (let j = 0; j < per && k < n; j++, k++) {
+        const off = (j - (per - 1) / 2) * 28
+        const back = r * 30 + w.rng.range(0, 8)
+        put(i0 + k, cx + px * off + Math.cos(a) * back, cy + py * off + Math.sin(a) * back)
+      }
+    }
+  }
+
+  private tickJobs(w: World, dt: number): void {
+    for (let i = this.jobs.length - 1; i >= 0; i--) {
+      const j = this.jobs[i]
+      j.t += dt
+      const due = Math.min(j.total, Math.floor((j.total * j.t) / j.dur)) - j.done
+      const p = w.player
+      const R = w.viewR + 40
+      for (let q = 0; q < due; q++) {
+        if (w.enemies.length >= w.maxEnemies) break
+        const id = j.mix && (j.done + q) % 5 === 4 ? j.mix : j.enemy
+        let x: number
+        let y: number
+        if (j.form === 'stream') {
+          const lat = w.rng.range(-90, 90)
+          const back = w.rng.range(0, 50)
+          x = p.x + Math.cos(j.a) * (R + back) - Math.sin(j.a) * lat
+          y = p.y + Math.sin(j.a) * (R + back) + Math.cos(j.a) * lat
+        } else {
+          const ai = j.a + (j.t / j.dur) * TAU * 0.8
+          const d = R + w.rng.range(0, 40)
+          x = p.x + Math.cos(ai) * d
+          y = p.y + Math.sin(ai) * d
+        }
+        w.spawnEnemy(id, x, y, { spawnT: 0.35, rush: true })
+      }
+      j.done += due
+      if (j.done >= j.total) {
+        this.jobs[i] = this.jobs[this.jobs.length - 1]
+        this.jobs.pop()
+      }
+    }
+  }
+
+  private tickDelayed(w: World, dt: number): void {
+    for (let i = this.delayed.length - 1; i >= 0; i--) {
+      const d = this.delayed[i]
+      d.t -= dt
+      if (d.t > 0) continue
+      this.delayed[i] = this.delayed[this.delayed.length - 1]
+      this.delayed.pop()
+      this.spawnPulse(w, d.pd, d.scale, d.a)
+    }
+  }
+
+  // ───────────────────────── 特殊兵种小队 ─────────────────────────
+
+  private tickPending(w: World, dt: number): void {
+    for (let i = this.pending.length - 1; i >= 0; i--) {
+      const q = this.pending[i]
+      q.t -= dt
+      if (q.t > 0) continue
+      this.pending[i] = this.pending[this.pending.length - 1]
+      this.pending.pop()
+      this.spawnSquad(w, q.sq)
+    }
+  }
+
+  private spawnSquad(w: World, sq: SquadDef): void {
+    const p = w.player
+    const a = this.dir(w)
+    const R = w.viewR + 30
+    const cx = p.x + Math.cos(a) * R
+    const cy = p.y + Math.sin(a) * R
+    const spread = 36 + sq.n * 7
+    for (let i = 0; i < sq.n; i++) {
+      if (w.enemies.length >= w.maxEnemies + 20) break
+      const ai = w.rng.angle()
+      const d = w.rng.range(0, spread)
+      w.spawnEnemy(sq.enemy, cx + Math.cos(ai) * d, cy + Math.sin(ai) * d, { elite: !!sq.elite, spawnT: 0.8 })
+    }
+    if (sq.elite) w.emit({ t: 'warn', key: 'warn.elite', sev: 1 })
+  }
+
+  // ───────────────────────── 环境机关 ─────────────────────────
+
+  /** 陨火打击（熔炉星环）：玩家周围亮起一批预警圈，间隔 0.16 秒依次砸落。 */
+  strike(w: World, n: number): void {
+    const p = w.player
+    // 第一发压在玩家"正要去的地方"（逼他换方向），其余散落在四周；预警时间 ≥ 1.25 秒，永远来得及走开
+    const dmg = Math.round(20 * (1 + w.sector.dmgPerMin * (w.time / 60)))
+    for (let i = 0; i < n; i++) {
+      const a = w.rng.angle()
+      const d = i === 0 ? 0 : w.rng.range(70, 360)
+      const lead = i === 0 ? 0.7 : 0.35
+      w.addTele('circle', p.x + p.vx * lead + Math.cos(a) * d, p.y + p.vy * lead + Math.sin(a) * d, 1.25 + i * 0.16, 'blast', {
+        r: 64,
+        color: '#ff7a2e',
+        a: dmg,
+        fx: 2,
+      })
+    }
+    w.emit({ t: 'warn', key: 'warn.strike', sev: 1 })
+  }
+
+  /** 引力井（虚空星区）：在玩家附近张开，彼此错开 */
+  wells(w: World, n: number): void {
+    const p = w.player
+    const placed: { x: number; y: number }[] = []
+    for (let i = 0; i < n; i++) {
+      for (let tries = 0; tries < 8; tries++) {
+        const a = w.rng.angle()
+        const d = w.rng.range(170, 380)
+        const x = p.x + Math.cos(a) * d
+        const y = p.y + Math.sin(a) * d
+        if (placed.some((q) => Math.hypot(q.x - x, q.y - y) < 340) && tries < 7) continue
+        placed.push({ x, y })
+        w.addWell(x, y)
+        break
+      }
+    }
+    w.emit({ t: 'warn', key: 'warn.well', sev: 1 })
+  }
+
+  // ───────────────────────── Boss 战 ─────────────────────────
+
+  /** Boss 战里每隔一阵补一波杂兵（轮换阵型） */
+  private tickAdds(w: World, dt: number): void {
+    const boss = w.boss
+    if (!boss || boss.intro > 0) return
+    this.addsT -= dt
+    if (this.addsT > 0) return
+    this.addsT = WAVE.addsEvery
+    const adds = w.sector.adds
+    if (adds.length === 0 || w.enemies.length > WAVE.addsCap - 30) return
+    const pd = adds[this.addsIdx++ % adds.length]
+    this.unitWave = WAVE.addsWave
+    this.scale = 1
+    this.firePulseAdds(w, pd)
+  }
+
+  private firePulseAdds(w: World, pd: PulseDef): void {
+    if (pd.warn && pd.warn > 0 && (pd.form === 'pincer' || pd.form === 'wall' || pd.form === 'lanes' || pd.form === 'stream')) {
+      const a = this.dir(w)
+      w.emit({ t: 'ambush', angles: pd.form === 'pincer' ? [a, a + Math.PI] : [a], t0: pd.warn })
+      this.delayed.push({ t: pd.warn, pd, scale: 1, a })
+      return
+    }
+    this.spawnPulse(w, pd, 1, this.dir(w))
   }
 }

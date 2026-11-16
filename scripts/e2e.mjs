@@ -121,6 +121,7 @@ async function desktop(base) {
     a.autoPilot = false // 机器人会立刻替玩家选卡，这里要让面板真正停留
     a.game.player.xp = a.game.player.xpNext
     a.game.addXp(0) // 经验只在 addXp 里结算；不主动结算就要等玩家下一次捡到宝石，8 秒窗口内偶尔等不到
+    a.game.openPicks() // 升级选卡只在一波结束的窗口里弹出：测试里直接打开窗口
   })
   try {
     await page.waitForSelector('.overlay.levelup:not([hidden])', { timeout: 8000 })
@@ -129,8 +130,14 @@ async function desktop(base) {
   }
   await sleep(900)
   await shot(page, 'd08-levelup')
-  await page.keyboard.press('1')
-  await sleep(600)
+  // 一波结束时攒下的升级是连着弹的：选完一张，队列里还有就接着弹下一张，直到攒的次数用完才回到战斗
+  let picks = 0
+  for (; picks < 14; picks++) {
+    await page.keyboard.press('1')
+    await sleep(450)
+    if ((await dbg(page)).phase !== 'levelup') break
+  }
+  console.log(`  连续选卡 ${picks + 1} 张后回到战斗`)
   if ((await dbg(page)).phase !== 'play') problems.push('[desktop] 按 1 选卡后没有回到战斗')
   await page.evaluate(() => (window.__neon.autoPilot = true))
 
@@ -201,6 +208,7 @@ async function mobile(base) {
       const w = window.__neon.game
       w.player.xp = w.player.xpNext
       w.addXp(0)
+      w.openPicks() // 升级选卡只在一波结束的窗口里弹出：测试里直接打开窗口
     })
     await page.waitForSelector('.overlay.levelup:not([hidden])', { timeout: 8000 }).catch(() => {})
     await sleep(1000)
@@ -242,8 +250,11 @@ async function play(base) {
   const gear = opt('gear', '')
   const glv = Number(opt('glv', '5'))
   const evo = opt('evo', '0') === '1'
+  // --wave N：快进到第 N 波开始（比 --ff 更直观：第几波、是什么阵型）；--wavet 6：再往这一波里走几秒
+  const wave = Number(opt('wave', '0'))
+  const wavet = Number(opt('wavet', '0'))
   await page.evaluate(
-    ([sector, ship, threat, ff, gear, glv, evo]) => {
+    ([sector, ship, threat, ff, gear, glv, evo, wave, wavet]) => {
       const a = window.__neon
       a.startRun({ ship, sector, threat, endless: false })
       a.godMode = true
@@ -262,9 +273,14 @@ async function play(base) {
         }
         w.recalc()
       }
-      if (ff > 0) a.fastForward(ff)
+      if (wave > 0) {
+        const w = a.game
+        let g = 0
+        while (w.director.wave < wave && w.phase !== 'won' && w.phase !== 'lost' && g++ < 4000) a.fastForward(0.5)
+        if (wavet > 0) a.fastForward(wavet)
+      } else if (ff > 0) a.fastForward(ff)
     },
-    [sector, ship, threat, ff, gear, glv, evo],
+    [sector, ship, threat, ff, gear, glv, evo, wave, wavet],
   )
   await sleep(wait * 1000)
   // --bosshp 0.6：把当前 Boss 的血量直接设成这个比例（0.6 = 进入二阶段，0.25 = 三阶段），配合 --catch forgebeams 等看后半场的招式
@@ -325,13 +341,14 @@ async function play(base) {
       for (const [hx, hy] of heap) for (let k = 0; k < 14; k++) put(k % 3 === 0 ? 'swarmer' : 'drone', p.x + hx + ((k * 37) % 70) - 35, p.y + hy + ((k * 53) % 70) - 35, false)
     })
   }
-  // --catch beams|bolts|rings|ebullets|hbeams|hrings|shells|landing|tethers|strike|lob|slam|forgebeams|forgewarn|surge|multi：一小步一小步往前跑，直到场上出现这种特效的那一帧，再暂停截图
+  // --catch beams|bolts|rings|ebullets|hbeams|hrings|shells|landing|tethers|strike|lob|slam|forgebeams|forgewarn|surge|multi|ambush|well|mini|crowd：一小步一小步往前跑，直到场上出现这种特效的那一帧，再暂停截图
   // （武器是自动开火的，直接截图常常拍不到光束 / 电弧 / 冲击环）。--skip N 再多跑 N 小步（0.03 秒一步）
   const catchWhat = opt('catch', '')
   if (catchWhat) {
     const skip = Number(opt('skip', '0'))
+    const crowdN = Number(opt('n', '70'))
     const got = await page.evaluate(
-      ([what, skip, look]) => {
+      ([what, skip, look, crowdN]) => {
         const a = window.__neon
         const w = a.game
         const has = () => {
@@ -345,6 +362,12 @@ async function play(base) {
             const c = document.querySelector('.callout.show')
             return !!c && Number(getComputedStyle(c).opacity) > 0.7
           }
+          // 波次新增：ambush = 伏击预警箭头在屏幕边缘；well = 引力井已经拉满；mini = 小 Boss 入场完毕；wave = 正处于一波开头
+          if (what === 'ambush') return !!(a.renderer.ambush && a.renderer.ambush.t > 0.5)
+          if (what === 'well') return w.wells.some((wl) => wl.alive && wl.age > 2.2)
+          if (what === 'mini') return !!(w.boss && w.boss.alive && w.boss.mini > 0 && w.boss.intro <= 0)
+          // crowd = 玩家周围 520 单位内同时有 --n（默认 70）只以上的敌人：拍"人潮压境"那一帧
+          if (what === 'crowd') return w.enemies.filter((e) => e.alive && Math.hypot(e.x - w.player.x, e.y - w.player.y) < 520).length >= crowdN
           if (what === 'ebullets') return w.ebullets.length > 12
           if (what === 'hbeams') return w.beams.some((b) => b.alive && b.hostile)
           if (what === 'hrings') return w.rings.some((r) => r.alive && r.hostile && r.r > 120)
@@ -361,6 +384,8 @@ async function play(base) {
           if (what === 'tethers') return w.player.weapons.some((x) => x.id === 'siphon' && x.pts.length >= 2 && x.pts.every((pt) => pt.d > 0.35))
           return false
         }
+        // 快进不渲染，渲染器里的动画计时不会走：先清掉快进过程中留下的旧伏击预警，只认抓拍期间新出现的那一次
+        if (what === 'ambush') a.renderer.ambush = null
         let n = 0
         while (!has() && n++ < 1500) a.fastForward(0.03)
         for (let i = 0; i < skip; i++) a.fastForward(0.03)
@@ -374,7 +399,7 @@ async function play(base) {
         } else a.renderer.cam.reset(w.player.x, w.player.y)
         return { n, ok: has() }
       },
-      [catchWhat, skip, opt('look', 'player')],
+      [catchWhat, skip, opt('look', 'player'), crowdN],
     )
     console.log('  catch:', JSON.stringify(got))
     await sleep(200)
@@ -490,13 +515,13 @@ async function play(base) {
     }, labBullets)
     await sleep(300)
   }
-  // --pickups 2：不清场，把五种拾取物撒在玩家四周（距离 150~260），然后暂停——拍"战斗中的拾取物"用（README 配图）
+  // --pickups 2：不清场，把四种拾取物撒在玩家四周（距离 150~260），然后暂停——拍"战斗中的拾取物"用（README 配图）
   if (opt('pickups', '0') === '2') {
     await page.evaluate(() => {
       const a = window.__neon
       const w = a.game
       const p = w.player
-      ;['heal', 'magnet', 'bomb', 'chest', 'cache'].forEach((k, i) => {
+      ;['heal', 'bomb', 'chest', 'cache'].forEach((k, i) => {
         const ang = -2.4 + i * 1.25
         const d = 170 + (i % 2) * 70
         w.addPickup(k, p.x + Math.cos(ang) * d, p.y + Math.sin(ang) * d * 0.8, k === 'cache' ? 30 : 0)
@@ -506,14 +531,14 @@ async function play(base) {
     })
     await sleep(300)
   }
-  // --pickups 1：清场后在玩家下方一字排开五种拾取物，并暂停（看造型 / 光晕 / 缩放后的辨识度）
+  // --pickups 1：清场后在玩家下方一字排开四种拾取物，并暂停（看造型 / 光晕 / 缩放后的辨识度）
   if (opt('pickups', '0') === '1') {
     await page.evaluate(() => {
       const a = window.__neon
       const w = a.game
       const p = w.player
       for (const e of w.enemies) e.alive = false
-      ;['heal', 'magnet', 'bomb', 'chest', 'cache'].forEach((k, i) => w.addPickup(k, p.x + (i - 2) * 56, p.y + 84, k === 'cache' ? 30 : 0))
+      ;['heal', 'bomb', 'chest', 'cache'].forEach((k, i) => w.addPickup(k, p.x + (i - 1.5) * 56, p.y + 84, k === 'cache' ? 30 : 0))
       a.autoPilot = false
       a.paused = true
     })
@@ -528,6 +553,7 @@ async function play(base) {
       a.autoPilot = false
       a.game.player.xp = a.game.player.xpNext
       a.game.addXp(0)
+      a.game.openPicks() // 升级选卡只在一波结束的窗口里弹出：测试里直接打开窗口
     })
     // 面板真正打开之后再换卡（和 flows 里手摆卡片同一个顺序），否则会被面板自己抽的卡盖掉
     await page.waitForSelector('.overlay.levelup:not([hidden])', { timeout: 8000 }).catch(() => console.log('  ⚠ 升级面板没有出现'))
@@ -820,6 +846,7 @@ async function flows(base) {
       n.autoPilot = false
       n.game.player.xp = n.game.player.xpNext
       n.game.addXp(0)
+      n.game.openPicks() // 升级选卡只在一波结束的窗口里弹出：测试里直接打开窗口
     })
     await page.waitForSelector('.overlay.levelup:not([hidden])', { timeout: 8000 }).catch(() => problems.push('[flows/en] 升级面板没有出现'))
     await sleep(600)
@@ -966,6 +993,7 @@ async function flows(base) {
         w.recalc()
         P.xp = P.xpNext
         w.addXp(0)
+        w.openPicks() // 升级选卡只在一波结束的窗口里弹出：测试里直接打开窗口
       }, fill)
     await trigger(false)
     await page.waitForSelector('.overlay.levelup:not([hidden])', { timeout: 8000 }).catch(() => problems.push('[flows/cards] 升级面板没有出现'))
@@ -1028,7 +1056,7 @@ async function flows(base) {
     await ctx.close()
   }
 
-  // G) 吸附：吃到磁铁后全屏的经验石都被吸向飞机，机器人一路跑动，也不该出现绕着飞机转圈、几秒都收不走的石头
+  // G) 经验光点：击杀即得经验，光点只是演出；它们出生就飞向飞船，机器人一路跑动，也不该出现绕着飞机转圈、几秒都收不走的光点
   {
     const { ctx, page } = await fresh()
     await page.click('.btn.play')
@@ -1123,6 +1151,7 @@ async function fx(base) {
     p.passives[partners[wi.id]] = Math.max(1, p.passives[partners[wi.id]] ?? 0)
     w.recalc()
     w.addXp(p.xpNext)
+    w.openPicks() // 升级选卡只在一波结束的窗口里弹出：测试里直接打开窗口
   }, PARTNER)
   try {
     await page.waitForSelector('.overlay.levelup:not([hidden])', { timeout: 6000 })
@@ -1186,6 +1215,7 @@ async function fx(base) {
       p.passives[partners[wi.id]] = Math.max(1, p.passives[partners[wi.id]] ?? 0)
       w.recalc()
       w.addXp(p.xpNext)
+      w.openPicks() // 升级选卡只在一波结束的窗口里弹出：测试里直接打开窗口
     }, PARTNER)
     try {
       await page.waitForSelector('.overlay.levelup:not([hidden])', { timeout: 6000 })
@@ -1800,7 +1830,7 @@ const SEED_RICH = () => {
   s.lifetimeCores = 9120
   s.ships = ['vanguard', 'phantom', 'bulwark', 'reaper']
   s.totals = { runs: 37, wins: 6, deaths: 31, kills: 12400, time: 20000, evolves: 21, dashes: 880 }
-  s.best = { time: 330, kills: 560, level: 28, evolves: 2, weapons: 6, noHit: 100, dashes: 53 }
+  s.best = { time: 330, kills: 3400, level: 28, evolves: 2, weapons: 6, noHit: 100, dashes: 53, multi: 62 }
   s.bestTime = { fields: 600, wasteland: 600, void: 480, crucible: 0 }
   s.clears = { fields: 4, wasteland: 2, void: 1, crucible: 0 }
   s.maxThreat = { fields: 1, wasteland: 0, void: 0, crucible: -1 }
@@ -1865,7 +1895,10 @@ async function uiShow(page, kind, settle = 700) {
       a.startRun({ ship: 'vanguard', sector: 'fields', threat: 0, endless: false })
       a.fastForward(240)
       if (kind === 'pause') a.pause()
-      else a.game.addXp(1e6)
+      else {
+        a.game.addXp(1e6)
+        a.game.openPicks()
+      }
     }, kind)
     await page.waitForSelector(kind === 'pause' ? '.overlay.pause:not([hidden])' : '.overlay.levelup:not([hidden])', { timeout: 8000 })
     await sleep(settle * 1.3)

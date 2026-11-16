@@ -1790,13 +1790,18 @@ button.card {
   transition: width 0.12s linear;
 }
 
-/* 等级标签放进经验条里（以前悬在条下面，会和计时器叠在一起） */
-.hud-xp .xp-lv {
+/* 等级牌 + 「待选 ×N」徽记并排放进经验条里居中（战斗中升级只攒次数，一波结束时统一弹卡；以前悬在条下面，会和计时器叠在一起） */
+.hud-xp .xp-mid {
   position: absolute;
   left: 50%;
   top: 0;
   height: 100%;
   transform: translateX(-50%);
+  display: flex;
+  align-items: stretch;
+}
+
+.hud-xp .xp-lv {
   display: flex;
   align-items: center;
   font-family: var(--display);
@@ -1810,6 +1815,32 @@ button.card {
   background: rgba(3, 5, 12, 0.92);
   box-shadow: inset 0 -1px 0 rgba(130, 170, 255, 0.4);
   clip-path: polygon(0 0, 100% 0, calc(100% - 6px) 100%, 6px 100%);
+}
+
+.hud-xp .xp-pend {
+  display: flex;
+  align-items: center;
+  margin-left: -5px;
+  padding: 0 12px 0 calc(12px + 0.12em);
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 0.6rem;
+  letter-spacing: 0.12em;
+  white-space: nowrap;
+  color: #1b1300;
+  background: linear-gradient(180deg, #ffe27a, #ffbf2e);
+  clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%);
+  animation: pend-blink 1.3s ease-in-out infinite;
+}
+
+.hud-xp .xp-pend[hidden] {
+  display: none;
+}
+
+@keyframes pend-blink {
+  50% {
+    filter: brightness(1.25);
+  }
 }
 
 .hud-tl {

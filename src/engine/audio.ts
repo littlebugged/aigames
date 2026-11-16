@@ -384,14 +384,15 @@ export class AudioEngine {
         }
         break
       case 'gem': {
+        // 经验是击杀即得、光点只是演出：叮声放得更稀更轻，连着收时音阶只爬到一半就停住，免得割草时变成一片刺耳的高频
         const now = this.ctx.currentTime
         if (now - this.gemT > 0.5) this.gemStreak = 0
         this.gemT = now
-        if (this.ok('gem', 0.035)) {
-          const semis = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24]
+        if (this.ok('gem', 0.075)) {
+          const semis = [0, 2, 4, 7, 9, 12, 14]
           const m = 76 + semis[Math.min(semis.length - 1, this.gemStreak)]
           this.gemStreak++
-          this.tone(mtof(m), 0.11, { type: 'sine', vol: 0.055, pan: pan(e.x) })
+          this.tone(mtof(m), 0.1, { type: 'sine', vol: 0.038, pan: pan(e.x) })
         }
         break
       }
@@ -399,8 +400,25 @@ export class AudioEngine {
         this.pickup(e.kind)
         break
       case 'levelup':
-        this.arp([72, 76, 79, 84, 88], 0.07, { type: 'triangle', vol: 0.12 })
-        this.tone(mtof(60), 0.5, { type: 'sine', vol: 0.12, attack: 0.02 })
+        // 割草时一口气攒下好几级：别叠成一堆琶音，隔 0.4 秒才响一次
+        if (this.ok('levelup', 0.4)) {
+          this.arp([72, 76, 79, 84, 88], 0.07, { type: 'triangle', vol: 0.12 })
+          this.tone(mtof(60), 0.5, { type: 'sine', vol: 0.12, attack: 0.02 })
+        }
+        break
+      case 'wave':
+        // 新一波：两个上行的短音，像换岗的哨声
+        this.tone(mtof(64), 0.14, { type: 'triangle', vol: 0.09, lp: 3200 })
+        this.tone(mtof(71), 0.22, { type: 'triangle', vol: 0.09, lp: 3200, delay: 0.1 })
+        break
+      case 'ambush':
+        // 伏击预警：三声由近及远的短促提示
+        for (let i = 0; i < 3; i++) this.tone(988, 0.07, { type: 'square', vol: 0.06, lp: 3600, delay: i * 0.11 })
+        break
+      case 'well':
+        // 引力井张开：低频下沉 + 一点由高到低的嘶声
+        this.tone(96, 1.3, { type: 'sine', f1: 38, vol: 0.2, attack: 0.05 })
+        this.noise(1.0, { type: 'bandpass', f0: 1800, f1: 160, q: 0.8, vol: 0.08 })
         break
       case 'dash':
         this.noise(0.2, { type: 'bandpass', f0: 1400, f1: 260, q: 1.2, vol: 0.2 })
@@ -437,7 +455,12 @@ export class AudioEngine {
         }
         break
       case 'boss':
-        if (e.what === 'spawn') this.bossSpawn()
+        if (e.what === 'retire') break
+        if (e.mini) {
+          // 小 Boss：没有警报与终结曲，只有轻一点的提示音
+          if (e.what === 'dead') this.arp([67, 71, 74, 79, 83], 0.06, { type: 'triangle', vol: 0.11 })
+          else if (e.what === 'phase') this.tone(220, 0.35, { type: 'sawtooth', f1: 110, vol: 0.12, lp: 1400 })
+        } else if (e.what === 'spawn') this.bossSpawn()
         else if (e.what === 'phase') this.bossPhase()
         else this.bossDead()
         break
@@ -580,10 +603,6 @@ export class AudioEngine {
     switch (kind) {
       case 'heal':
         this.arp([72, 76, 79], 0.07, { type: 'sine', vol: 0.13 })
-        break
-      case 'magnet':
-        this.tone(180, 0.5, { type: 'sine', f1: 1400, vol: 0.12, attack: 0.02 })
-        this.noise(0.45, { type: 'bandpass', f0: 400, f1: 2400, vol: 0.1 })
         break
       case 'bomb':
         this.tone(110, 0.5, { type: 'sine', f1: 36, vol: 0.3 })

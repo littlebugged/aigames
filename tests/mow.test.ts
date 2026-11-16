@@ -47,192 +47,87 @@ function run(w: World, seconds: number): void {
 
 const count = (events: GameEvent[], t: GameEvent['t']): number => events.filter((e) => e.t === t).length
 
-// ───────────────────────── 浪涌：充能 ─────────────────────────
+// ───────────────────────── 浪涌：一波的句号 ─────────────────────────
 
-test('浪涌充能：杂兵每只 1 格、精英按 eliteWeight 计，充满为止不会溢出', () => {
-  const { w } = arena()
-  const need = w.mow.need()
-  assert.equal(need, SURGE.need0, '第一次充能需要 need0 次击杀')
-  const [a] = crowd(w, 1)
-  w.killEnemy(a)
-  assert.ok(Math.abs(w.mow.charge - 1 / need) < 1e-9, '一只杂兵 = 1 / need')
-
-  const el = w.spawnEnemy('brute', w.player.x + 300, w.player.y, { spawnT: 0, elite: true })
-  const before = w.mow.charge
-  w.killEnemy(el)
-  assert.ok(Math.abs(w.mow.charge - before - SURGE.eliteWeight / need) < 1e-9, '精英 = eliteWeight / need')
-
-  for (const e of crowd(w, need * 2)) w.killEnemy(e)
-  assert.equal(w.mow.charge, 1, '封顶 1')
-  assert.equal(w.mow.ready, true)
-})
-
-test('浪涌充能需求：每放一次多 needStep 次击杀，封顶 needMax', () => {
-  const { w } = arena()
-  const m = w.mow
-  assert.equal(m.need(), SURGE.need0)
-  m.count = 3
-  assert.equal(m.need(), SURGE.need0 + 3 * SURGE.needStep)
-  m.count = 999
-  assert.equal(m.need(), SURGE.needMax)
-})
-
-// ───────────────────────── 浪涌：释放时机 ─────────────────────────
-
-test('浪涌释放：满能量 + 敌群够密 → 自动放一次；三道安静的友方环、清空充能、进入冷却', () => {
+test('浪涌：三道安静的友方环（只收割杂兵）、短暂无敌、带波数的 surge 事件', () => {
   const { w, events } = arena()
-  crowd(w, SURGE.nearCount + 3)
-  w.mow.charge = 1
-  w.update(DT, input)
-  assert.equal(w.stats.surges, 1)
-  assert.equal(w.mow.count, 1)
-  assert.equal(w.mow.charge, 0)
-  assert.ok(w.mow.gap > SURGE.minGap - 0.1)
-  assert.equal(count(events, 'surge'), 1)
-  const rings = w.rings.filter((r) => r.alive && !r.hostile && r.quiet)
-  assert.equal(rings.length, SURGE.ringMul.length, '每一环都是 quiet 的友方环')
+  w.mow.sweep(w, 3)
+  const rings = w.rings.filter((r) => r.alive && !r.hostile)
+  assert.equal(rings.length, SURGE.ringScale.length)
+  assert.ok(rings.every((r) => r.quiet && r.fodder), '每一环都是 quiet 的、只对杂兵生效')
   assert.ok(rings.every((r) => r.wide > 1), '浪涌的环比普通环宽')
-  assert.ok(w.player.invuln >= SURGE.invuln - DT * 2, '释放瞬间给玩家短暂无敌')
+  assert.ok(w.player.invuln >= SURGE.invuln - DT * 2, '放出的瞬间给玩家短暂无敌')
+  const ev = events.find((e) => e.t === 'surge')
+  assert.ok(ev && ev.t === 'surge' && ev.n === 3, '事件带着是第几波')
 })
 
-test('浪涌释放：没充满不放；敌人不够密不放；只剩零星几只时等够 patience 才放', () => {
-  const { w } = arena()
-  crowd(w, SURGE.nearCount + 3)
-  w.mow.charge = 0.99
-  run(w, 1)
-  assert.equal(w.stats.surges, 0, '没充满不放')
-
-  const b = arena()
-  crowd(b.w, 5)
-  b.w.mow.charge = 1
-  run(b.w, SURGE.patience - 0.5)
-  assert.equal(b.w.stats.surges, 0, '只有 5 只、还没等够，不放')
-  run(b.w, 1)
-  assert.equal(b.w.stats.surges, 1, '等够 patience 秒，哪怕只有 5 只也放')
-
-  const c = arena()
-  crowd(c.w, 2)
-  c.w.mow.charge = 1
-  run(c.w, SURGE.patience + 2)
-  assert.equal(c.w.stats.surges, 0, '只剩 2 只不值得放')
-})
-
-test('浪涌释放：Boss 在范围内就放，不需要小怪凑数；Boss 还在出场动画里则不放', () => {
-  const { w } = arena()
-  spawnBoss(w, 'overseer')
-  const boss = w.boss!
-  boss.x = w.player.x + 300
-  boss.y = w.player.y
-  w.mow.charge = 1
-  w.update(DT, input)
-  assert.equal(w.stats.surges, 0, '出场动画（intro > 0）期间不放')
-  boss.intro = 0
-  w.update(DT, input)
-  assert.equal(w.stats.surges, 1)
-})
-
-test('浪涌冷却：放完之后再充满也要等 minGap 秒', () => {
-  const { w } = arena()
-  crowd(w, SURGE.nearCount + 2, 300)
-  w.mow.charge = 1
-  w.update(DT, input)
-  assert.equal(w.stats.surges, 1)
-  run(w, 1) // 冲击波走完，第一批敌人被扫光
-  crowd(w, SURGE.nearCount + 2, 300)
-  w.mow.charge = 1
-  run(w, SURGE.minGap - 2.5)
-  assert.equal(w.stats.surges, 1, 'minGap 之内不会放第二次')
-  run(w, 3)
-  assert.equal(w.stats.surges, 2, 'minGap 过后立刻放')
-})
-
-test('演示模式（主菜单背景）不放浪涌', () => {
-  const { w } = arena(true)
-  crowd(w, 30)
-  w.mow.charge = 1
-  run(w, 3)
-  assert.equal(w.stats.surges, 0)
-})
-
-// ───────────────────────── 浪涌：效果 ─────────────────────────
-
-test('浪涌的冲击波：把半径内的杂兵扫光，半径外的不受影响，击杀数与经验石都对得上', () => {
+test('浪涌：把半径内的杂兵扫光，半径外的不受影响；击杀数与经验即时入账', () => {
   const { w } = arena()
   const inside = crowd(w, 24, 300)
   const outside = crowd(w, 6, SURGE.radius + 260)
-  const xp = inside.reduce((a, e) => a + e.xp, 0) * w.player.st.xp
-  w.mow.charge = 1
-  w.update(DT, input)
-  run(w, 1.2)
+  const gain = inside.reduce((a, e) => a + e.xp, 0) * w.player.st.xp * (TUNE.xpByDensity > 0 ? 1 / w.sector.density ** TUNE.xpByDensity : 1)
+  w.mow.sweep(w, 1)
+  run(w, 1.4)
   assert.ok(inside.every((e) => !e.alive), '半径内的杂兵全灭')
   assert.ok(outside.every((e) => e.alive), '半径外的完好无损')
   assert.equal(w.stats.kills, inside.length)
-  run(w, 2) // 经验石被整张地图吸回来，之后全部进了账
-  assert.ok(w.player.xp >= xp * 0.99, `杀掉的都变成了经验：应得约 ${xp.toFixed(1)}，实际 ${w.player.xp.toFixed(1)}`)
+  assert.ok(Math.abs(w.player.xp - gain) < gain * 0.01 + 1e-6, `经验当场入账：应得 ${gain.toFixed(2)}，实际 ${w.player.xp.toFixed(2)}`)
 })
 
-test('浪涌命中杂兵是"安静"的：不出伤害数字 / 命中事件，但每只都有击杀事件；精英照常显示命中', () => {
+test('浪涌只收割杂兵：特殊兵种、精英和 Boss 一点伤害都没有', () => {
+  const { w } = arena()
+  const p = w.player
+  const brute = w.spawnEnemy('brute', p.x + 260, p.y, { spawnT: 0, hpMul: 1 })
+  const shield = w.spawnEnemy('shielder', p.x - 260, p.y, { spawnT: 0, hpMul: 1 })
+  const eliteDrone = w.spawnEnemy('drone', p.x, p.y - 300, { spawnT: 0, elite: true })
+  const filler = crowd(w, 12, 330)
+  for (const e of [brute, shield, eliteDrone]) e.speed = 0
+  spawnBoss(w, 'overseer')
+  const boss = w.boss!
+  boss.x = p.x
+  boss.y = p.y + 340
+  const bossHp = boss.hp
+  const hp = [brute.hp, shield.hp, eliteDrone.hp]
+  w.mow.sweep(w, 5)
+  run(w, 1.4)
+  assert.ok(filler.every((e) => !e.alive), '杂兵被收走')
+  assert.ok([brute, shield, eliteDrone].every((e) => e.alive), '特殊兵种与精英还在')
+  assert.deepEqual([brute.hp, shield.hp, eliteDrone.hp], hp, '而且一滴血都没掉')
+  assert.equal(boss.hp, bossHp, 'Boss 不受影响')
+})
+
+test('浪涌命中杂兵是"安静"的：不出伤害数字 / 命中事件，但每只都有击杀事件', () => {
   const { w, events } = arena()
   const mobs = crowd(w, 20, 300)
-  // 血很厚的精英：三环都打得到它，也都扛得住
-  const elite = w.spawnEnemy('brute', w.player.x, w.player.y - 340, { spawnT: 0, elite: true, hpMul: 50 })
-  elite.speed = 0
-  w.mow.charge = 1
-  w.update(DT, input)
-  run(w, 1.2)
-  const hits = events.filter((e) => e.t === 'hit')
-  assert.ok(mobs.every((e) => !e.alive), '杂兵全灭')
-  assert.ok(elite.alive, '精英还活着')
+  w.mow.sweep(w, 1)
+  run(w, 1.4)
+  assert.ok(mobs.every((e) => !e.alive))
   assert.equal(count(events, 'kill'), mobs.length, '每只杂兵都有一条击杀事件')
-  assert.equal(hits.length, SURGE.ringMul.length, '命中事件只来自精英：每一环一次，20 只杂兵一条都没有')
+  assert.equal(count(events, 'hit'), 0, '没有逐只的命中事件（20 只一条都没有）')
 })
 
 test('浪涌：清掉冲击波半径内的敌方弹幕，半径外的不动', () => {
   const { w } = arena()
-  crowd(w, SURGE.nearCount + 2, 300)
+  crowd(w, 6, 300)
   const p = w.player
   w.spawnEnemyBullet(p.x + 200, p.y, 0, 10, 5)
   w.spawnEnemyBullet(p.x - 300, p.y, 0, 10, 5)
   w.spawnEnemyBullet(p.x, p.y + SURGE.radius + 200, 0, 10, 5)
-  w.mow.charge = 1
-  w.update(DT, input)
+  w.mow.sweep(w, 1)
   const alive = w.ebullets.filter((b) => b.alive).length
   assert.equal(alive, 1, '近处两发被清掉，远处一发保留')
 })
 
-test('浪涌之后：整张地图的经验石都被吸回来', () => {
-  const { w } = arena()
-  crowd(w, SURGE.nearCount + 2, 300)
-  const p = w.player
-  for (let i = 0; i < 12; i++) w.addGem(p.x + 1200 + i * 40, p.y - 900, 3)
-  assert.ok(w.gems.every((g) => !g.mag))
-  w.mow.charge = 1
-  w.update(DT, input)
-  assert.ok(
-    w.gems.every((g) => !g.mag),
-    '刚放出去的时候还没有吸',
-  )
-  run(w, SURGE.vacuumAfter + 0.1)
-  assert.ok(w.gems.length >= 12)
-  assert.ok(w.gems.every((g) => g.alive && g.mag), '半秒后所有经验石开始被吸')
-})
-
-test('浪涌的伤害随等级成长，且不吃暴击（数字可预期）', () => {
-  const { w } = arena()
-  w.player.level = 30
-  w.player.st.crit = 1
-  w.player.st.critMul = 5
-  const target = w.spawnEnemy('brute', w.player.x + 260, w.player.y, { spawnT: 0, hpMul: 1000 })
-  target.speed = 0
-  const hp0 = target.hp
-  crowd(w, SURGE.nearCount + 2, 300)
-  w.mow.charge = 1
-  w.update(DT, input)
-  run(w, 1.2)
-  const taken = hp0 - target.hp
-  const one = (SURGE.base + SURGE.perLevel * 30) * w.player.st.dmg
-  const expect = one * SURGE.ringMul.reduce((a, b) => a + b, 0)
-  assert.ok(Math.abs(taken - expect) < expect * 0.02, `三环合计应约为 ${expect.toFixed(0)}（无暴击），实际 ${taken.toFixed(0)}`)
+test('浪涌一次放倒一整片：几百只一起倒就是一次大场面（群杀播报冲到高档位）', () => {
+  const { w, events } = arena()
+  crowd(w, 120, 330)
+  crowd(w, 80, 420)
+  w.mow.sweep(w, 1)
+  run(w, 1.6)
+  const multis = events.filter((e): e is Extract<GameEvent, { t: 'multi' }> => e.t === 'multi')
+  assert.ok(multis.length >= 1, '一片倒下要有群杀播报')
+  assert.ok(Math.max(...multis.map((m) => m.tier)) >= 3, `200 只一起倒应当至少冲到第 3 档，实际 ${multis.map((m) => m.tier).join(',')}`)
+  assert.ok(w.stats.bestMulti >= 150)
 })
 
 // ───────────────────────── 群杀播报 ─────────────────────────
@@ -293,19 +188,6 @@ test('群杀播报的冷却：同档位在 cooldown 内不重复，更高的档�
   assert.ok(burst(w, events, MULTI.tiers[1]).length > 0, '冷却过后同档位又能播')
 })
 
-test('一次浪涌必然是一次大场面：整局里只有它的那一下会冲到高档位', () => {
-  const { w, events } = arena()
-  crowd(w, 120, 330)
-  crowd(w, 80, 420)
-  w.mow.charge = 1
-  w.update(DT, input)
-  run(w, 1.5)
-  const multis = events.filter((e): e is Extract<GameEvent, { t: 'multi' }> => e.t === 'multi')
-  assert.ok(multis.length >= 1, '一片倒下要有群杀播报')
-  assert.ok(Math.max(...multis.map((m) => m.tier)) >= 3, `200 只一起倒应当至少冲到第 3 档，实际 ${multis.map((m) => m.tier).join(',')}`)
-  assert.ok(w.stats.bestMulti >= 150)
-})
-
 // ───────────────────────── 杂兵脆化 ─────────────────────────
 
 test('杂兵血量成长：只吃一部分星区成长（hpGrow × 各自的 grow），分裂碎片不成长', () => {
@@ -330,4 +212,13 @@ test('每种敌人都声明了 grow（0~2 之间）', () => {
   for (const def of Object.values(ENEMIES)) {
     assert.ok(Number.isFinite(def.grow) && def.grow >= 0 && def.grow <= 2, `${def.id}.grow = ${def.grow}`)
   }
+})
+
+test('一局下来：杂兵一直是一两下就倒（十分钟后也不变厚），特殊兵种则越来越厚', () => {
+  const { w } = arena()
+  w.time = 590
+  const drone = w.spawnEnemy('drone', w.player.x + 900, w.player.y, { spawnT: 0 })
+  const brute = w.spawnEnemy('brute', w.player.x - 900, w.player.y, { spawnT: 0 })
+  assert.ok(drone.hp <= ENEMIES.drone.hp * w.threat.hp + 1e-9, '杂兵血量不随时间变厚')
+  assert.ok(brute.hp > ENEMIES.brute.hp * 2, `重甲后期应当明显更厚：${brute.hp.toFixed(0)}`)
 })
