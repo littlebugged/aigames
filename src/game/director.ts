@@ -1,6 +1,7 @@
+import { ENEMIES } from '../data/enemies'
 import type { EnemyId } from '../data/ids'
 import { SURGE, TUNE } from '../data/tuning'
-import { WAVE, waveUnit, type MiniPlan, type PulseDef, type SquadDef, type WaveDef } from '../data/waves'
+import { FLOW, WAVE, waveUnit, type MiniPlan, type PulseDef, type SquadDef, type WaveDef } from '../data/waves'
 import { TAU, clamp } from '../engine/math'
 import { spawnBoss } from './bosses'
 import type { World } from './world'
@@ -69,6 +70,10 @@ export class Director {
   private addsT = 0
   private addsIdx = 0
   private bossWarned = false
+  /** 人潮补兵：下次检查的倒计时 / 本波补兵用的杂兵种类 */
+  private flowT = 0
+  private flowAcc = 0
+  private flowKinds: EnemyId[] = ['drone', 'swarmer']
 
   update(w: World, dt: number): void {
     const sec = w.sector
@@ -99,6 +104,9 @@ export class Director {
       this.firePulse(w, def.pulses[this.pulseIdx], this.pulseIdx)
       this.pulseIdx++
     }
+
+    // 人潮补兵：浪涌清场之前一直在补，保证屏幕里永远有一群怪
+    if (!this.swept) this.tickFlow(w, dt)
 
     // 小 Boss：登场时场上必须没有别的 Boss（上一只还没打死就顺延，直到本波结束为止）
     if (this.miniPlan && !demo && this.waveT >= WAVE.miniAt && !boss) {
@@ -150,7 +158,15 @@ export class Director {
     this.pulseIdx = 0
     this.swept = false
     this.pickT = -1
+    // 每一波开场先给一份满额度：画面里立刻就有一批怪压上来，而不是干等第一个脉冲
+    this.flowT = 0
+    this.flowAcc = FLOW.clump[1] * 2
     this.pending.length = 0
+    const kinds = new Set<EnemyId>()
+    for (const pd of s.def.pulses) {
+      if (pd.enemy && pd.form !== 'strike' && pd.form !== 'well' && pd.w > 0 && ENEMIES[pd.enemy].tier === 'fodder') kinds.add(pd.enemy)
+    }
+    this.flowKinds = kinds.size > 0 ? [...kinds] : ['drone', 'swarmer']
     const n = s.def.pulses.length
     const first = WAVE.firstAt
     const last = Math.max(first, s.def.len - WAVE.lastGap)
@@ -212,6 +228,60 @@ export class Director {
     return Math.min(WAVE.maxPulse, Math.round(raw), room)
   }
 
+  // ───────────────────────── 人潮补兵 ─────────────────────────
+
+  /** 玩家周围杂兵的目标数（补兵的稳态线；随波数、星区密度、威胁倍率走，小 Boss 在场时减半） */
+  flowTarget(w: World): number {
+    const boss = w.boss && w.boss.alive ? w.boss : null
+    const raw = waveUnit(this.unitWave) * FLOW.k * w.sector.density * w.threat.spawn * this.scale * (boss ? FLOW.bossScale : 1)
+    return Math.min(FLOW.cap, raw)
+  }
+
+  /** 画面里和画面边缘外一圈（FLOW.zone 像素以内）还活着的杂兵数 */
+  flowHave(w: World): number {
+    const p = w.player
+    const zx = w.viewHalfW + FLOW.zone
+    const zy = w.viewHalfH + FLOW.zone
+    let have = 0
+    const E = w.enemies
+    for (let i = 0; i < E.length; i++) {
+      const e = E[i]
+      if (!e.alive || e.elite || e.def.tier !== 'fodder') continue
+      if (Math.abs(e.x - p.x) < zx && Math.abs(e.y - p.y) < zy) have++
+    }
+    return have
+  }
+
+  private tickFlow(w: World, dt: number): void {
+    this.flowT -= dt
+    if (this.flowT > 0) return
+    this.flowT = FLOW.every
+    const boss = w.boss && w.boss.alive ? w.boss : null
+    const target = this.flowTarget(w)
+    const capNow = boss ? WAVE.addsCap + (boss.mini ? 100 : 0) : w.maxEnemies
+    // 补兵额度按速率累积（目标小的时候一次检查凑不够一团，攒几次再放，而不是永远不补）
+    let deficit = Math.min(target - this.flowHave(w), capNow - w.enemies.length)
+    this.flowAcc = deficit > 0 ? Math.min(this.flowAcc + target * FLOW.rate * FLOW.every, FLOW.clump[1] * 2) : 0
+    const p = w.player
+    while (deficit >= 3 && this.flowAcc >= 3) {
+      const n = Math.min(Math.floor(this.flowAcc), Math.ceil(deficit), w.rng.int(FLOW.clump[0], FLOW.clump[1] + 1))
+      this.flowAcc -= n
+      deficit -= n
+      // 一团一种怪（黄蜂一团、螨虫一团），像一小股潮水从同一个方向涌来
+      const id = w.rng.pick(this.flowKinds)
+      const a = this.dir(w)
+      const d = w.edgeDist(a, 130 + w.rng.range(0, 50))
+      const cx = p.x + Math.cos(a) * d
+      const cy = p.y + Math.sin(a) * d
+      const sigma = 20 + n * 2.5
+      for (let i = 0; i < n; i++) {
+        const gx = (w.rng.next() + w.rng.next() + w.rng.next() - 1.5) * 2 * sigma
+        const gy = (w.rng.next() + w.rng.next() + w.rng.next() - 1.5) * 2 * sigma
+        w.spawnEnemy(id, cx + gx, cy + gy, { spawnT: 0.35, rush: true })
+      }
+    }
+  }
+
   private spawnPulse(w: World, pd: PulseDef, scale: number, a: number): void {
     if (pd.form === 'strike') {
       this.strike(w, pd.n ?? 4)
@@ -225,7 +295,6 @@ export class Director {
     const n = this.count(w, pd, scale)
     if (n < 4) return
     const p = w.player
-    const R = w.viewR + 40
     const mix = pd.mix
     const kind = (i: number): EnemyId => (mix && i % 5 === 4 ? mix : id)
     const put = (i: number, x: number, y: number): void => {
@@ -238,19 +307,20 @@ export class Director {
       case 'ring': {
         const a0 = w.rng.angle()
         for (let i = 0; i < n; i++) {
-          const ai = a0 + (i / n) * TAU
-          const r = R + (i % 3) * 22
+          // 圈不是画出来的：每只的角度、半径各自抖一抖，收拢时参差不齐，像一圈潮水而不是一圈钉子
+          const ai = a0 + ((i + w.rng.range(-0.45, 0.45)) / n) * TAU
+          const r = w.edgeDist(ai, 44 + w.rng.range(0, 90))
           put(i, p.x + Math.cos(ai) * r, p.y + Math.sin(ai) * r)
         }
         break
       }
       case 'wall':
-        this.wall(w, n, a, R, put, 0)
+        this.wall(w, n, a, put, 0)
         break
       case 'pincer': {
         const h = Math.ceil(n / 2)
-        this.wall(w, h, a, R, put, 0)
-        this.wall(w, n - h, a + Math.PI, R, put, h)
+        this.wall(w, h, a, put, 0)
+        this.wall(w, n - h, a + Math.PI, put, h)
         break
       }
       case 'burst': {
@@ -259,27 +329,29 @@ export class Director {
         let i = 0
         for (let j = 0; j < g; j++) {
           const aj = base + (j / g) * TAU + w.rng.range(-0.25, 0.25)
-          const d = R + w.rng.range(0, 40)
+          const d = w.edgeDist(aj, 170 + w.rng.range(0, 40))
           const cx = p.x + Math.cos(aj) * d
           const cy = p.y + Math.sin(aj) * d
           const per = Math.ceil((n - i) / (g - j))
-          for (let q = 0; q < per; q++) put(i++, cx + gauss(44), cy + gauss(44))
+          for (let q = 0; q < per; q++) put(i++, cx + gauss(52), cy + gauss(52))
         }
         break
       }
       case 'lanes': {
-        const k = clamp(Math.round(n / 26), 3, 7)
-        const cx = p.x + Math.cos(a) * R
-        const cy = p.y + Math.sin(a) * R
+        const k = clamp(Math.round(n / 16), 3, 9)
+        const D = w.edgeLine(a, 44)
+        const cx = p.x + Math.cos(a) * D
+        const cy = p.y + Math.sin(a) * D
         const px = -Math.sin(a)
         const py = Math.cos(a)
         let i = 0
         for (let j = 0; j < k; j++) {
-          const lat = (j - (k - 1) / 2) * 92
+          const lat = (j - (k - 1) / 2) * 78 + w.rng.range(-14, 14)
           const per = Math.ceil((n - i) / (k - j))
           for (let q = 0; q < per; q++) {
-            const back = q * 32 + w.rng.range(0, 6)
-            put(i++, cx + px * lat + Math.cos(a) * back, cy + py * lat + Math.sin(a) * back)
+            const back = q * 22 + w.rng.range(0, 24)
+            const jx = w.rng.range(-9, 9)
+            put(i++, cx + px * (lat + jx) + Math.cos(a) * back, cy + py * (lat + jx) + Math.sin(a) * back)
           }
         }
         break
@@ -294,20 +366,21 @@ export class Director {
   }
 
   /** 一面墙：垂直于来袭方向排开，太宽就排成几行 */
-  private wall(w: World, n: number, a: number, R: number, put: (i: number, x: number, y: number) => void, i0: number): void {
+  private wall(w: World, n: number, a: number, put: (i: number, x: number, y: number) => void, i0: number): void {
     if (n <= 0) return
     const p = w.player
     const rows = Math.max(1, Math.ceil(n / 54))
     const per = Math.ceil(n / rows)
-    const cx = p.x + Math.cos(a) * R
-    const cy = p.y + Math.sin(a) * R
+    const D = w.edgeLine(a, 44)
+    const cx = p.x + Math.cos(a) * D
+    const cy = p.y + Math.sin(a) * D
     const px = -Math.sin(a)
     const py = Math.cos(a)
     let k = 0
     for (let r = 0; r < rows && k < n; r++) {
       for (let j = 0; j < per && k < n; j++, k++) {
-        const off = (j - (per - 1) / 2) * 28
-        const back = r * 30 + w.rng.range(0, 8)
+        const off = (j - (per - 1) / 2) * 28 + w.rng.range(-9, 9)
+        const back = r * 30 + w.rng.range(0, 46)
         put(i0 + k, cx + px * off + Math.cos(a) * back, cy + py * off + Math.sin(a) * back)
       }
     }
@@ -319,20 +392,19 @@ export class Director {
       j.t += dt
       const due = Math.min(j.total, Math.floor((j.total * j.t) / j.dur)) - j.done
       const p = w.player
-      const R = w.viewR + 40
       for (let q = 0; q < due; q++) {
         if (w.enemies.length >= w.maxEnemies) break
         const id = j.mix && (j.done + q) % 5 === 4 ? j.mix : j.enemy
         let x: number
         let y: number
         if (j.form === 'stream') {
-          const lat = w.rng.range(-90, 90)
-          const back = w.rng.range(0, 50)
-          x = p.x + Math.cos(j.a) * (R + back) - Math.sin(j.a) * lat
-          y = p.y + Math.sin(j.a) * (R + back) + Math.cos(j.a) * lat
+          const lat = w.rng.range(-120, 120)
+          const back = w.edgeLine(j.a, 44) + w.rng.range(0, 110)
+          x = p.x + Math.cos(j.a) * back - Math.sin(j.a) * lat
+          y = p.y + Math.sin(j.a) * back + Math.cos(j.a) * lat
         } else {
           const ai = j.a + (j.t / j.dur) * TAU * 0.8
-          const d = R + w.rng.range(0, 40)
+          const d = w.edgeDist(ai, 44 + w.rng.range(0, 60))
           x = p.x + Math.cos(ai) * d
           y = p.y + Math.sin(ai) * d
         }
@@ -373,7 +445,7 @@ export class Director {
   private spawnSquad(w: World, sq: SquadDef): void {
     const p = w.player
     const a = this.dir(w)
-    const R = w.viewR + 30
+    const R = w.edgeDist(a, 120)
     const cx = p.x + Math.cos(a) * R
     const cy = p.y + Math.sin(a) * R
     const spread = 36 + sq.n * 7

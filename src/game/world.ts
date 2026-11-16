@@ -105,6 +105,9 @@ const PICK_PULL_MAX = 800
 
 const tierOf = (v: number): number => (v < 4 ? 0 : v < 12 ? 1 : v < 40 ? 2 : 3)
 
+/** id → [0,1) 的确定性散列（Knuth 乘法散列取高位），给杂兵分配个体移速差异，不消耗随机数序列 */
+export const speedHash = (id: number): number => (Math.imul(id | 0, 2654435761) >>> 8) / 16777216
+
 export class World {
   readonly cfg: RunConfig
   readonly rng: RNG
@@ -512,6 +515,8 @@ export class World {
     e.maxHp = e.hp = def.hp * hpMul * (e.elite ? TUNE.eliteHp : 1)
     e.r = def.radius * (e.elite ? 1.45 : 1)
     e.speed = def.speed * TUNE.enemySpeed * Math.min(1.45, (1 + 0.012 * m) * this.threat.speed) * (e.elite ? 0.92 : 1)
+    // 杂兵的移速各不相同（按 id 散列，不吃随机数）：同一个阵型里的怪会渐渐拉开，不再齐步走
+    if (def.tier === 'fodder' && !e.elite) e.speed *= 1 + WAVE.speedSpread * (2 * speedHash(e.id) - 1)
     e.dmg = def.dmg * TUNE.enemyDmg * (1 + sc.dmgPerMin * m) * (e.elite ? 1.3 : 1)
     e.xp = def.xp * (e.elite ? 8 : 1)
     e.flash = 0
@@ -540,8 +545,28 @@ export class World {
     if (TUNE.flank > 0 && p.vx * p.vx + p.vy * p.vy > 40 * 40 && this.rng.next() < TUNE.flank) {
       a = Math.atan2(p.vy, p.vx) + this.rng.range(-TUNE.flankSpread, TUNE.flankSpread)
     }
-    const d = this.viewR + 50 + this.rng.range(0, 70) + extra
+    const d = this.edgeDist(a, 50 + this.rng.range(0, 70) + extra)
     return { x: this.player.x + Math.cos(a) * d, y: this.player.y + Math.sin(a) * d }
+  }
+
+  /**
+   * 沿 a 方向、刚好出了画面 margin 像素的距离（射线与视野矩形的交点 + margin）。
+   * 点状刷怪（圈 / 团 / 人流 / 补兵）用它：宽屏上下方向的刷怪点不再绕到"对角线那么远"的地方，
+   * 怪出现在画面边缘外一小段，而不是要在黑暗里走很久才露面。
+   */
+  edgeDist(a: number, margin: number): number {
+    const c = Math.abs(Math.cos(a))
+    const s = Math.abs(Math.sin(a))
+    const t = Math.min(c > 1e-6 ? this.viewHalfW / c : Infinity, s > 1e-6 ? this.viewHalfH / s : Infinity)
+    return t + margin
+  }
+
+  /**
+   * 沿 a 方向、使整条垂直于 a 的直线都在画面外 margin 像素的距离（视野矩形在 a 方向上的支撑距离 + margin）。
+   * 墙 / 纵队这类"一整条线"的阵型用它——线上任何一点都不会落进画面里。
+   */
+  edgeLine(a: number, margin: number): number {
+    return this.viewHalfW * Math.abs(Math.cos(a)) + this.viewHalfH * Math.abs(Math.sin(a)) + margin
   }
 
   spawnProjectile(

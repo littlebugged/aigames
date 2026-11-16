@@ -4,7 +4,7 @@ import { ENEMIES } from '../src/data/enemies'
 import { SECTOR_IDS } from '../src/data/ids'
 import { SECTORS } from '../src/data/sectors'
 import { SURGE, TUNE, WELL } from '../src/data/tuning'
-import { WAVE, waveUnit } from '../src/data/waves'
+import { FLOW, WAVE, waveUnit } from '../src/data/waves'
 import { BOSS_R, spawnBoss } from '../src/game/bosses'
 import type { Director } from '../src/game/director'
 import type { Boss, InputState } from '../src/game/entities'
@@ -18,6 +18,17 @@ import { World } from '../src/game/world'
 
 const input: InputState = { mx: 0, my: 0, dash: false }
 const DT = 1 / 60
+
+/** 关掉人潮补兵（只看脉冲 / 机关本身；补兵出来的怪会混进被测的数字里，也会复用对象池里刚死的敌人）；用完自动还原 */
+const flowOff = (fn: () => void) => (): void => {
+  const k = FLOW.k
+  FLOW.k = 0
+  try {
+    fn()
+  } finally {
+    FLOW.k = k
+  }
+}
 
 function make(sector: (typeof SECTOR_IDS)[number] = 'fields', extra: Partial<ConstructorParameters<typeof World>[0]> = {}) {
   const w = new World({ seed: 7, ship: 'vanguard', sector, threat: 0, meta: {}, ...extra })
@@ -89,7 +100,7 @@ test('导演：第 1 波一开局就来，按脚本的时长一波接一波，12
   }
 })
 
-test('导演：脉冲在波内按脚本均匀排开，数量 = 单位量 × 权重 × 星区密度 × 威胁倍率（有上限）', () => {
+test('导演：脉冲在波内按脚本均匀排开，数量 = 单位量 × 权重 × 星区密度 × 威胁倍率（有上限）', flowOff(() => {
   const { w } = make('fields')
   // 第 1 波第 1 个脉冲是 stream/drone × 1.0：先看它一共放出多少
   const pd = SECTORS.fields.waves[0].pulses[0]
@@ -97,7 +108,7 @@ test('导演：脉冲在波内按脚本均匀排开，数量 = 单位量 × 权�
   drive(w, 12, 0.1)
   const drones = w.enemies.filter((e) => e.def.id === 'drone').length
   assert.ok(Math.abs(drones - expect) <= 2, `第 1 波开头那股人流应有约 ${expect} 只无人机，实际 ${drones}`)
-})
+}))
 
 test('导演：每一波的脉冲数、特殊兵种小队都按脚本出现；特殊兵种在对应脉冲之后出场', () => {
   const { w } = make('fields')
@@ -395,7 +406,7 @@ test('引力井：把玩家往中心拽（刚张开时几乎没有拉力，拉�
   assert.equal(d.w.wells.filter((x) => x.alive).length, 0, '到时间消失')
 })
 
-test('引力井：奇点会伤到玩家（记在"引力井"头上），也会碾碎被拽进去的杂兵', () => {
+test('引力井：奇点会伤到玩家（记在"引力井"头上），也会碾碎被拽进去的杂兵', flowOff(() => {
   const { w } = make('void')
   const p = w.player
   p.weapons.length = 0
@@ -415,9 +426,9 @@ test('引力井：奇点会伤到玩家（记在"引力井"头上），也会碾
   for (const e of fodder) e.speed = 0
   for (let t = 0; t < 2.5; t += DT) b.w.update(DT, input)
   assert.ok(fodder.filter((e) => e.alive).length < fodder.length, '被拽进奇点的杂兵会被碾碎')
-})
+}))
 
-test('伏击：带预警的脉冲先在屏幕边缘亮出箭头，预警时间之后才刷出敌人', () => {
+test('伏击：带预警的脉冲先在屏幕边缘亮出箭头，预警时间之后才刷出敌人', flowOff(() => {
   const { w, events } = make('wasteland')
   pacifist(w)
   const d = dir(w) as unknown as { firePulse(w: World, pd: unknown, idx: number): void }
@@ -435,7 +446,7 @@ test('伏击：带预警的脉冲先在屏幕边缘亮出箭头，预警时间�
   const p = w.player
   const sides = new Set(w.enemies.map((e) => Math.sign(Math.cos(amb.angles[0]) * (e.x - p.x) + Math.sin(amb.angles[0]) * (e.y - p.y))))
   assert.equal(sides.size, 2, '两面都有')
-})
+}))
 
 // ───────────────────────── 目标优先级 ─────────────────────────
 

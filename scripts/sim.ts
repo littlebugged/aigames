@@ -11,10 +11,10 @@ import { META_IDS, SECTOR_IDS, SHIP_IDS, type SectorId, type ShipId } from '../s
 import { METAS } from '../src/data/meta'
 import { SECTORS } from '../src/data/sectors'
 import { TUNE, WELL } from '../src/data/tuning'
-import { WAVE } from '../src/data/waves'
+import { FLOW, WAVE } from '../src/data/waves'
 import { Bot } from '../src/game/bot'
 import type { Boss, Enemy, InputState } from '../src/game/entities'
-import { XP_CURVE, type MetaRanks } from '../src/game/stats'
+import { XP_CURVE, xpForLevel, type MetaRanks } from '../src/game/stats'
 import { World, type Phase } from '../src/game/world'
 
 interface Opts {
@@ -59,6 +59,8 @@ export interface SimResult {
   bestMulti: number
   /** 每一波结束时的等级（下标 0 = 第 1 波结束） */
   waveLv: number[]
+  /** 每一波结束时累计入账的经验（按当前经验曲线折算：已升级所需的经验之和 + 当前槽里的经验；下标 0 = 第 1 波结束） */
+  waveXp: number[]
   /** 每一波刷出的特殊兵种 / 精英的总血量（下标 0 = 第 1 波） */
   specHp: number[]
   /** 特殊兵种 / 精英 的击杀耗时（出场 → 死亡，秒） */
@@ -115,6 +117,7 @@ export function runSim(o: Opts): SimResult {
   let curBoss: Boss | null = null
   let curBossT0 = 0
   const waveLv: number[] = []
+  const waveXp: number[] = []
   let lastWave = 0
 
   while (w.phase !== 'won' && w.phase !== 'lost' && w.time < o.seconds) {
@@ -137,7 +140,12 @@ export function runSim(o: Opts): SimResult {
       }
     }
     if (w.director.wave !== lastWave) {
-      if (lastWave > 0) waveLv[lastWave - 1] = w.player.level
+      if (lastWave > 0) {
+        waveLv[lastWave - 1] = w.player.level
+        let cum = w.player.xp
+        for (let l = 1; l < w.player.level; l++) cum += xpForLevel(l)
+        waveXp[lastWave - 1] = cum
+      }
       lastWave = w.director.wave
     }
     if (w.boss !== curBoss) {
@@ -193,6 +201,7 @@ export function runSim(o: Opts): SimResult {
     minis: w.stats.minis,
     bestMulti: w.stats.bestMulti,
     waveLv,
+    waveXp,
     specHp,
     ttk,
     fights,
@@ -224,7 +233,7 @@ function parseArgs(): { opts: Opts; all: boolean; seeds: number } {
 
 /**
  * 平衡旋钮（只改内存，不动数据文件），用于参数扫描：
- *   --tune hp=1.3,quad=2,dmg=1.2,wu=30,wg=1.15,dens=1.2,xp=1.3,xpc=1.5,edmg=1.5,espeed=1.1,flank=0.4,grow=0.25,eliteHp=5,boss=3,mini1=0.2,mini2=0.3
+ *   --tune hp=1.3,quad=2,dmg=1.2,wu=30,wg=1.15,dens=1.2,xp=1.3,xpc=1.5,edmg=1.5,espeed=1.1,flank=0.4,grow=0.25,eliteHp=5,boss=3,mini1=0.2,mini2=0.3,flow=0.9,flowrate=0.45,flowcap=150,catchup=1.7,spread=0.16
  *   xa/xb/xc/xd 直接设定经验曲线系数；xdens 设定经验的密度校正指数
  *   wu / wg：每波的单位量起点 / 逐波增长；dens：所有星区的杂兵数量倍率；bscale：Boss 在场时波次脉冲的缩放；adds：Boss 战补兵间隔
  *   hp/quad/dmg 作用于所有星区；xp 同乘经验曲线三项，xpc 额外乘二次项；
@@ -258,6 +267,11 @@ export function applyTune(spec: string): void {
   if (kv.bscale !== undefined) WAVE.bossScale = kv.bscale
   if (kv.adds !== undefined) WAVE.addsEvery = kv.adds
   if (kv.rush !== undefined) WAVE.rush = kv.rush
+  if (kv.flow !== undefined) FLOW.k = kv.flow
+  if (kv.flowrate !== undefined) FLOW.rate = kv.flowrate
+  if (kv.flowcap !== undefined) FLOW.cap = kv.flowcap
+  if (kv.catchup !== undefined) WAVE.catchUp = kv.catchup
+  if (kv.spread !== undefined) WAVE.speedSpread = kv.spread
   if (kv.wellpull !== undefined) (WELL as { pull: number }).pull = kv.wellpull
   XP_CURVE.a *= k('xp')
   XP_CURVE.b *= k('xp')
