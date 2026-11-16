@@ -15,7 +15,6 @@ import {
 import { METAS, metaCost } from '../src/data/meta'
 import { PASSIVES } from '../src/data/passives'
 import { SECTORS, THREAT_LEVELS } from '../src/data/sectors'
-import { FORMS, WAVE_TAGS } from '../src/data/waves'
 import { SHIPS } from '../src/data/ships'
 import { HOWITZER_BOMBLET, RAIL_SCAR_RATIO, SIPHON_SPLASH_RATIO, WEAPONS } from '../src/data/weapons'
 
@@ -92,87 +91,31 @@ test('进化配对：每个搭档被动存在，且各武器的搭档互不重�
   }
 })
 
-test('星区：12 波脚本合法——时长之和 = 星区长度，敌人 / 阵型 / 小队参数都有效，且在 Boss 之前', () => {
+test('星区：名单与事件里的敌人都存在，事件按时间排序，且在 Boss 之前', () => {
   for (const sid of SECTOR_IDS) {
     const s = SECTORS[sid]
     assert.ok(BOSS_IDS.includes(s.boss))
-    assert.equal(s.waves.length, 12, `${sid} 应是 12 波`)
-    assert.equal(
-      s.waves.reduce((n, w) => n + w.len, 0),
-      s.length,
-      `${sid} 各波时长之和应等于星区长度`,
-    )
-    for (const [i, wv] of s.waves.entries()) {
-      const at = `${sid} 第 ${i + 1} 波`
-      assert.ok(WAVE_TAGS.includes(wv.tag), `${at} 主题 ${wv.tag} 不存在`)
-      assert.ok(wv.len >= 40, `${at} 太短`)
-      assert.ok(wv.pulses.length >= 4, `${at} 脉冲太少，不成"攻势"`)
-      for (const pd of wv.pulses) {
-        assert.ok(FORMS.includes(pd.form), `${at} 阵型 ${pd.form} 不存在`)
-        if (pd.form === 'strike' || pd.form === 'well') assert.ok((pd.n ?? 0) >= 1, `${at} ${pd.form} 需要数量 n`)
-        else {
-          assert.ok(pd.enemy && ENEMIES[pd.enemy], `${at} 脉冲敌人 ${pd.enemy}`)
-          assert.equal(ENEMIES[pd.enemy].tier, 'fodder', `${at} 脉冲里只能是杂兵（特殊兵种走小队）`)
-          assert.ok(pd.w > 0, `${at} 数量权重必须为正`)
-        }
-        if (pd.mix) assert.equal(ENEMIES[pd.mix].tier, 'fodder', `${at} 混编只能是杂兵`)
-        if (pd.warn) assert.ok(['pincer', 'wall', 'lanes', 'stream'].includes(pd.form), `${at} 只有从边缘压来的阵型才有伏击预警`)
-      }
-      for (const sq of wv.squads ?? []) {
-        assert.ok(ENEMIES[sq.enemy], `${at} 小队敌人 ${sq.enemy}`)
-        assert.equal(ENEMIES[sq.enemy].tier, 'special', `${at} 小队里应是特殊兵种`)
-        assert.ok(sq.n >= 1)
-        assert.ok((sq.after ?? 1) < wv.pulses.length, `${at} 小队跟在不存在的脉冲后面`)
-      }
+    for (const r of s.roster) assert.ok(ENEMIES[r.id], `${sid} 名单里的 ${r.id} 不存在`)
+    let last = -1
+    for (const ev of s.events) {
+      assert.ok(ev.at >= last, `${sid} 事件未排序`)
+      assert.ok(ev.at <= s.length, `${sid} 事件晚于 Boss`)
+      last = ev.at
+      if (ev.enemy) assert.ok(ENEMIES[ev.enemy], `${sid} 事件敌人 ${ev.enemy}`)
     }
-    // 名单 = 脚本里出现过的兵种
-    assert.ok(s.roster.length >= 3)
-    for (const r of s.roster) assert.ok(ENEMIES[r], `${sid} 名单里的 ${r} 不存在`)
-    // 小 Boss：落在"mini"主题的波次里，每个星区两只，体型档位合法，不是本星区自己的 Boss
-    assert.equal(s.minis.length, 2, `${sid} 应有两只小 Boss`)
-    for (const m of s.minis) {
-      assert.ok(BOSS_IDS.includes(m.boss) && m.boss !== s.boss, `${sid} 的小 Boss 应该是别的星区的先遣体`)
-      assert.equal(s.waves[m.wave - 1]?.tag, 'mini', `${sid} 第 ${m.wave} 波应是 mini 主题`)
-      assert.ok(m.tier === 1 || m.tier === 2)
-    }
-    assert.ok(new Set(s.minis.map((m) => m.wave)).size === s.minis.length)
-    assert.ok(s.minis[0].tier < s.minis[1].tier, `${sid} 后一只小 Boss 应更强`)
-    // Boss 战补兵
-    assert.ok(s.adds.length >= 3, `${sid} 缺少 Boss 战补兵脉冲`)
-    for (const pd of s.adds) assert.ok(pd.enemy && ENEMIES[pd.enemy] && ENEMIES[pd.enemy].tier === 'fodder')
+    assert.ok(s.events.some((e) => e.kind === 'boss-warning'), `${sid} 缺少 Boss 预警`)
     if (s.requires) assert.ok(SECTOR_IDS.includes(s.requires))
   }
   assert.equal(SECTORS.fields.requires, null, '第一个星区必须默认开放')
 })
 
-test('星区：每个星区都有自己的"新体验"机关（伏击 / 引力井 / 陨火），第一个星区是纯粹的割草', () => {
-  const has = (sid: (typeof SECTOR_IDS)[number], f: (pd: { form: string; warn?: number }) => boolean): boolean => SECTORS[sid].waves.some((wv) => wv.pulses.some(f))
-  assert.ok(has('wasteland', (pd) => !!pd.warn), '荒原：带预警箭头的伏击')
-  assert.ok(has('void', (pd) => pd.form === 'well'), '虚空：引力井')
-  assert.ok(has('crucible', (pd) => pd.form === 'strike'), '熔炉：陨火')
-  assert.ok(!has('fields', (pd) => pd.form === 'well' || pd.form === 'strike' || !!pd.warn), '原野：没有机关，纯割草')
-  // 四个星区的特殊兵种阵容各不相同
-  const sig = SECTOR_IDS.map((sid) => [...SECTORS[sid].roster].sort().join(','))
-  assert.equal(new Set(sig).size, SECTOR_IDS.length, '兵种阵容应各不相同')
-})
-
-test('兵种分层：杂兵脆且不随时间变厚，特殊兵种厚且持续成长', () => {
-  let fodder = 0
-  let special = 0
+test('所有敌人字段合理', () => {
   for (const id of ENEMY_IDS) {
     const e = ENEMIES[id]
-    if (e.tier === 'fodder') {
-      fodder++
-      assert.ok(e.hp <= 40, `${id} 杂兵血量 ${e.hp} 太厚，割不动`)
-      assert.equal(e.grow, 0, `${id} 杂兵不该随时间变厚——难度靠数量`)
-      assert.ok(e.xp <= 2, `${id}`)
-    } else {
-      special++
-      assert.ok(e.hp >= 100, `${id} 特殊兵种血量 ${e.hp} 太薄，会被顺手割掉`)
-      assert.ok(e.grow >= 0.5, `${id} 特殊兵种应持续成长`)
-    }
+    assert.equal(e.id, id)
+    assert.ok(e.hp > 0 && e.speed > 0 && e.radius > 0 && e.cost > 0, id)
+    assert.ok(e.knockResist >= 0 && e.knockResist <= 1, id)
   }
-  assert.ok(fodder >= 3 && special >= 6, `杂兵 ${fodder} 种 / 特殊兵种 ${special} 种`)
 })
 
 test('飞船：默认飞船免费，解锁成就存在，价格递增', () => {

@@ -59,9 +59,6 @@ test('升级流程：升级暂停世界，选卡后恢复', () => {
   const input: InputState = { mx: 0, my: 0, dash: false }
   w.addXp(1000)
   w.update(1 / 60, input)
-  assert.equal(w.phase, 'play', '战斗中升级只攒次数，不会打断（一波结束的窗口里才弹卡）')
-  w.openPicks()
-  w.update(1 / 60, input)
   assert.equal(w.phase, 'levelup')
   const t = w.time
   w.update(1 / 60, input)
@@ -75,7 +72,6 @@ test('重抽与放逐：次数消耗正确，放逐的卡不再出现', () => {
   const w = new World({ ...base, meta: { m_reroll: 2, m_banish: 1 } })
   const input: InputState = { mx: 0, my: 0, dash: false }
   w.addXp(50)
-  w.openPicks()
   w.update(1 / 60, input)
   assert.equal(w.phase, 'levelup')
   assert.equal(w.rerolls, 2)

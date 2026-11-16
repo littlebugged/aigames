@@ -1,5 +1,27 @@
 import { BossId, EnemyId, SectorId } from './ids'
-import { BOSS_ADDS, MINIS, WAVES_CRUCIBLE, WAVES_FIELDS, WAVES_VOID, WAVES_WASTELAND, type MiniPlan, type PulseDef, type WaveDef } from './waves'
+
+export interface RosterEntry {
+  id: EnemyId
+  /** 从第几秒开始出现 */
+  from: number
+  /** 到第几秒后不再出现（缺省为一直） */
+  to?: number
+  /** 抽取权重 */
+  weight: number
+}
+
+/**
+ * 定时事件：到点触发一次。
+ *  ring / wall / elite：刷怪（count 为数量，enemy 为敌人种类）；
+ *  strike：陨火打击——在玩家周围落下 count 个带预警圈的火球（熔炉星环的环境危险）；
+ *  boss-warning：Boss 即将登场的警告。
+ */
+export interface TimedEvent {
+  at: number
+  kind: 'ring' | 'wall' | 'elite' | 'strike' | 'boss-warning'
+  enemy?: EnemyId
+  count?: number
+}
 
 export interface SectorPalette {
   /** 背景渐变（上 → 下） */
@@ -20,9 +42,9 @@ export interface SectorDef {
   /** Boss 出现的时间（秒），同时也是整局的目标时长 */
   length: number
   palette: SectorPalette
-  /** 杂兵数量倍率（乘在每个脉冲的数量上）：越靠后的星区，人潮越厚 */
-  density: number
-  /** 敌人血量成长 = hpPerMin*m + hpQuad*m²（再乘 TUNE.hpGrow 与各兵种的 grow） */
+  /** 刷怪预算（点/秒）= base + perMin*m + accel*m²，m 为分钟数 */
+  spawn: { base: number; perMin: number; accel: number }
+  /** 敌人血量倍率 = 1 + hpPerMin*m + hpQuad*m² */
   hpPerMin: number
   hpQuad: number
   /** 敌人接触伤害成长：1 + dmgPerMin*m */
@@ -31,35 +53,8 @@ export interface SectorDef {
   reward: number
   /** 需要先通关的星区 */
   requires: SectorId | null
-  /** 12 波脚本（时长之和 = length） */
-  waves: WaveDef[]
-  /** 小 Boss 的出场计划 */
-  minis: MiniPlan[]
-  /** Boss 战里补充杂兵的脉冲（轮换） */
-  adds: PulseDef[]
-  /** 本星区会出现的兵种（由脚本统计，指南页用） */
-  roster: EnemyId[]
-}
-
-/** 从脚本里统计出现过的兵种（按首次出现的顺序） */
-export function rosterOf(waves: WaveDef[], adds: PulseDef[]): EnemyId[] {
-  const seen = new Set<EnemyId>()
-  const add = (id?: EnemyId): void => {
-    if (id) seen.add(id)
-  }
-  for (const w of waves) {
-    for (const p of w.pulses) {
-      add(p.enemy)
-      add(p.mix)
-    }
-    for (const q of w.squads ?? []) add(q.enemy)
-  }
-  for (const p of adds) {
-    add(p.enemy)
-    add(p.mix)
-  }
-  seen.delete('shard')
-  return [...seen]
+  roster: RosterEntry[]
+  events: TimedEvent[]
 }
 
 export const SECTORS: Record<SectorId, SectorDef> = {
@@ -75,16 +70,37 @@ export const SECTORS: Record<SectorId, SectorDef> = {
       dust: '#9db6ff',
       accent: '#3df2ff',
     },
-    density: 1,
+    spawn: { base: 1.4, perMin: 1.61, accel: 0.084 },
     hpPerMin: 0.49,
     hpQuad: 0.086,
     dmgPerMin: 0.109,
     reward: 1,
     requires: null,
-    waves: WAVES_FIELDS,
-    minis: MINIS.fields,
-    adds: BOSS_ADDS.fields,
-    roster: [],
+    roster: [
+      { id: 'drone', from: 0, weight: 10 },
+      { id: 'swarmer', from: 40, weight: 4 },
+      { id: 'brute', from: 130, weight: 1.6 },
+      { id: 'shooter', from: 200, weight: 2.4 },
+      { id: 'splitter', from: 260, weight: 2.4 },
+      { id: 'charger', from: 330, weight: 2.4 },
+      { id: 'bomber', from: 400, weight: 2 },
+      { id: 'shielder', from: 470, weight: 1.2 },
+    ],
+    events: [
+      { at: 55, kind: 'ring', enemy: 'swarmer', count: 16 },
+      { at: 105, kind: 'wall', enemy: 'drone', count: 12 },
+      { at: 150, kind: 'elite', enemy: 'brute' },
+      { at: 200, kind: 'ring', enemy: 'swarmer', count: 22 },
+      { at: 245, kind: 'elite', enemy: 'shooter' },
+      { at: 300, kind: 'elite', enemy: 'charger' },
+      { at: 330, kind: 'wall', enemy: 'drone', count: 18 },
+      { at: 380, kind: 'ring', enemy: 'drone', count: 26 },
+      { at: 430, kind: 'elite', enemy: 'splitter' },
+      { at: 490, kind: 'elite', enemy: 'brute' },
+      { at: 520, kind: 'ring', enemy: 'swarmer', count: 36 },
+      { at: 560, kind: 'elite', enemy: 'shielder' },
+      { at: 585, kind: 'boss-warning' },
+    ],
   },
 
   wasteland: {
@@ -99,16 +115,38 @@ export const SECTORS: Record<SectorId, SectorDef> = {
       dust: '#b4ffd8',
       accent: '#5dff9e',
     },
-    density: 1.25,
+    spawn: { base: 1.82, perMin: 1.89, accel: 0.095 },
     hpPerMin: 0.62,
     hpQuad: 0.086,
     dmgPerMin: 0.109,
     reward: 1.6,
     requires: 'fields',
-    waves: WAVES_WASTELAND,
-    minis: MINIS.wasteland,
-    adds: BOSS_ADDS.wasteland,
-    roster: [],
+    roster: [
+      { id: 'drone', from: 0, to: 360, weight: 7 },
+      { id: 'swarmer', from: 0, weight: 5 },
+      { id: 'shooter', from: 70, weight: 3 },
+      { id: 'splitter', from: 120, weight: 3 },
+      { id: 'bomber', from: 170, weight: 3.2 },
+      { id: 'brute', from: 210, weight: 2 },
+      { id: 'charger', from: 270, weight: 3 },
+      { id: 'shielder', from: 330, weight: 2.2 },
+      { id: 'wraith', from: 400, weight: 2.6 },
+    ],
+    events: [
+      { at: 45, kind: 'ring', enemy: 'swarmer', count: 18 },
+      { at: 90, kind: 'wall', enemy: 'swarmer', count: 14 },
+      { at: 130, kind: 'elite', enemy: 'shooter' },
+      { at: 180, kind: 'ring', enemy: 'bomber', count: 10 },
+      { at: 230, kind: 'elite', enemy: 'splitter' },
+      { at: 280, kind: 'wall', enemy: 'drone', count: 20 },
+      { at: 320, kind: 'elite', enemy: 'bomber' },
+      { at: 370, kind: 'ring', enemy: 'swarmer', count: 34 },
+      { at: 420, kind: 'elite', enemy: 'shielder' },
+      { at: 470, kind: 'elite', enemy: 'wraith' },
+      { at: 510, kind: 'ring', enemy: 'wraith', count: 14 },
+      { at: 550, kind: 'elite', enemy: 'brute' },
+      { at: 585, kind: 'boss-warning' },
+    ],
   },
 
   void: {
@@ -123,16 +161,38 @@ export const SECTORS: Record<SectorId, SectorDef> = {
       dust: '#d9c4ff',
       accent: '#c9a0ff',
     },
-    density: 1.5,
+    spawn: { base: 2.24, perMin: 2.17, accel: 0.104 },
     hpPerMin: 0.75,
     hpQuad: 0.086,
     dmgPerMin: 0.109,
     reward: 2.4,
     requires: 'wasteland',
-    waves: WAVES_VOID,
-    minis: MINIS.void,
-    adds: BOSS_ADDS.void,
-    roster: [],
+    roster: [
+      { id: 'swarmer', from: 0, weight: 5 },
+      { id: 'drone', from: 0, to: 300, weight: 5 },
+      { id: 'wraith', from: 40, weight: 3 },
+      { id: 'shooter', from: 80, weight: 3 },
+      { id: 'charger', from: 130, weight: 3 },
+      { id: 'bomber', from: 180, weight: 3 },
+      { id: 'splitter', from: 220, weight: 2.6 },
+      { id: 'brute', from: 260, weight: 2.4 },
+      { id: 'shielder', from: 320, weight: 2.6 },
+    ],
+    events: [
+      { at: 40, kind: 'ring', enemy: 'wraith', count: 12 },
+      { at: 85, kind: 'wall', enemy: 'swarmer', count: 18 },
+      { at: 120, kind: 'elite', enemy: 'wraith' },
+      { at: 170, kind: 'ring', enemy: 'bomber', count: 12 },
+      { at: 215, kind: 'elite', enemy: 'charger' },
+      { at: 265, kind: 'wall', enemy: 'shooter', count: 12 },
+      { at: 310, kind: 'elite', enemy: 'shielder' },
+      { at: 360, kind: 'ring', enemy: 'swarmer', count: 40 },
+      { at: 410, kind: 'elite', enemy: 'brute' },
+      { at: 455, kind: 'elite', enemy: 'splitter' },
+      { at: 500, kind: 'ring', enemy: 'wraith', count: 18 },
+      { at: 545, kind: 'elite', enemy: 'bomber' },
+      { at: 585, kind: 'boss-warning' },
+    ],
   },
 
   crucible: {
@@ -147,20 +207,42 @@ export const SECTORS: Record<SectorId, SectorDef> = {
       dust: '#ffc58a',
       accent: '#ff8a3d',
     },
-    density: 1.65,
+    spawn: { base: 2.4, perMin: 2.27, accel: 0.106 },
     hpPerMin: 0.8,
     hpQuad: 0.088,
     dmgPerMin: 0.112,
     reward: 3.4,
     requires: 'void',
-    waves: WAVES_CRUCIBLE,
-    minis: MINIS.crucible,
-    adds: BOSS_ADDS.crucible,
-    roster: [],
+    roster: [
+      { id: 'swarmer', from: 0, weight: 5 },
+      { id: 'drone', from: 0, to: 240, weight: 4 },
+      { id: 'bomber', from: 30, weight: 3.4 },
+      { id: 'charger', from: 90, weight: 3.2 },
+      { id: 'shooter', from: 120, weight: 3 },
+      { id: 'brute', from: 160, weight: 2.8 },
+      { id: 'splitter', from: 210, weight: 2.6 },
+      { id: 'shielder', from: 260, weight: 2.8 },
+      { id: 'wraith', from: 330, weight: 2.4 },
+    ],
+    events: [
+      { at: 40, kind: 'ring', enemy: 'bomber', count: 12 },
+      { at: 75, kind: 'strike', count: 4 },
+      { at: 110, kind: 'elite', enemy: 'charger' },
+      { at: 150, kind: 'wall', enemy: 'swarmer', count: 22 },
+      { at: 190, kind: 'strike', count: 5 },
+      { at: 230, kind: 'elite', enemy: 'shielder' },
+      { at: 270, kind: 'ring', enemy: 'charger', count: 12 },
+      { at: 310, kind: 'strike', count: 6 },
+      { at: 350, kind: 'elite', enemy: 'bomber' },
+      { at: 390, kind: 'wall', enemy: 'shooter', count: 14 },
+      { at: 430, kind: 'strike', count: 7 },
+      { at: 470, kind: 'elite', enemy: 'brute' },
+      { at: 505, kind: 'ring', enemy: 'wraith', count: 18 },
+      { at: 540, kind: 'strike', count: 8 },
+      { at: 585, kind: 'boss-warning' },
+    ],
   },
 }
-
-for (const sec of Object.values(SECTORS)) sec.roster = rosterOf(sec.waves, sec.adds)
 
 /** 威胁等级（难度）：敌人更强、更多，收益更高。 */
 export const THREAT_LEVELS = [

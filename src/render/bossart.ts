@@ -1,6 +1,5 @@
 import type { BossId } from '../data/ids'
 import { TAU, clamp01 } from '../engine/math'
-import { BOSS_R } from '../game/bosses'
 import type { Boss } from '../game/entities'
 import { groove, hull, ink, lamp, plate, rivet, tonesOf, type Tones, type Trace } from './matte'
 import { lighten, mixHex, rgba } from './palette'
@@ -705,26 +704,23 @@ export class BossArt {
       ctx.globalAlpha = fade
     }
 
-    // 小 Boss 是同一套美术缩小一圈：整个机体按 b.r / 标准体型缩放（命中半径 b.r 就是缩放后的半径）
-    const mk = b.r / BOSS_R[b.id]
-    const s = (0.88 + 0.12 * fade) * mk
+    const s = 0.88 + 0.12 * fade
     ctx.scale(s, s)
-    this.drawBody(ctx, b, px, py, vt, bank, mk)
+    this.drawBody(ctx, b, px, py, vt, bank)
 
     // 受击 / 阶段转换闪白
     const hot = b.flash > 0 ? 0.4 : intro ? 0.2 + 0.2 * Math.sin(vt * 30) : 0
     if (hot > 0) {
       ctx.globalCompositeOperation = 'lighter'
       const w = bank.glow('#ffffff')
-      const ws = BOSS_R[b.id] * 2.3 // 此时坐标系已按机体缩放，用标准体型
+      const ws = b.r * 2.3
       ctx.globalAlpha = hot
       ctx.drawImage(w.c, -ws / 2, -ws / 2, ws, ws)
     }
     ctx.restore()
   }
 
-  /** mk：机体缩放（1 = 正主；小 Boss < 1）。护盾球 / 环绕晶体这类"世界坐标里真实存在的东西"要按真实位置画，不跟着机体缩 */
-  private drawBody(ctx: CanvasRenderingContext2D, b: Boss, px: number, py: number, vt: number, bank: SpriteBank, mk = 1): void {
+  private drawBody(ctx: CanvasRenderingContext2D, b: Boss, px: number, py: number, vt: number, bank: SpriteBank): void {
     switch (b.id) {
       case 'overseer': {
         // 机械臂在最下面，蓄力时向外张开一点
@@ -743,15 +739,12 @@ export class BossArt {
         const p = this.ovPupil
         ctx.drawImage(p.c, -p.w / 2, -p.h / 2, p.w, p.h)
         ctx.restore()
-        // 护盾球：实心的带描边球体（和玩家那种加色光弹一眼分得开）。球在世界里的位置是真实的，不随机体缩放
+        // 护盾球：实心的带描边球体（和玩家那种加色光弹一眼分得开）
         const bead = bank.bead('#ff9aa8')
-        ctx.save()
-        ctx.scale(1 / mk, 1 / mk)
         for (const o of b.orbs) {
           const bs = bead.w * ((o.r * 1.2) / 8)
           ctx.drawImage(bead.c, o.x - b.x - bs / 2, o.y - b.y - bs / 2, bs, bs)
         }
-        ctx.restore()
         break
       }
       case 'fractal': {
@@ -768,7 +761,7 @@ export class BossArt {
         for (let i = 0; i < n; i++) {
           const a = t * 1.9 + (i / n) * TAU
           ctx.save()
-          ctx.translate(Math.cos(a) * (BOSS_R.fractal + 22), Math.sin(a) * (BOSS_R.fractal + 22))
+          ctx.translate(Math.cos(a) * (b.r + 22), Math.sin(a) * (b.r + 22))
           ctx.rotate(a * 2)
           ctx.drawImage(this.frOrbit.c, -this.frOrbit.w / 2, -this.frOrbit.h / 2, this.frOrbit.w, this.frOrbit.h)
           ctx.restore()

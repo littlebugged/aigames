@@ -9,7 +9,7 @@ import { lighten, mixHex, rgba } from './palette'
 import { EBULLET_BOX, EBULLET_PAINT } from './bullets'
 import { CREATURES } from './creatures'
 import { cut } from './parts'
-import { paintBlade, paintBolt, paintBomb, paintCache, paintChakram, paintChest, paintClamp, paintDrone, paintHeal, paintMine, paintPlasma, paintShell } from './props'
+import { paintBlade, paintBolt, paintBomb, paintCache, paintChakram, paintChest, paintClamp, paintDrone, paintHeal, paintMagnet, paintMine, paintPlasma, paintShell } from './props'
 import { SHIP_ART, steelTones } from './shipart'
 
 /**
@@ -200,6 +200,7 @@ export const PICKUP_R = 13
 
 const PICKUP_PAINT: Record<PickupKind, (ctx: CanvasRenderingContext2D, r: number, col: string) => void> = {
   heal: paintHeal,
+  magnet: paintMagnet,
   bomb: paintBomb,
   chest: paintChest,
   cache: paintCache,

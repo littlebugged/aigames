@@ -78,6 +78,75 @@ export function paintHeal(ctx: Ctx, r: number, col: string): void {
   for (const [x, y] of [[0, -0.87], [0.87, 0], [0, 0.87], [-0.87, 0]] as Pt[]) rivet(ctx, x * r, y * r, r * 0.07)
 }
 
+/** 磁铁：U 形马蹄磁铁——彩色磁体、银白磁极、两极之间的磁力线 */
+export function paintMagnet(ctx: Ctx, r: number, col: string): void {
+  const t = tonesOf(col, -0.2)
+  const R1 = r * 0.92
+  const R2 = r * 0.46
+  const cy = r * 0.16
+  const top = -r * 0.92
+  const tipH = r * 0.5
+  const u: Trace = () => {
+    ctx.beginPath()
+    ctx.moveTo(-R1, top)
+    ctx.lineTo(-R1, cy)
+    ctx.arc(0, cy, R1, Math.PI, 0, true)
+    ctx.lineTo(R1, top)
+    ctx.lineTo(R2, top)
+    ctx.lineTo(R2, cy)
+    ctx.arc(0, cy, R2, 0, Math.PI, false)
+    ctx.lineTo(-R2, top)
+    ctx.closePath()
+  }
+  hull(ctx, u, r, t, { radial: true, line: 1.5, light: -2.3, cy: cy * 0.5 })
+  // 磁极：银白色的帽
+  ctx.save()
+  u()
+  ctx.clip()
+  const tg = ctx.createLinearGradient(0, top, 0, top + tipH)
+  tg.addColorStop(0, '#ffffff')
+  tg.addColorStop(1, '#9aa8c2')
+  ctx.fillStyle = tg
+  ctx.fillRect(-R1 - 1, top - 1, R1 * 2 + 2, tipH + 1)
+  ctx.restore()
+  ctx.beginPath()
+  ctx.moveTo(-R1, top + tipH)
+  ctx.lineTo(-R2, top + tipH)
+  ctx.moveTo(R2, top + tipH)
+  ctx.lineTo(R1, top + tipH)
+  ctx.lineWidth = 1.1
+  ctx.strokeStyle = ink(0.88)
+  ctx.stroke()
+  u()
+  ctx.lineWidth = 1.2
+  ctx.strokeStyle = ink(0.9)
+  ctx.stroke()
+  // 磁体上的一道高光：沿左腿和底部的弧
+  const Rm = (R1 + R2) / 2
+  stroke(
+    ctx,
+    () => {
+      ctx.beginPath()
+      ctx.moveTo(-Rm, top + tipH + r * 0.14)
+      ctx.lineTo(-Rm, cy)
+      ctx.arc(0, cy, Rm, Math.PI, Math.PI * 0.66, true)
+    },
+    1.1,
+    rgba('#ffffff', 0.5),
+  )
+  // 磁力线：两极之间的两道弧
+  ctx.save()
+  ctx.globalCompositeOperation = 'lighter'
+  for (const [k, a] of [[0.34, 0.95], [0.62, 0.55]] as Pt[]) {
+    ctx.beginPath()
+    ctx.ellipse(0, top - r * 0.02, Rm, k * r, 0, Math.PI, TAU)
+    ctx.lineWidth = 1.1
+    ctx.strokeStyle = rgba(lighten(col, 0.55), a)
+    ctx.stroke()
+  }
+  ctx.restore()
+}
+
 /** 炸弹：灰钢球体 + 彩色腰带 + 金属帽 + 绳引信 + 火花 */
 export function paintBomb(ctx: Ctx, r: number, col: string): void {
   const cy = r * 0.2

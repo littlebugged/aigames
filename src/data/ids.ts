@@ -55,7 +55,7 @@ export type EnemyId = (typeof ENEMY_IDS)[number]
 export const BOSS_IDS = ['overseer', 'fractal', 'maw', 'forge'] as const
 export type BossId = (typeof BOSS_IDS)[number]
 
-export const PICKUP_IDS = ['heal', 'bomb', 'chest', 'cache'] as const
+export const PICKUP_IDS = ['heal', 'magnet', 'bomb', 'chest', 'cache'] as const
 export type PickupId = (typeof PICKUP_IDS)[number]
 
 /** 敌方子弹的造型：打出来的是谁一眼分得清（炮手的唾液团、监察者的镜片弹、分形核心的晶片、虚空之喉的獠牙、熔炉巨像的熔渣块、各 Boss 的瞄准飞镖） */

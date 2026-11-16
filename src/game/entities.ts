@@ -141,8 +141,7 @@ export class Enemy implements GridItem {
   slow = 0
   stun = 0
   shielded = 0
-  /** 脉冲出场时的"冲刺"：> 0 表示还没进画面附近，期间速度翻倍（见 WAVE.rush） */
-  rush = 0
+  /** 护盾者的光环半径（仅 shielder 使用） */
   readonly isBoss = false
   /** 每个武器槽位下次可受击的时间（持续伤害类武器的单体冷却） */
   hitAt = new Float64Array(8)
@@ -205,21 +204,6 @@ export class Gem {
   mag = false
   /** 被吸附后经过的时间：吸力随它增长，保证怎么跑都能被追上 */
   magT = 0
-  age = 0
-}
-
-/**
- * 引力井（虚空星区的环境机关）：持续一小段时间，把范围内的玩家和杂兵往中心拽；
- * 中心的奇点会撕碎靠近的一切（包括你）。把杂兵引进去是割草的捷径，被自己拽进去则是灾难。
- */
-export class Well {
-  alive = false
-  x = 0
-  y = 0
-  /** 影响半径 */
-  r = 300
-  life = 0
-  maxLife = 8
   age = 0
 }
 
@@ -286,8 +270,6 @@ export class Ring {
   wide = 1
   /** 静默：命中杂兵时不出伤害数字 / 命中火花（一次扫过几百只时，满屏数字等于没有数字） */
   quiet = false
-  /** 只对杂兵生效（浪涌）：特殊兵种、精英和 Boss 不受影响 */
-  fodder = false
 }
 
 export class Mine {
@@ -371,8 +353,6 @@ export class Telegraph {
   b = 0
   /** 落物的画法（只影响外观）：0 = 只有地面预警；1 = 熔渣团从 (x2,y2) 抛来；2 = 陨火从高处砸下 */
   fx: TeleFx = 0
-  /** 结算时派生物（射线 / 冲击环）的伤害倍率：小 Boss 的招式比正主轻 */
-  k = 1
 }
 
 export type TeleFx = 0 | 1 | 2
@@ -381,10 +361,6 @@ export class Boss {
   readonly isBoss = true
   alive = false
   id!: BossId
-  /** 0 = 正主；1 / 2 = 小 Boss（某个 Boss 的先遣体），数字是强度档 */
-  mini = 0
-  /** 允许进入的最高阶段（小 Boss 少几招；正主 = 2） */
-  maxPhase = 2
   x = 0
   y = 0
   r = 60
@@ -394,8 +370,6 @@ export class Boss {
   hp = 1
   maxHp = 1
   dmg = 20
-  /** 招式（弹幕 / 冲击环 / 射线 / 爆炸）的伤害倍率：正主 1，小 Boss 轻一些 */
-  atk = 1
   flash = 0
   age = 0
   phase = 0

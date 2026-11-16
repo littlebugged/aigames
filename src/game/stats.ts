@@ -99,12 +99,12 @@ export function resolveWeaponStats(id: WeaponId, level: number, evolved: boolean
 /**
  * 升到下一级所需经验 = round(a + b·L + c·L² + d·L³)。可调，仅供平衡测试覆盖。
  *
- * v1.14 波次改版：经验是击杀时直接入账的，升级卡在一波结束时统一弹出，所以曲线要对准"每一波大约升 2~3 级"。
- * v1.15 人潮补兵之后，屏幕里的怪多了一倍以上（击杀数从每局 6 千涨到 1 万 4），经验曲线跟着整体抬高、重新拟合：
- * 用 scripts/sim.ts 实测各星区 × 各飞船逐波的累计经验供给，让波末等级落在 4 / 7 / 10 / 12 / 15 / 17 / 20 / 22 / 24 / 26 / 28
- * （第一波约 3~4 级，之后每波 2~3 级，进 Boss 战前约 30 级）。早期的补兵占比更高，所以早期的单级成本也相应更贵。
+ * v1.13 割草改版：一局的击杀数是以前的 2~3 倍，而且越到后期击杀越快（每秒几十只）。
+ * 如果曲线不变，十分钟会升到 60 级，选卡界面把战斗打断几十次、装备也早早练满。
+ * 所以前几级比以前更便宜（尽快凑出 3~4 把武器，开局不饿肚子），后面用三次项把升级越拉越贵——
+ * 十分钟大约 40~45 级，升级的节奏从"一直在选卡"变成"偶尔弹出一次"。
  */
-export const XP_CURVE = { a: 32, b: 11.5, c: 0, d: 0.022 }
+export const XP_CURVE = { a: 5, b: 2.4, c: 0.27, d: 0.015 }
 
 export function xpForLevel(level: number): number {
   return Math.round(XP_CURVE.a + XP_CURVE.b * level + XP_CURVE.c * level * level + XP_CURVE.d * level * level * level)

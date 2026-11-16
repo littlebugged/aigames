@@ -544,15 +544,12 @@ export class App {
     this.audio.onEvent(e, w)
     switch (e.t) {
       case 'warn':
-        if (e.key.startsWith('boss.') && e.sev === 2) this.hud.showBanner(`⚠ ${t(dyn(e.key))}`, 2, true)
+        if (e.key.startsWith('boss.')) this.hud.showBanner(`⚠ ${t(dyn(e.key))}`, 2, true)
         else this.hud.showBanner(`⚠ ${t(dyn(e.key))}`, e.sev)
-        break
-      case 'wave':
-        // 新的一波：横幅「第 N 波 · 主题」。小 Boss 那一波稍后会有自己的预警，这里不抢戏
-        this.hud.showBanner(t('wave.banner', { n: e.n, name: t(dyn(`wave.tag.${e.tag}`)) }), 1)
         break
       case 'pickup':
         if (e.kind === 'heal') this.hud.toast(t('toast.heal'), 'good', 1400)
+        else if (e.kind === 'magnet') this.hud.toast(t('toast.magnet'), 'info', 1400)
         else if (e.kind === 'bomb') this.hud.toast(t('toast.bomb'), 'info', 1400)
         else if (e.kind === 'chest') this.hud.toast(t('hud.chest'), 'gold', 1400)
         break
@@ -585,10 +582,7 @@ export class App {
         this.input.buzz([40, 30, 80])
         break
       case 'boss':
-        if (e.mini) {
-          // 小 Boss：不换音乐，只在击破时给一句话
-          if (e.what === 'dead') this.hud.toast(t('hud.miniDown'), 'gold', 2400)
-        } else if (e.what === 'spawn' && w) this.audio.musicMode('boss', w.cfg.sector)
+        if (e.what === 'spawn' && w) this.audio.musicMode('boss', w.cfg.sector)
         else if (e.what === 'dead' && w) {
           this.audio.musicMode('play', w.cfg.sector)
           this.audio.setIntensity(0.6)
@@ -600,8 +594,7 @@ export class App {
         this.input.buzz(e.dmg > 15 ? 50 : 25)
         break
       case 'levelup':
-        // 升级本身只是攒下一次选卡机会（卡片在一波结束时统一弹出），手感上只给轻轻一下
-        this.input.buzz(10)
+        this.input.buzz(18)
         break
       case 'end':
         this.cine = null

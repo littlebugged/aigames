@@ -22,7 +22,6 @@ import { PICKUP_COLOR } from '../src/data/pickups'
 import { SECTORS, THREAT_LEVELS } from '../src/data/sectors'
 import { SHIPS } from '../src/data/ships'
 import { MULTI, SURGE, TUNE } from '../src/data/tuning'
-import { WAVE } from '../src/data/waves'
 import { WEAPONS } from '../src/data/weapons'
 import { KILLS_PER_CORE } from '../src/game/progress'
 import { dyn, tIn } from '../src/i18n'
@@ -36,22 +35,23 @@ const YEAR = new Date().getFullYear()
 const TODAY = new Date().toISOString().slice(0, 10)
 /** 第一个“单局击杀”成就的目标（首页文案引用） */
 const FIRST_KILLS_TARGET = ACHIEVEMENTS.find((a) => a.metric === 'runKills')?.target ?? 100
-/** 指南里“波次与割草”一节的占位符：文案里写 {waves} 之类，渲染时从真实配置填进去，数值改了页面自动跟着变 */
-const WAVE_NUMS: Record<string, string | number> = {
-  waves: SECTORS.fields.waves.length,
-  lead: WAVE.sweepLead,
+/** 指南里“浪涌与群杀”一节的占位符：文案里写 {need} 之类，渲染时从真实配置填进去，数值改了页面自动跟着变 */
+const SURGE_NUMS: Record<string, string | number> = {
+  need: SURGE.need0,
+  step: SURGE.needStep,
+  max: SURGE.needMax,
+  elite: SURGE.eliteWeight,
+  gap: SURGE.minGap,
+  near: SURGE.nearCount,
   radius: SURGE.radius,
   inv: SURGE.invuln,
-  miniWaves: SECTORS.fields.minis.map((m) => m.wave).join(' / '),
-  adds: WAVE.addsEvery,
-  mini1: Math.round((TUNE.miniHp[0] / TUNE.bossHp) * 100),
-  mini2: Math.round((TUNE.miniHp[1] / TUNE.bossHp) * 100),
+  vac: SURGE.vacuumAfter,
   span: MULTI.span,
   tiers: MULTI.tiers.join(' / '),
   boss: TUNE.bossHp,
   kpc: KILLS_PER_CORE,
 }
-const fill = (text: string): string => text.replace(/\{(\w+)\}/g, (_, k: string) => String(WAVE_NUMS[k] ?? `{${k}}`))
+const fill = (text: string): string => text.replace(/\{(\w+)\}/g, (_, k: string) => String(SURGE_NUMS[k] ?? `{${k}}`))
 
 const esc = (s: string): string => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 const n0 = (n: number): string => n.toLocaleString('en-US')
@@ -90,14 +90,14 @@ interface Copy {
     h1: string
     lead: string
     toc: string
-    sections: Record<'weapons' | 'passives' | 'pickups' | 'waves' | 'enemies' | 'bosses' | 'hazards' | 'ships' | 'sectors' | 'meta' | 'threat' | 'ach' | 'evo', string>
+    sections: Record<'weapons' | 'passives' | 'pickups' | 'surge' | 'enemies' | 'bosses' | 'hazards' | 'ships' | 'sectors' | 'meta' | 'threat' | 'ach' | 'evo', string>
     evoText: string
     capsText: string
     col: Record<string, string>
     bossTips: Record<string, string>
     pickupText: string
     pickups: Record<string, { effect: string; source: string }>
-    waveText: string[]
+    surgeText: string[]
     hazardText: string
     hazards: Record<HazardId, { effect: string; source: string }>
     threatText: string
@@ -121,17 +121,17 @@ const ZH: Copy = {
   siteName: '霓虹浪涌 NEON SURGE',
   home: {
     title: '霓虹浪涌 NEON SURGE — 免费在线霓虹肉鸽生存游戏，网页即点即玩',
-    desc: '《霓虹浪涌》是一款免费的网页霓虹风割草肉鸽（Roguelite）生存游戏：自动开火、一波波地割草、每波结束统一升级并进化武器，再去挑战特殊兵种、小 Boss 与星区 Boss。四大星区各有玩法，无需下载注册，支持电脑、手机触屏与手柄。',
+    desc: '《霓虹浪涌》是一款免费的网页霓虹风割草肉鸽（Roguelite）生存游戏：自动开火、收集晶体、升级并进化武器，击败四大星区 Boss。无需下载注册，支持电脑、手机触屏与手柄。',
     h1: '霓虹浪涌 NEON SURGE：免费在线霓虹肉鸽生存游戏',
-    lead: '《霓虹浪涌》是一款直接在浏览器里就能玩的俯视角「割草」肉鸽（Roguelite）生存游戏。驾驶战机深入霓虹星区，武器会自动开火，你只需要专注走位——范围大、数量多的武器把一波波压上来的人潮成片割倒，每一波结束统一弹出升级卡，在 10 分钟内打穿 12 波攻势并击败星区 Boss。无需下载，无需注册，电脑、手机、手柄都能玩。',
+    lead: '《霓虹浪涌》是一款直接在浏览器里就能玩的俯视角「割草」肉鸽（Roguelite）生存游戏。驾驶战机深入霓虹星区，武器会自动开火，你只需要专注走位——收集晶体、升级、进化武器，在 10 分钟内击败星区 Boss。无需下载，无需注册，电脑、手机、手柄都能玩。',
     ctaPlay: '立即开始游戏',
     ctaGuide: '查看游戏指南',
     featuresH: '游戏特色',
     features: [
-      { icon: 'swords', color: '#3df2ff', title: '自动开火，一波波地割草', text: '没有复杂的瞄准，单手也能操作。杂兵数量多而且脆，一波一波的攻势被一波一波地割倒；每一波结束放出清场冲击波，再统一弹出这一波攒下的升级卡——战斗中升级不会打断你，经验也不用去捡。真正的挑战是特殊兵种、精英和 Boss：它们不会被一扫而光，要靠走位、冲刺的无敌时间和对招式的判断去打。' },
+      { icon: 'swords', color: '#3df2ff', title: '自动开火，一路割草', text: '没有复杂的瞄准，单手也能操作。杂兵一两下就倒，人潮从开局起就很密；每次击杀都会给「浪涌」充能，充满后自动放出清场冲击波。真正的挑战是在怪潮、精英与弹幕之间找到安全的路线，并利用冲刺的无敌时间反杀。' },
       { icon: 'dice', color: '#ffd84a', title: `${WEAPON_IDS.length} 种武器 × ${PASSIVE_IDS.length} 种被动`, text: '脉冲炮、环绕刃、电弧、追踪导弹、棱镜激光、地雷、新星、无人机、回旋飞轮、磁轨炮、榴弹炮、虹吸索……每次升级随机给出三选一，组合出完全不同的流派。' },
       { icon: 'play', color: '#ff4fd8', title: '武器进化系统', text: '武器升到满级并携带对应的搭档装备，就能在升级或补给箱里进化成终极形态——特效和威力都会质变。' },
-      { icon: 'skull', color: '#ff4a6a', title: '4 个星区，4 种玩法，4 个 Boss', text: '霓虹原野的监察者、数据荒原的分形核心、虚空裂隙的虚空之喉、熔炉星环的熔炉巨像，每个 Boss 都有多阶段弹幕和独特机制。每个星区还有自己的玩法：原野是纯粹的割草，荒原的攻势从屏幕边缘的预警箭头处压来，虚空的引力井会把你和杂兵一起拽进去，熔炉的陨火在预警后砸落；每个星区的第 4 波和第 8 波各有一只小 Boss。' },
+      { icon: 'skull', color: '#ff4a6a', title: '4 个星区，4 个 Boss', text: '霓虹原野的监察者、数据荒原的分形核心、虚空裂隙的虚空之喉、熔炉星环的熔炉巨像。每个 Boss 都有多阶段弹幕和独特机制，打赢才有成就感。' },
       { icon: 'hangar', color: '#a58bff', title: '机库永久成长', text: '每局获得的晶核可在机库购买 13 项永久升级，另有 4 艘风格迥异的飞船、4 档威胁等级，通关后还能开启无尽模式。' },
       { icon: 'gear', color: '#6dff8a', title: '手机、键盘、手柄通吃', text: '触屏浮动摇杆、键盘 WASD / 方向键、手柄全部原生支持；画质自动调节让低端设备也流畅，存档保存在本地，可离线游玩。' },
       { icon: 'sound', color: '#3df2ff', title: '实时合成的音乐音效', text: '全部音乐与音效由 WebAudio 实时合成，不下载任何音频文件。每个星区有自己的音阶与节奏，Boss 战会自动变奏提速。' },
@@ -146,17 +146,18 @@ const ZH: Copy = {
     tipsH: '新手入门五步',
     tips: [
       '<strong>一直移动。</strong>站着不动最危险。沿着怪潮外圈绕圈，让武器自动清理追上来的敌人。',
-      '<strong>一波一波地打。</strong>右上角的波次条走到头，会放出清场冲击波，随后弹出这一波攒下的升级卡。战斗中升级只攒次数、经验当场入账，不用去捡，也不会被打断。',
+      '<strong>优先吃青色晶体。</strong>经验是变强的唯一途径；冲向晶体之前先确认退路。',
       '<strong>专精一把主力武器。</strong>把同一把武器升到高等级，通常比每把都升一点强得多，再配一个它的搭档被动。',
       '<strong>留意进化提示。</strong>战斗界面左下角武器栏闪烁金边，说明满足进化条件，下一次升级或开补给箱就会出现进化选项。',
-      '<strong>杂兵靠割，重甲靠打。</strong>杂兵一两下就倒，交给范围大、数量多的武器；重装、盾卫、冲锋者、精英和 Boss 不会被一扫而光，优先集火，并把冲刺的无敌时间留给它们的招式（穿过 Boss 的冲击环、从包围里突围）。',
+      '<strong>学会冲刺。</strong>冲刺期间无敌，用来穿过 Boss 的环形弹幕或从包围里突围，冷却好了就别省着。',
+      '<strong>盯着浪涌条。</strong>右上角青色的条充满时，冲进人堆——它会自动清场并把宝石吸回来，是割草节奏里最爽的一拍。',
     ],
     faqH: '常见问题',
     faq: [
       { q: '这个游戏免费吗？需要下载或注册吗？', a: '完全免费。打开网页就能玩，不需要下载安装，也不需要注册或登录。' },
       { q: '手机上能玩吗？', a: '可以。游戏针对触屏做了浮动摇杆和冲刺按钮，建议横屏体验更好。iPhone 的 Safari 不支持网页全屏，可以把网页「添加到主屏幕」获得更接近全屏的体验。' },
       { q: '存档保存在哪里？换设备怎么办？', a: '存档保存在你浏览器的本地存储里，不会上传到任何服务器。清除浏览器数据会丢失存档。需要换设备时，在「设置 → 导出存档」复制存档文本，到另一台设备的「设置 → 导入存档」粘贴即可。' },
-      { q: '什么是「波次」？升级为什么要等一波结束？', a: `一个星区由 ${WAVE_NUMS.waves} 波攻势加一只 Boss 组成，每波 40～60 秒：杂兵按阵型（环形包围、冲锋人墙、夹击、旋臂……）一整群一整群地压上来。每波结束前 ${WAVE_NUMS.lead} 秒放出一道清场冲击波，只扫杂兵（特殊兵种、精英和 Boss 不受影响），随后弹出这一波攒下的升级卡。战斗中升级只攒次数、不会打断你，经验当场入账、不用去捡；每一波至少保证一次升级。` },
+      { q: '什么是「浪涌」？为什么屏幕会自己清场？', a: `每次击杀都会给右上角的浪涌条充能，充满后只要身边有 ${SURGE.nearCount} 只以上的敌人（或 Boss 逼近），就会自动放出一道横扫全屏的冲击波：杂兵全灭、精英和 Boss 被削掉一截，同时清掉近处的敌方弹幕、给你 ${SURGE.invuln} 秒无敌，并把地图上的经验石全部吸回来。放完之后至少要等 ${SURGE.minGap} 秒才会再次触发。` },
       { q: '武器怎么进化？', a: '把一把武器升到满级（8 级），同时持有它对应的搭档被动道具（任意等级即可），下一次升级或打开补给箱时就会出现进化选项。完整的搭档对照表见游戏指南。' },
       { q: '武器和被动道具有数量、等级上限吗？', a: `有。一局最多同时携带 ${MAX_WEAPONS} 把武器和 ${MAX_PASSIVES} 件被动道具；武器最高 ${WEAPON_MAX_LEVEL} 级，被动道具最高 ${PASSIVE_TOP_LEVEL} 级。已经满级的不会再出现在升级选项里，栏位占满后也不会再出现新的武器或道具。升级界面下方会显示当前栏位（如 6/6）和各自的等级，满级的标有 MAX。` },
       { q: '游戏有点卡怎么办？', a: '默认开启了自动画质：帧率持续偏低时会自动降低特效。你也可以在「设置 → 画质」里手动改成「中」或「低」，并关闭屏幕震动和伤害数字。' },
@@ -177,7 +178,7 @@ const ZH: Copy = {
       weapons: '武器',
       passives: '被动道具',
       pickups: '拾取物',
-      waves: '波次与割草',
+      surge: '浪涌与群杀',
       enemies: '敌人图鉴',
       bosses: 'Boss 打法',
       hazards: '弹幕与危险',
@@ -229,21 +230,19 @@ const ZH: Copy = {
       maw: '虚空之喉会持续把你往它那边拖。别和引力对抗，沿着切线方向移动；扩散冲击环是最大的威胁——看到冲击环扩散时，对着它冲刺穿过去（冲刺无敌）。',
       forge: '熔炉巨像走得很慢，但每一招都有预警，读懂就不会挨打。橙色预警圈约 1.1 秒后爆炸，第一发会预判你的走位，别笔直逃跑；它震地时脚下会亮一大圈，别贴脸，站在圈外只剩一道冲击环，冲刺穿过去。二阶段起它会原地扎根，先亮出细线（并朝将要转动的方向缓缓爬），然后整圈旋转扫射：沿着转动方向绕着它走，就能一直待在射线之间的空档里。每次转阶段它会喷出一圈自爆怪，先拉开距离再清理。',
     },
-    pickupText: '击败敌人后偶尔会在原地留下拾取物，靠近飞船时会被自动吸过来；除补给箱外，掉在地上 60 秒还没捡就会消失。认形状就能分辨：十字是医疗，带引信的圆球是炸弹，带锁的箱子是补给，底座上的晶体是晶核。经验不是掉落物——击杀当场入账，飞向飞船的小光点只是演出。',
+    pickupText: '击败敌人后会在原地留下拾取物，靠近飞船时会被自动吸过来；除补给箱外，掉在地上 60 秒还没捡就会消失。认形状就能分辨：十字是医疗，马蹄铁是磁铁，带引信的圆球是炸弹，带锁的箱子是补给，底座上的晶体是晶核。',
     pickups: {
-      heal: { effect: '立即恢复 30% 最大生命（至少 20 点）。', source: '普通敌人小概率掉落（约 1%，生命低于 40% 时更常见，幸运可提高）；击败精英时有一半几率额外掉落，击败小 Boss 有 60% 几率掉落。' },
+      heal: { effect: '立即恢复 30% 最大生命（至少 20 点）。', source: '普通敌人小概率掉落（约 1%，生命低于 40% 时更常见，幸运可提高）；击败精英时有一半几率额外掉落。' },
+      magnet: { effect: '把场上所有经验宝石一次性吸到飞船身边。', source: '普通敌人小概率掉落（约 0.5%，幸运可提高）。' },
       bomb: { effect: '引爆一圈覆盖整个屏幕的冲击波，伤害随局内时间增长，并清除所有敌方弹幕。', source: '普通敌人极小概率掉落（约 0.25%，幸运可提高）。' },
-      chest: { effect: '拾取后获得一次额外的升级选择，也是触发武器进化的机会；箱子上方有一道光柱，远处也看得见。', source: '击败精英必掉；击败小 Boss 掉落一个，击败星区 Boss 掉落两个。不会自行消失。' },
-      cache: { effect: '本局结算时额外获得一笔晶核。', source: '与补给箱一同掉落：精英 20 起，小 Boss 60 起，星区 Boss 120 起，数量随局内时间增长。' },
+      chest: { effect: '拾取后获得一次额外的升级选择，也是触发武器进化的机会；箱子上方有一道光柱，远处也看得见。', source: '击败精英必掉；击败 Boss 时掉落两个。不会自行消失。' },
+      cache: { effect: '本局结算时额外获得一笔晶核。', source: '与补给箱一同掉落：精英 20 起，Boss 120 起，数量随局内时间增长。' },
     },
-    waveText: [
-      '战斗是「割草」手感：杂兵数量多而且脆，一两下就倒；它们不是一股脑涌来，而是一波一波的攻势——每一波里人潮源源不断地从画面边缘涌进来，外加按脚本在固定的时间点放出几个「脉冲」（环形包围、冲锋人墙、夹击、人流、旋臂、车道……），一批压着一批。真正难缠的是特殊兵种、精英和 Boss，它们不会被一扫而光。',
-      '波次与节奏：一个星区是 {waves} 波攻势（每波 40～60 秒）加一只 Boss。波尾前 {lead} 秒放出一道半径约 {radius} 像素的三环清场冲击波：只收割杂兵，特殊兵种、精英和 Boss 不受影响，同时清掉近处的敌方弹幕、给你 {inv} 秒无敌；随后弹出这一波攒下的所有升级卡。战斗中升级只攒次数（经验当场入账，不用去捡），所以不会被打断；每一波至少保证一次升级——前几波升得快、越往后越慢，一局大约升到 30 级。脉冲之间也不会冷场：导演盯着画面周围的杂兵数，低于目标线就从屏幕边缘一团一团地补，所以不管你割得多快，屏幕里总有一群怪——脉冲是叠在这片人潮上的阵型攻势；只有清场冲击波前后那几秒是安静的。',
-      '小 Boss（先遣体）：每个星区在第 {miniWaves} 波各有一只别处 Boss 的缩小版——体型小一圈、招式更轻、阶段更少，血量约为正主的 {mini1}% / {mini2}%（再乘威胁等级），仍是实打实的半分钟以上的战斗；击败后清掉场上的杂兵并掉一个补给箱。最终 Boss 登场时，场上剩下的一切都会散去，只剩你和它。',
-      '每个星区一套新体验：霓虹原野是纯粹的割草，特殊兵种一种一种地认识；数据荒原的攻势从屏幕边缘亮起的预警箭头所指的方向压来，幽灵会瞬移到你背后；虚空裂隙会张开引力井，把你和杂兵一起往中心拽（冲刺可以挣脱，奇点会伤人），攻势呈旋臂状，幽灵与自爆怪成群；熔炉星环有预警后依次砸落的陨火打击，自爆怪与冲锋者成群。',
-      'Boss 战：Boss 血量是基础值的 {boss} 倍，多阶段、有预警、需要走位，不是用来割的。Boss 战里每隔 {adds} 秒还会补一波杂兵（规模受限），让 Boss 战里也有割草，但真正的主角是 Boss 的招式。',
-      '群杀播报：{span} 秒内击杀数突然冲高，屏幕上会弹出「×N」，按击杀数分为连杀、群杀、屠戮、横扫千军、万夫莫敌五档（分别从 {tiers} 只起）。它只看“突增”——日常割草不会刷屏，一波的清场冲击波、进化冲击波和炸弹这样的大场面才会点亮它。',
-      '经济也随之调整：升级所需经验前几级便宜、后期越来越贵；击杀折合晶核的比例是每 {kpc} 只 1 颗，击杀类成就的目标上调——击杀数暴涨不会让机库升级变快。',
+    surgeText: [
+      '战斗是「割草」手感：杂兵一两下就倒，场上的人潮从开局起就很密、越往后越厚；真正难缠的是精英、冲锋者、自爆怪、射手和 Boss。',
+      '浪涌：每次击杀都会给右上角的浪涌条充能（第一次需要 {need} 次击杀，一只精英顶 {elite} 只杂兵；之后每放一次，下一次多 {step} 次，最多 {max} 次）。充满之后，只要身边有 {near} 只以上的敌人、或者 Boss 逼近，就会自动放出一道以飞船为圆心、半径约 {radius} 像素的三环冲击波：沿途的杂兵全灭，精英和 Boss 只被削掉一截；同时清掉近处的敌方弹幕，并给你 {inv} 秒无敌；约 {vac} 秒后整张地图的经验石都会飞回来。两次浪涌之间至少间隔 {gap} 秒。',
+      '群杀播报：{span} 秒内击杀数突然冲高，屏幕上会弹出「×N」，按击杀数分为连杀、群杀、屠戮、横扫千军、万夫莫敌五档（分别从 {tiers} 只起）。它只看“突增”——日常割草不会刷屏，浪涌、进化冲击波和炸弹这样的大场面才会点亮它。',
+      '数值也随之重新调过：升级所需经验的前几级更便宜、后期越来越贵（十分钟大约 45 级），Boss 血量是原来的 {boss} 倍，击杀折合晶核的比例改为每 {kpc} 只 1 颗、击杀类成就的目标上调——击杀数暴涨不会让机库升级变快。',
     ],
     hazardText: '敌方的攻击都做成了能一眼认出的样子：每种子弹有自己的外形，Boss 的射线和冲击环带着警示纹。冲刺期间无敌，任何一种都可以直接穿过去；脉冲炸弹则会清除场上所有的敌方子弹。',
     hazards: {
@@ -258,9 +257,9 @@ const ZH: Copy = {
     },
     threatText: '威胁等级影响敌人血量、刷怪量和晶核收益。每个星区的更高威胁等级需要在前一档通关后解锁。至少通关一次某个星区后，可以在出击界面开启「无尽模式」：击败 Boss 后战斗继续，敌人会随时间不断变强。',
     metaText: '晶核是跨局货币：每局结算时获得（击杀、存活时间、等级、进化、击败 Boss 都会加成），可在机库购买永久升级。不满意可以随时全额退款重新分配。',
-    sectorText: '每个星区由 {waves} 波攻势加一只 Boss 组成（约 10 分钟），第 {miniWaves} 波各有一只小 Boss。通关一个星区会解锁下一个星区。每个星区的玩法都不一样，详见上面的「波次与割草」；第四个星区「熔炉星环」的“陨火打击”是：地上亮起橙色预警圈，约 1.3 秒后火球依次砸落，圈内重伤——听到“警告：陨火坠落”就别站桩，走开就没事。',
+    sectorText: '每个星区在 10 分钟时迎来该星区的 Boss。通关一个星区会解锁下一个星区。第四个星区「熔炉星环」有独有的“陨火打击”：地上亮起橙色预警圈，约 1.3 秒后火球依次砸落，圈内重伤——听到“警告：陨火坠落”就别站桩，走开就没事。',
     unitMin: '分钟',
-    enemyHint: '数值为基础值。杂兵（无人机、蜂群体）血量很低、几乎不随时间成长，靠数量取胜；特殊兵种（重装、炮手、冲锋者、盾卫、幽灵……）会随时间与威胁等级越来越厚，需要集火；分裂碎片不成长。',
+    enemyHint: '数值为基础值。实际血量会随时间与威胁等级成长，但杂兵只吃一部分成长（一两下就倒），重甲、盾卫吃得更多；分裂碎片不成长。',
   },
   about: {
     title: '关于《霓虹浪涌》— 设计理念、技术与更新记录',
@@ -268,7 +267,7 @@ const ZH: Copy = {
     h1: '关于《霓虹浪涌》',
     paras: [
       '《霓虹浪涌》（NEON SURGE）是一款为浏览器而生的霓虹风生存肉鸽。我们希望做到的事很简单：<strong>打开网页，三秒钟之后就能开始一局</strong>，每一局十分钟左右，结束时总有一点东西留给下一局。',
-      '游戏的核心循环是「走位 → 一波一波地割草 → 一波结束统一三选一升级 → 进化 → 打小 Boss 与星区 Boss → 带着晶核回到机库」。我们刻意让操作保持简单（只有移动和冲刺），把深度放在构筑选择、敌人行为的读取和 Boss 机制上。',
+      '游戏的核心循环是「走位 → 收集 → 三选一升级 → 进化 → 打 Boss → 带着晶核回到机库」。我们刻意让操作保持简单（只有移动和冲刺），把深度放在构筑选择、敌人行为的读取和 Boss 机制上。',
       '游戏为单人离线体验：没有广告，没有内购，没有账号系统，也不需要联网才能继续游玩。',
     ],
     techH: '技术实现',
@@ -281,8 +280,6 @@ const ZH: Copy = {
     ],
     logH: '更新记录',
     log: [
-      '<strong>v1.15</strong> — 「人潮不断」：针对“屏幕空空像屏保、阵型像游行”的反馈做的节奏修正。实测 v1.14 的霓虹原野有六成以上的时间画面里不到 6 只怪，最长一口气空屏 27 秒——脉冲两三秒就被割光，之后是长长的空档。现在导演新增<strong>人潮补兵</strong>：盯着画面周围的杂兵数，低于目标线就从屏幕边缘一团一团地补，割光之后两三秒就重新铺满，每一波开场也先压上来一批，所以屏幕里永远有一群怪在被割，脉冲变成叠在这片人潮上的阵型攻势；浪涌清场的那几秒不补，仍是一波的句号。<strong>阵型不再整齐划一</strong>：杂兵移速各有 ±16% 的个体差异，圈、墙、纵队带噪声，冲刺平滑减速而不是在你面前急刹车；被甩在身后的杂兵会加速追赶、太远就回收到画面边缘；刷怪点改为贴着画面边缘（宽屏、竖屏都一样），不再要在黑暗里走很久才露面。群杀播报整体上移（从 50 只起、冷却 8 秒），整局只剩二三十次真正的大场面。屏幕里的怪多了一倍以上（每局击杀从约 6 千涨到约 1.4 万），所以经验曲线按逐波实测重新拟合，升级节奏不变（每波 2～3 级，一局约 30 级）。',
-      '<strong>v1.14</strong> — 「割草·波次」改版：把 v1.13 的“充能浪涌”换成真正的<strong>一波一波</strong>。一个星区 = 12 波攻势（每波 40～60 秒）+ Boss；每一波按脚本在固定的时间点放出几个「脉冲」——环形包围、冲锋人墙、夹击、人流、旋臂、车道，数量多、血量极低，被范围大 / 数量多的武器成片割倒；波尾前放出清场冲击波，随后<strong>统一弹出这一波攒下的升级卡</strong>：战斗中升级只攒次数，经验当场入账，不用再追着经验石捡（磁铁道具随之取消，飞向飞船的光点只是演出），每一波至少保证一次升级，节奏是前几波升得快、后面渐慢。屏幕右上角换成「第 N / 12 波」的进度条，经验条旁多了「待选 ×N」徽记。杂兵脆，但<strong>特殊兵种、精英、小 Boss 与 Boss 都不脆</strong>：重装、盾卫、冲锋者按波次的小队登场，血量随时间继续成长；每个星区在第 4 波、第 8 波各遇到一只别处 Boss 的缩小版（<strong>先遣体</strong>：招式更轻、阶段更少），最终 Boss 登场时场上的一切都会散去，只剩你和它，Boss 战里每隔 18 秒补一波杂兵，让 Boss 战里也有割草。<strong>每个星区一套新体验</strong>：霓虹原野是纯粹的割草；数据荒原的攻势从屏幕边缘亮起的预警箭头所指的方向压来；虚空裂隙张开引力井，把你和杂兵一起往中心拽，冲刺能挣脱；熔炉星环有预警后依次砸落的陨火。机器人学会了朝环心冲刺穿过扩散的冲击环；指南的「浪涌与群杀」一节改写为「波次与割草」。',
       '<strong>v1.13</strong> — 「割草」手感改版。杂兵一两下就倒（血量随时间的成长大幅下调，每种敌人再按自己的 grow 微调），开局就有仗打、中后期人潮越来越厚；真正难缠的是精英、冲锋者、自爆怪和 Boss。新增<strong>浪涌</strong>：击杀给右上角的浪涌条充能，充满后敌群够密时自动放出三环清场冲击波（清弹幕、短暂无敌、随后把全图经验石吸回来）；以及<strong>群杀播报</strong>：0.6 秒内击杀突增时弹出 ×N（连杀 → 万夫莫敌五档），只看突增、日常割草不刷屏。击杀特效按帧限额，整屏同时倒下也不会卡。经验曲线前几级更便宜、后期用三次项拉贵（十分钟约 45 级）；Boss 血量 ×2；击杀折合晶核改为每 120 只 1 颗；击杀类成就目标上调，并新增「一击百杀」「万军辟易」。指南新增「浪涌与群杀」一节。',
       '<strong>v1.12</strong> — 第 4 个星区「熔炉星环」与新 Boss「熔炉巨像」，通关虚空裂隙后解锁。这是一座恒星残骸熔成的炼炉带：自爆怪与冲锋者成群，另有该星区独有的“陨火打击”——地上先亮起橙色预警圈，约 1.3 秒后火球依次砸落（第一发压在你正要去的地方），圈内重伤、走开就没事，落点会留下焦痕。熔炉巨像是一台行走的炼炉：缓缓压近，放出一圈圈慢速的熔渣块，向预警圈里抛熔渣弹（第一发预判你的走位），震地时脚下先亮一大圈，落地后圈内重伤并震出冲击环（三阶段连震两道）；二阶段起它会原地扎根，亮出 2～3 条细线预警（并朝将要转动的方向缓缓爬），随后整圈旋转扫射——沿着转动方向绕它走就能一直待在空档里；每次转阶段，炉门都会喷出一圈自爆怪。新增成就“炉火熄灭”（奖励 600 晶核，勋章是铁砧与火花）、新的子弹造型“熔渣块”，以及这个星区自己的配色与音阶；机器人也学会了躲旋转的射线。',
       '<strong>v1.11</strong> — 新增两把武器「榴弹炮」和「虹吸索」（共 12 种），12 种被动终于都有了各自的搭档武器。榴弹炮是远程炮击：先在地上标出一圈锁定环，炮弹划着弧线飞过去，落地炸开并留下焦痕和烟尘；它专找敌群最密的地方，同一轮齐射会分散到不同的敌群，Boss 在射程内时所有炮弹都砸向 Boss；威力随最大生命值提高（搭档是强化舱体，进化成“饱和轰炸”后一轮 6 发，每发落地后再炸出 3 颗子弹）。虹吸索不发射弹丸：从机体伸出几条钢索钳住最近的敌人，持续撕咬并把一部分伤害变成生命——只在受伤时才回血，每次回血会飘出绿色的“+N”（搭档是纳米修复，会放大回血量；进化成“噬能之网”后咬到的敌人还会把伤害溅给周围，并放出紫色电弧）。两把武器的图标、炮弹、锁定环、钢索钳口、落点烟尘和音效都是新做的，和其他武器一样靠造型而不是发光撑场面，只有弹头和能量包用了一点亮色。连环爆炸时的屏幕震动加了上限，不会再一直糊在满屏抖动里。既有武器的数值不变；升级候选里多了两把武器，所以同一把武器出现的概率相应略降。',
@@ -328,17 +325,17 @@ const EN: Copy = {
   siteName: 'NEON SURGE',
   home: {
     title: 'NEON SURGE — Free Online Neon Roguelite Survival Game | Play in Browser',
-    desc: 'NEON SURGE is a free browser neon roguelite mower-survivor: auto-fire weapons cut down wave after wave of fragile swarms, you level up in a batch after every wave and evolve your arsenal, then face tough elites, mini-bosses and bosses across four sectors. No download or sign-up. Works on desktop, mobile and gamepad.',
+    desc: 'NEON SURGE is a free browser neon roguelite survivor: auto-fire weapons, collect gems, level up and evolve your arsenal, and defeat four sector bosses. No download or sign-up. Works on desktop, mobile and gamepad.',
     h1: 'NEON SURGE: A Free Online Neon Roguelite Survival Game',
-    lead: 'NEON SURGE is a top-down arena-survivor roguelite that runs right in your browser. Pilot a fighter into neon-drenched sectors: your weapons fire automatically, so all you have to do is move — wide-area, many-projectile weapons mow down wave after wave of swarms, a batch of level-up cards arrives at the end of every wave, and you fight through 12 waves to take down the sector boss within ten minutes. No download, no sign-up; play on desktop, mobile or with a gamepad.',
+    lead: 'NEON SURGE is a top-down arena-survivor roguelite that runs right in your browser. Pilot a fighter into neon-drenched sectors: your weapons fire automatically, so all you have to do is move — collect gems, level up, evolve your weapons, and take down the sector boss within ten minutes. No download, no sign-up; play on desktop, mobile or with a gamepad.',
     ctaPlay: 'Play now',
     ctaGuide: 'Read the guide',
     featuresH: 'Features',
     features: [
-      { icon: 'swords', color: '#3df2ff', title: 'Auto-fire, wave after wave of mowing', text: 'No aiming — it is playable one-handed. Regular enemies are numerous and fragile, and wave after wave of attacks gets cut down; each wave ends with a screen-clearing shockwave and a batch of level-up cards, so levelling never interrupts a fight and XP needs no picking up. The real challenge is special enemies, elites and bosses: they are not wiped out in one sweep — you beat them with positioning, dash invincibility and by reading their patterns.' },
+      { icon: 'swords', color: '#3df2ff', title: 'Auto-fire, pure mowing', text: 'No aiming — it is playable one-handed. Regular enemies fall in a hit or two and the swarm is dense from the very first minute; every kill charges the Surge meter, and a full meter releases a screen-clearing shockwave on its own. The real challenge is finding a safe path through swarms, elites and bullet patterns, then counter-attacking during dashes.' },
       { icon: 'dice', color: '#ffd84a', title: `${WEAPON_IDS.length} weapons × ${PASSIVE_IDS.length} passives`, text: 'Pulse cannon, orbit blades, arc lightning, missiles, prism laser, mines, nova, drones, chakram, railgun, howitzer, siphon tether… every level-up offers a random pick of three, so each run becomes a different build.' },
       { icon: 'play', color: '#ff4fd8', title: 'Weapon evolution', text: 'Max out a weapon and carry its partner passive to evolve it into an ultimate form from a level-up or a supply chest — in both looks and power.' },
-      { icon: 'skull', color: '#ff4a6a', title: '4 sectors, 4 playstyles, 4 bosses', text: 'The Overseer in Neon Fields, the Fractal Core in Data Wasteland, the Maw in Void Rift, the Forge Colossus in Crucible Belt — each boss has multi-phase patterns and a unique gimmick. Every sector plays differently too: pure mowing in the Fields, ambushes from warning arrows in the Wasteland, gravity wells that drag you and the swarm in the Void, ember strikes that fall after a warning in the Crucible; each sector has a mini-boss at wave 4 and wave 8.' },
+      { icon: 'skull', color: '#ff4a6a', title: '4 sectors, 4 bosses', text: 'The Overseer in Neon Fields, the Fractal Core in Data Wasteland, the Maw in Void Rift, the Forge Colossus in Crucible Belt. Each boss has multi-phase patterns and a unique gimmick.' },
       { icon: 'hangar', color: '#a58bff', title: 'Permanent hangar upgrades', text: 'Spend cores on 13 permanent upgrades, unlock 4 distinct ships, climb 4 threat levels, and open endless mode after your first clear.' },
       { icon: 'gear', color: '#6dff8a', title: 'Touch, keyboard & gamepad', text: 'A floating touch joystick, WASD / arrow keys and gamepads are all supported natively. Adaptive quality keeps low-end devices smooth; saves are local and the game works offline.' },
       { icon: 'sound', color: '#3df2ff', title: 'Synthesized music & SFX', text: 'All music and sound effects are synthesized live with WebAudio — no audio files to download. Every sector has its own scale and tempo, and boss fights change the arrangement.' },
@@ -353,17 +350,18 @@ const EN: Copy = {
     tipsH: 'Five tips for new pilots',
     tips: [
       '<strong>Keep moving.</strong> Standing still is the most dangerous thing you can do. Circle around the edge of the swarm and let your weapons clean up what follows.',
-      '<strong>Fight wave by wave.</strong> When the wave bar in the top-right runs out, a clearing shockwave fires and the level-up cards you banked during the wave pop up. Levelling never interrupts a fight, and XP is banked the moment an enemy dies — nothing to pick up.',
+      '<strong>Grab the cyan gems first.</strong> XP is the only way to get stronger — but check your escape route before diving for a gem.',
       '<strong>Specialize in one main weapon.</strong> One heavily upgraded weapon beats a little of everything. Add its partner passive.',
       '<strong>Watch for evolution.</strong> A flashing golden frame in the bottom-left weapon bar means the next level-up or chest will offer the evolution.',
-      '<strong>Mow the swarm, focus the heavies.</strong> Regular enemies die in a hit or two, so leave them to wide-area weapons; brutes, shielders, chargers, elites and bosses are not wiped out in one sweep — focus them down and save your dash’s invincibility for their attacks (crossing a boss ring, breaking out of an encirclement).',
+      '<strong>Dash with purpose.</strong> You are invincible while dashing — use it to cross boss rings or break out of encirclements, and don’t hoard it.',
+      '<strong>Watch the Surge meter.</strong> When the cyan bar in the top-right is full, dive into a crowd — it auto-clears the screen and pulls every gem back, the best beat in the mowing rhythm.',
     ],
     faqH: 'FAQ',
     faq: [
       { q: 'Is it free? Do I need to download or sign up?', a: 'It is completely free. Open the page and play — no download, no sign-up, no login.' },
       { q: 'Can I play on mobile?', a: 'Yes. The game has a floating joystick and a dash button for touch screens; landscape orientation feels best. iPhone Safari does not support web fullscreen, but you can “Add to Home Screen” for a near-fullscreen experience.' },
       { q: 'Where is my save stored? What about switching devices?', a: 'Your save lives in your browser’s local storage and is never uploaded. Clearing browser data deletes it. To move to another device, use Settings → Export save, then paste the text into Settings → Import save on the other device.' },
-      { q: 'What is a wave? Why do level-ups wait until the wave ends?', a: `A sector is ${WAVE_NUMS.waves} waves of attacks plus a boss, each wave lasting 40–60 seconds: regular enemies arrive in formations — rings, charging walls, pincers, spirals — one whole group at a time. ${WAVE_NUMS.lead} s before a wave ends, a clearing shockwave sweeps away regular enemies (special enemies, elites and bosses are unaffected), and then the level-up cards you banked during the wave pop up. Levelling up mid-fight only banks a card and never interrupts you, XP is banked the instant an enemy dies, and every wave guarantees at least one level-up.` },
+      { q: 'What is the Surge meter, and why does the screen clear by itself?', a: `Every kill charges the meter in the top-right corner. Once it is full and ${SURGE.nearCount} or more enemies are near you (or a boss closes in), it automatically fires a screen-wide shockwave: regular enemies are wiped out, elites and bosses lose a chunk, nearby enemy bullets are cleared, you are invincible for ${SURGE.invuln} s and every XP gem on the map is pulled back to you. After a release it takes at least ${SURGE.minGap} s to trigger again.` },
       { q: 'How do I evolve a weapon?', a: 'Level a weapon to the maximum (level 8) while owning its partner passive (any level). The evolution is then offered at your next level-up or supply chest. The full partner table is in the guide.' },
       { q: 'Is there a limit on weapons, passives and their levels?', a: `Yes. You can carry at most ${MAX_WEAPONS} weapons and ${MAX_PASSIVES} passives per run; weapons top out at level ${WEAPON_MAX_LEVEL} and passives at level ${PASSIVE_TOP_LEVEL}. Maxed items are never offered again, and once the slots are full no new weapons or passives show up. The level-up screen shows your current slots (e.g. 6/6) and each item's level, with maxed ones marked MAX.` },
       { q: 'The game feels laggy — what can I do?', a: 'Adaptive quality is on by default and lowers effects when the frame rate stays low. You can also set Settings → Quality to Medium or Low and turn off screen shake and damage numbers.' },
@@ -384,7 +382,7 @@ const EN: Copy = {
       weapons: 'Weapons',
       passives: 'Passives',
       pickups: 'Pickups',
-      waves: 'Waves & mowing',
+      surge: 'Surge & multi-kills',
       enemies: 'Bestiary',
       bosses: 'Boss strategies',
       hazards: 'Bullets & hazards',
@@ -436,21 +434,19 @@ const EN: Copy = {
       maw: 'The Maw keeps pulling you in. Don’t fight the gravity — move along the tangent. The expanding shock ring is the biggest threat: dash straight through it as it expands (you are invincible while dashing).',
       forge: 'The Forge Colossus is slow, but every attack is telegraphed — read it and you will not get hit. Orange circles explode about 1.1 s later and the first one leads your movement, so don’t flee in a straight line. Its stomp lights a big circle under it: don’t hug it, and from outside the circle only a single shock ring remains — dash through. From phase 2 it roots itself and lights thin warning lines (creeping the way they are about to turn) before sweeping the whole circle: walk around it in the direction of rotation and you stay inside the gaps between the beams. Each phase change it vents a ring of bombers — back off first, then clean up.',
     },
-    pickupText: 'Defeated enemies occasionally leave pickups behind; they are pulled to your ship once you get close, and vanish after 60 seconds on the ground (supply crates never do). You can tell them apart by shape alone: a cross is repair, a round bomb with a fuse is the pulse bomb, a locked chest is the supply crate and a crystal on a pedestal is the core cache. XP is not a pickup — it is banked the moment an enemy dies, and the little lights flying to your ship are only for show.',
+    pickupText: 'Defeated enemies can leave pickups behind; they are pulled to your ship once you get close, and vanish after 60 seconds on the ground (supply crates never do). You can tell them apart by shape alone: a cross is repair, a horseshoe is the magnet, a round bomb with a fuse is the pulse bomb, a locked chest is the supply crate and a crystal on a pedestal is the core cache.',
     pickups: {
-      heal: { effect: 'Instantly restores 30% of max HP (at least 20).', source: 'Rare drop from regular enemies (about 1%, higher below 40% HP, boosted by Luck); elites have a 50% chance to drop one as well, and mini-bosses 60%.' },
+      heal: { effect: 'Instantly restores 30% of max HP (at least 20).', source: 'Rare drop from regular enemies (about 1%, higher below 40% HP, boosted by Luck); elites have a 50% chance to drop one as well.' },
+      magnet: { effect: 'Pulls every XP gem on the field to your ship at once.', source: 'Rare drop from regular enemies (about 0.5%, boosted by Luck).' },
       bomb: { effect: 'Detonates a shockwave across the whole screen — damage grows with run time — and wipes every enemy bullet.', source: 'Very rare drop from regular enemies (about 0.25%, boosted by Luck).' },
-      chest: { effect: 'Grants one extra upgrade choice, which is also a chance to evolve a weapon. A beam of light marks it from afar.', source: 'Always dropped by elites; a mini-boss drops one and the sector boss drops two. Never despawns.' },
-      cache: { effect: 'Adds a bonus stack of cores when the run ends.', source: 'Drops together with the supply crate: from 20 cores for elites, 60 for mini-bosses and 120 for sector bosses, growing with run time.' },
+      chest: { effect: 'Grants one extra upgrade choice, which is also a chance to evolve a weapon. A beam of light marks it from afar.', source: 'Always dropped by elites; the boss drops two. Never despawns.' },
+      cache: { effect: 'Adds a bonus stack of cores when the run ends.', source: 'Drops together with the supply crate: from 20 cores for elites and 120 for bosses, growing with run time.' },
     },
-    waveText: [
-      'Combat is built to feel like mowing: regular enemies are numerous and fragile, falling in a hit or two. They do not arrive in one lump but as waves of attacks — in each wave a tide of enemies keeps flowing in from the screen edge, plus several scripted “pulses” (rings, charging walls, pincers, streams, spirals, lanes…) fired at set moments, one group pressing on the heels of the last. What is actually dangerous is special enemies, elites and bosses, which are not wiped out in one sweep.',
-      'Waves & rhythm: a sector is {waves} waves of attacks (40–60 s each) plus a boss. {lead} s before a wave ends, a three-ring clearing shockwave with a radius of about {radius} px sweeps the field: it only reaps regular enemies — special enemies, elites and bosses are unaffected — clears nearby enemy bullets and makes you invincible for {inv} s; then every level-up card you banked during the wave pops up. Levelling mid-fight only banks a card (XP is credited the instant an enemy dies, nothing to pick up), so you are never interrupted, and every wave guarantees at least one level-up — fast in the early waves, slower later, about level 30 by the end of a run. There is no lull between pulses either: the director watches how many regular enemies are around the screen and tops the count up from the screen edge in clumps whenever it drops below a target line, so however fast you mow there is always a crowd — pulses are formation attacks layered on top of that tide; only the few seconds around the clearing shockwave are quiet.',
-      'Mini-bosses (vanguards): each sector has a shrunken version of another boss at waves {miniWaves} — a smaller body, lighter attacks, fewer phases and roughly {mini1}% / {mini2}% of the real boss’s HP (times threat level), still a real fight of half a minute or more; beating one clears the regular enemies and drops a supply crate. When the final boss arrives, everything left on the field disperses so it is just you and the boss.',
-      'Every sector is a new experience: Neon Fields is pure mowing where you meet the special enemies one at a time; Data Wasteland attacks from the direction of warning arrows at the screen edge and its wraiths blink behind you; Void Rift opens gravity wells that drag you and the swarm toward the centre (dash to break free; the singularity hurts), with spiral-armed attacks and packs of wraiths and bombers; Crucible Belt rains ember strikes that crash down after a warning, with bombers and chargers in packs.',
-      'Boss fights: a boss has {boss}× the base HP, several phases and telegraphed attacks — it is not meant to be mown. Every {adds} s the fight also adds a limited wave of regular enemies so there is some mowing in a boss fight too, but the boss’s patterns are the real star.',
-      'Multi-kill callouts: when the number of kills inside a {span}-second window spikes, a “×N” appears on screen in five tiers — Multi-kill, Mass Kill, Slaughter, Sweep and Unstoppable (from {tiers} kills). It only reacts to spikes, so everyday mowing never spams it; a wave’s clearing shockwave, evolution shockwaves and bombs are what light it up.',
-      'The economy follows: early levels cost less and late levels cost much more; kills are worth 1 core per {kpc} kills and the kill achievements have higher targets — a huge kill count does not make hangar upgrades faster.',
+    surgeText: [
+      'Combat is built to feel like mowing: regular enemies fall in a hit or two, and the swarm is dense from the first minute and thicker every minute after. What is actually dangerous is elites, chargers, bombers, shooters and bosses.',
+      'Surge: every kill charges the meter in the top-right corner (the first charge takes {need} kills; an elite counts as {elite} regular enemies; each release makes the next one {step} kills more, up to {max}). Once it is full, as soon as {near} or more enemies are near you — or a boss closes in — it fires a three-ring shockwave centred on your ship with a radius of about {radius} px: regular enemies in its path are wiped out, elites and bosses only lose a chunk. It also clears nearby enemy bullets, makes you invincible for {inv} s, and about {vac} s later every XP gem on the map flies back to you. Two surges are at least {gap} s apart.',
+      'Multi-kill callouts: when the number of kills inside a {span}-second window spikes, a “×N” appears on screen in five tiers — Multi-kill, Mass Kill, Slaughter, Sweep and Unstoppable (from {tiers} kills). It only reacts to spikes, so everyday mowing never spams it; surges, evolution shockwaves and bombs are what light it up.',
+      'The numbers were retuned to match: early levels cost less and late levels cost much more (about level 45 after ten minutes), bosses have {boss}× their old HP, kills are worth 1 core per {kpc} kills, and the kill achievements have higher targets — a huge kill count does not make hangar upgrades faster.',
     ],
     hazardText: 'Every enemy attack is drawn so you can read it at a glance: each bullet type has its own silhouette, and boss beams and shock rings carry hazard stripes or spikes. You are invincible while dashing, so you can dash straight through any of them; a pulse bomb wipes every enemy bullet on the field.',
     hazards: {
@@ -465,9 +461,9 @@ const EN: Copy = {
     },
     threatText: 'Threat level scales enemy HP, spawn rate and core rewards. Each higher level of a sector unlocks after clearing the previous one. After clearing a sector once you can enable Endless Mode on the deploy screen: the run continues after the boss and enemies keep scaling up.',
     metaText: 'Cores are the cross-run currency: you earn them at the end of every run (kills, survival time, level, evolutions and boss kills all add up) and spend them on permanent upgrades. You can refund everything at any time and reallocate.',
-    sectorText: 'Each sector is {waves} waves of attacks plus a boss (about 10 minutes), with a mini-boss at waves {miniWaves}. Clearing a sector unlocks the next one. Every sector plays differently — see “Waves & mowing” above. The fourth sector, Crucible Belt, has its own hazard — ember strikes: orange warning circles light up on the ground and fireballs crash down about 1.3 s later, hurting anything inside. Listen for “WARNING: ember strike” and don’t stand still; step out and you take nothing.',
+    sectorText: 'Each sector’s boss arrives at the 10-minute mark. Clearing a sector unlocks the next one. The fourth sector, Crucible Belt, has its own hazard — ember strikes: orange warning circles light up on the ground and fireballs crash down about 1.3 s later, hurting anything inside. Listen for “WARNING: ember strike” and don’t stand still; step out and you take nothing.',
     unitMin: 'min',
-    enemyHint: 'Values are base stats. Regular enemies (drones, swarmers) have little HP and barely grow with time — they win by numbers; special enemies (brutes, gunners, chargers, shielders, wraiths…) grow tougher with time and threat level and need focus fire; split shards do not grow.',
+    enemyHint: 'Values are base stats; actual HP grows with time and threat level.',
   },
   about: {
     title: 'About NEON SURGE — Design, Technology & Changelog',
@@ -475,7 +471,7 @@ const EN: Copy = {
     h1: 'About NEON SURGE',
     paras: [
       'NEON SURGE is a neon survival roguelite made for the browser. The goal is simple: <strong>open the page and be playing within three seconds</strong>, with each run lasting about ten minutes and always leaving something behind for the next one.',
-      'The core loop is “move → mow wave after wave → pick one of three at the end of each wave → evolve → fight mini-bosses and the sector boss → bring cores back to the hangar”. Controls are deliberately minimal (just movement and dash); the depth lives in build choices, reading enemy behaviour and boss mechanics.',
+      'The core loop is “move → collect → pick one of three → evolve → fight the boss → bring cores back to the hangar”. Controls are deliberately minimal (just movement and dash); the depth lives in build choices, reading enemy behaviour and boss mechanics.',
       'It is a single-player offline experience: no ads, no in-app purchases, no accounts, and no connection needed to keep playing.',
     ],
     techH: 'Technology',
@@ -488,8 +484,6 @@ const EN: Copy = {
     ],
     logH: 'Changelog',
     log: [
-      '<strong>v1.15</strong> — “Endless tide”: a pacing fix for feedback that the game felt empty, like a screensaver, with enemies marching in parade formations. Measured, v1.14’s Neon Fields had fewer than 6 enemies on screen more than 60% of the time, with empty stretches of up to 27 s — a pulse was cut down in two or three seconds and then came a long lull. The director now adds a <strong>tide top-up</strong>: it watches how many regular enemies are around the screen and, whenever the count drops below a target line, tops it up from the screen edge in clumps — wipe the field and it is full again in two or three seconds, and every wave opens with a batch already closing in — so there is always a crowd to mow and pulses become formation attacks layered on top of that tide; the few seconds around the wave-ending shockwave stay quiet, still the full stop of a wave. <strong>Formations are no longer in lockstep</strong>: regular enemies each move ±16% faster or slower, rings, walls and lanes carry jitter, the sprint into view eases off instead of braking in front of you, stragglers catch up or get recycled to the screen edge, and spawn points hug the screen edge (widescreen and portrait alike) instead of walking a long way in the dark. Multi-kill callouts moved up (from 50 kills, 8 s cooldown) so a run has only twenty or thirty genuinely big moments. With more than twice as many enemies on screen (about 14,000 kills per run instead of about 6,000) the XP curve was refitted from per-wave measurements, so the level-up pace is unchanged (2–3 per wave, about 30 per run).',
-      '<strong>v1.14</strong> — “Waves” overhaul: the charge-up Surge of v1.13 gives way to real <strong>wave after wave</strong>. A sector is 12 waves of attacks (40–60 s each) plus a boss; every wave fires several scripted “pulses” — rings, charging walls, pincers, streams, spirals, lanes — of numerous, very fragile enemies that wide-area and many-projectile weapons cut down in swathes. Just before a wave ends a clearing shockwave sweeps the field and then <strong>the level-up cards banked during the wave pop up together</strong>: levelling mid-fight only banks a card, XP is credited the instant an enemy dies so there is nothing to chase and pick up (the magnet pickup is gone; the lights flying to your ship are just for show), every wave guarantees at least one level-up, and the pace is fast in the early waves and slower later. The top-right now shows a “Wave N / 12” bar and the XP bar carries a “Pending ×N” badge. Regular enemies are fragile, but <strong>special enemies, elites, mini-bosses and bosses are not</strong>: brutes, shielders and chargers arrive in per-wave squads and keep growing tougher with time; each sector meets a shrunken version of another boss at waves 4 and 8 (a <strong>vanguard</strong>: lighter attacks, fewer phases), everything left on the field disperses when the final boss arrives so it is just you and the boss, and a boss fight adds a wave of regular enemies every 18 s so there is still some mowing. <strong>Every sector is a new experience</strong>: Neon Fields is pure mowing; Data Wasteland attacks from the direction of warning arrows at the screen edge; Void Rift opens gravity wells that drag you and the swarm toward the centre (dash to break free); Crucible Belt rains ember strikes after a warning. The bot learned to dash toward the centre of an expanding shock ring to cross it; the guide’s “Surge & multi-kills” section became “Waves & mowing”.',
       '<strong>v1.13</strong> — Mowing-feel overhaul. Regular enemies fall in a hit or two (time-based HP growth is dialled way down, then tuned per enemy with a grow factor), fights start immediately and the swarm thickens every minute; what is actually dangerous is elites, chargers, bombers and bosses. New <strong>Surge</strong>: every kill charges the top-right meter, and when it is full and enemies are dense enough it auto-fires a three-ring clearing shockwave (clears nearby bullets, brief invulnerability, then pulls every XP gem on the map back to you). New <strong>multi-kill callouts</strong>: a spike of kills inside 0.6 s pops a ×N on screen in five tiers — only spikes, so everyday mowing never spams it. Kill FX are budgeted per frame so a full-screen wipe does not hitch. Early levels cost less and late levels cost much more via a cubic XP term (about level 45 after ten minutes); bosses have 2× HP; kills are worth 1 core per 120; kill achievements have higher targets, plus two new ones for multi-kills. The guide gains a “Surge & multi-kills” section.',
       '<strong>v1.12</strong> — A fourth sector, Crucible Belt, and a new boss, the Forge Colossus, unlocked by clearing Void Rift. The belt is star-wreck smelted into slag: bombers and chargers in packs, plus a hazard of its own — ember strikes. Orange warning circles light up on the ground and fireballs crash down about 1.3 s later one after another (the first lands where you are about to be); anything inside is hurt, step out and you take nothing, and each impact leaves a scorch mark. The Forge Colossus is a walking furnace: it lumbers closer, fires rings of slow slag chunks and lobs slag into marked circles (the first one leads your movement). Its stomp lights a big circle under it, hurts everything inside when it lands and sends out a shock ring (two in phase 3). From phase 2 it roots itself, lights 2 to 3 thin warning lines (creeping the way they are about to turn) and then sweeps the whole circle — walk around it in the direction of rotation and you stay inside the gaps. Every phase change the furnace door vents a ring of bombers. Also new: the “Fires Out” achievement (600 cores, with an anvil-and-spark medal), the slag-chunk bullet, this sector’s own palette and scale — and the autopilot bot has learned to dodge rotating beams.',
       '<strong>v1.11</strong> — Two new weapons, the Howitzer and the Siphon Tether (12 in total), so every one of the 12 passives now has a partner weapon. The Howitzer is long-range artillery: a lock-on ring is stamped on the ground first, the shell arcs over and bursts on impact, leaving a scorch mark and drifting smoke. It goes for the densest crowd, a salvo is spread over different crowds, and when a boss is in range every shell goes for the boss; damage grows with your max hull (partner passive: Reinforced Hull, and its evolution, Saturation Barrage, fires 6 shells that each split into 3 bomblets on impact). The Siphon Tether fires no projectiles: steel cables reach out from the ship, clamp the nearest enemies and keep biting, turning part of the damage into health — only while you are actually hurt, shown as a green “+N” (partner passive: Nano Repair, which also amplifies the healing; its evolution, Devourer Web, splashes each bite onto neighbours and throws violet arcs). Icons, shells, lock-on rings, cable clamps, impact smoke and sounds are all new and carry the same matte look — form instead of glow, with only warheads and energy packets using a touch of light. Chained explosions now have a screen-shake ceiling, so the screen no longer stays smeared with shaking. Existing weapons are unchanged, but the level-up pool holds two more weapons, so each individual weapon shows up slightly less often.',
@@ -753,7 +747,7 @@ function guidePage(l: SiteLang): string {
   // 敌人
   const enemyRows = ENEMY_IDS.map((id) => {
     const e = ENEMIES[id]
-    const where = SECTOR_IDS.filter((s) => SECTORS[s].roster.includes(id)).map((s) => `<span class="pill">${esc(sectorName(s))}</span>`)
+    const where = SECTOR_IDS.filter((s) => SECTORS[s].roster.some((r) => r.id === id)).map((s) => `<span class="pill">${esc(sectorName(s))}</span>`)
     return `<tr><td>${nm(spr(`enemy-${id}`, 40), name('enemy', id), e.color)}</td><td>${esc(T(l, `enemy.${id}.desc`))}</td><td>${e.hp}</td><td>${e.speed}</td><td>${e.dmg}</td><td>${where.join(' ') || '—'}</td></tr>`
   })
 
@@ -776,7 +770,7 @@ function guidePage(l: SiteLang): string {
   // 星区
   const sectorRows = SECTOR_IDS.map((id) => {
     const s = SECTORS[id]
-    const roster = [...new Set(s.roster)].map((e) => `<span class="pill">${esc(name('enemy', e))}</span>`)
+    const roster = [...new Set(s.roster.map((r) => r.id))].map((e) => `<span class="pill">${esc(name('enemy', e))}</span>`)
     return `<tr><td><div class="nm" style="--c:${s.palette.accent}"><span>${esc(sectorName(id))}</span></div></td><td>${esc(T(l, `sector.${id}.desc`))}</td><td>${esc(name('boss', s.boss))}</td><td>${Math.round(s.length / 60)} ${esc(g.unitMin)}</td><td>×${s.reward}</td><td>${roster.join(' ')}</td></tr>`
   })
 
@@ -798,7 +792,7 @@ function guidePage(l: SiteLang): string {
     return `<tr><td><strong>${esc(T(l, `ach.${a.id}.name`))}</strong></td><td>${esc(T(l, `ach.${a.id}.desc`, { n: n0(a.target) }))}${extra}</td><td>${esc(T(l, 'ach.reward', { n: a.reward }))}</td></tr>`
   })
 
-  const toc = (['evo', 'weapons', 'passives', 'pickups', 'waves', 'enemies', 'bosses', 'hazards', 'ships', 'sectors', 'threat', 'meta', 'ach'] as const).map((k) => `<a class="pill" href="#${k}">${esc(g.sections[k])}</a>`).join(' ')
+  const toc = (['evo', 'weapons', 'passives', 'pickups', 'surge', 'enemies', 'bosses', 'hazards', 'ships', 'sectors', 'threat', 'meta', 'ach'] as const).map((k) => `<a class="pill" href="#${k}">${esc(g.sections[k])}</a>`).join(' ')
 
   const body = `<h1>${esc(g.h1)}</h1>
 <p class="lead">${esc(g.lead)}</p>
@@ -819,8 +813,8 @@ ${table([col.name, col.effect, col.usedBy], passiveRows)}
 <p>${esc(g.pickupText)}</p>
 ${table([col.name, col.effect, col.source], pickupRows)}
 
-<h2 id="waves">${esc(g.sections.waves)}</h2>
-${g.waveText.map((t) => `<p>${esc(fill(t))}</p>`).join('\n')}
+<h2 id="surge">${esc(g.sections.surge)}</h2>
+${g.surgeText.map((t) => `<p>${esc(fill(t))}</p>`).join('\n')}
 
 <h2 id="enemies">${esc(g.sections.enemies)}</h2>
 <p>${esc(g.enemyHint)}</p>
@@ -839,7 +833,7 @@ ${table([col.name, col.effect, col.source], hazardRows)}
 ${table([col.name, col.desc, col.hp, col.speed, col.power, col.crit, col.dash, col.start, col.unlock], shipRows)}
 
 <h2 id="sectors">${esc(g.sections.sectors)}</h2>
-<p>${esc(fill(g.sectorText))}</p>
+<p>${esc(g.sectorText)}</p>
 ${table([col.name, col.desc, col.boss, col.len, col.reward, col.where], sectorRows)}
 
 <h2 id="threat">${esc(g.sections.threat)}</h2>

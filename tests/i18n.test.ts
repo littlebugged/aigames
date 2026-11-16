@@ -11,7 +11,6 @@ import {
   WEAPON_IDS,
 } from '../src/data/ids'
 import { THREAT_LEVELS } from '../src/data/sectors'
-import { WAVE_TAGS } from '../src/data/waves'
 import { en } from '../src/i18n/en'
 import { zh } from '../src/i18n/zh'
 
@@ -48,9 +47,6 @@ test('所有内容 id 都有名称与描述', () => {
   for (const a of ACHIEVEMENTS) for (const s of ['name', 'desc']) need(`ach.${a.id}.${s}`)
   for (let i = 0; i < THREAT_LEVELS.length; i++) need(`threat.${i}.name`)
   for (const k of ['damage', 'cooldown', 'count', 'pierce', 'area', 'duration', 'range', 'knock', 'chain', 'tick', 'blast']) need(`stat.${k}`)
-  for (const k of ['bullet', 'beam', 'ring', 'blast', 'well']) need(`src.${k}`)
-  for (const k of ['elite', 'strike', 'well', 'boss']) need(`warn.${k}`)
-  for (const id of BOSS_IDS) need(`boss.${id}.mini`)
-  for (const tag of WAVE_TAGS) need(`wave.tag.${tag}`)
-  for (const k of ['hud.wave', 'hud.waveN', 'hud.waveBoss', 'hud.pending', 'hud.miniDown', 'wave.banner', 'lv.more', 'src.well']) need(k)
+  for (const k of ['bullet', 'beam', 'ring', 'blast']) need(`src.${k}`)
+  for (const k of ['ring', 'wall', 'elite', 'strike', 'boss']) need(`warn.${k}`)
 })

@@ -2,8 +2,7 @@ import { ENEMIES } from '../data/enemies'
 import type { EBulletKind, EnemyId, SectorId, ShipId, WeaponId } from '../data/ids'
 import { SECTORS, THREAT_LEVELS, type SectorDef } from '../data/sectors'
 import { SHIPS } from '../data/ships'
-import { EVOLVE_SHOCK, TUNE, WELL } from '../data/tuning'
-import { WAVE } from '../data/waves'
+import { EVOLVE_SHOCK, TUNE } from '../data/tuning'
 import { HOWITZER_BOMBLET, WEAPONS } from '../data/weapons'
 import { SpatialHash } from '../engine/grid'
 import { angleTo, clamp, clamp01, segmentClosestT, turnToward } from '../engine/math'
@@ -29,7 +28,6 @@ import {
   Shell,
   Telegraph,
   WeaponInst,
-  Well,
   type InputState,
   type Target,
   type TeleFx,
@@ -71,10 +69,8 @@ export interface RunStats {
   hurtBy: Record<string, number>
   /** 0.6 秒窗口内的最高击杀数（群杀） */
   bestMulti: number
-  /** 已通过的波数（每一波结束时放出一次浪涌） */
-  waves: number
-  /** 击败的小 Boss 数 */
-  minis: number
+  /** 浪涌释放次数 */
+  surges: number
 }
 
 export interface HitOpts {
@@ -85,8 +81,7 @@ export interface HitOpts {
   quiet?: boolean
 }
 
-/** 经验现在是击杀时直接入账；场上的光点只是演出（飞向飞船的小亮点），数量封顶 */
-const GEM_CAP = 90
+const GEM_CAP = 260
 
 /**
  * 被吸附的经验石 / 道具怎么飞向玩家。
@@ -104,9 +99,6 @@ const PICK_PULL_ACCEL = 1800
 const PICK_PULL_MAX = 800
 
 const tierOf = (v: number): number => (v < 4 ? 0 : v < 12 ? 1 : v < 40 ? 2 : 3)
-
-/** id → [0,1) 的确定性散列（Knuth 乘法散列取高位），给杂兵分配个体移速差异，不消耗随机数序列 */
-export const speedHash = (id: number): number => (Math.imul(id | 0, 2654435761) >>> 8) / 16777216
 
 export class World {
   readonly cfg: RunConfig
@@ -137,17 +129,8 @@ export class World {
 
   readonly grid = new SpatialHash<Enemy>(96, 46)
   readonly director: Director
-  /** 割草节奏层：每波结束的浪涌 + 群杀播报 */
+  /** 割草节奏层：浪涌 + 群杀播报 */
   readonly mow = new Mow()
-  /** 虚空星区的引力井 */
-  wells: Well[] = []
-  /**
-   * 升级卡的"窗口"：升级不会在战斗中途打断你——经验是击杀时直接入账的，攒下的升级在一波结束（浪涌之后）、
-   * 或者 Boss 在场时才弹出；宝箱随时可开。
-   */
-  pickOpen = false
-  /** 本波已经攒下的升级次数（每波至少保底一次） */
-  waveLevels = 0
   stats: RunStats
 
   /** 视口半宽/半高（世界单位），由渲染层根据屏幕尺寸告知 */
@@ -193,7 +176,6 @@ export class World {
   private blastPool = new Pool(() => new Blast())
   private boltPool = new Pool(() => new Bolt())
   private telePool = new Pool(() => new Telegraph())
-  private wellPool = new Pool(() => new Well())
 
   constructor(cfg: RunConfig) {
     this.cfg = cfg
@@ -230,8 +212,7 @@ export class World {
       killedBy: '',
       hurtBy: {},
       bestMulti: 0,
-      waves: 0,
-      minis: 0,
+      surges: 0,
     }
   }
 
@@ -272,7 +253,6 @@ export class World {
     this.updateProjectiles(dt)
     this.updateEnemyBullets(dt)
     this.updateEffects(dt)
-    this.updateWells(dt)
     this.mow.update(this, dt)
     this.updatePickups(dt)
     this.cleanup()
@@ -281,8 +261,7 @@ export class World {
       this.winT -= dt
       if (this.winT < 0 && !this.cfg.endless) this.finish(true)
     }
-    if (this.pickOpen && this.phase === 'play' && !this.queue.includes('level')) this.pickOpen = false
-    if (this.queue.length > 0 && this.phase === 'play') this.tryOpenOffers()
+    if (this.queue.length > 0 && this.phase === 'play') this.openOffers()
   }
 
   private rebuildGrid(): void {
@@ -389,44 +368,17 @@ export class World {
 
   // ───────────────────────── 升级流程 ─────────────────────────
 
-  /**
-   * 经验：击杀时直接入账（场上不再掉经验石，不用追着捡）。
-   * 升级的次数先攒在 queue 里，在一波结束 / Boss 在场时才弹出选卡（见 pickOpen），战斗中途不会被打断。
-   * 经验按星区密度校正：越靠后的星区杂兵越多，但每一波给的升级节奏是一样的。
-   */
   addXp(v: number): void {
     const p = this.player
-    p.xp += v * p.st.xp * this.xpDensity()
-    while (p.xp >= p.xpNext) this.levelUp()
-  }
-
-  private levelUp(): void {
-    const p = this.player
-    p.xp -= p.xpNext
-    p.level++
-    p.xpNext = xpForLevel(p.level)
-    this.stats.level = p.level
-    this.waveLevels++
-    this.queue.push('level')
-    this.emit({ t: 'levelup', level: p.level })
-  }
-
-  /** 现在能不能弹这一项：宝箱随时；升级要等窗口（一波结束 / 最终 Boss 在场 / 主菜单演示） */
-  private canOpen(kind: 'level' | 'chest'): boolean {
-    return kind === 'chest' || this.pickOpen || !!this.cfg.demo || !!(this.boss && this.boss.alive && this.boss.mini === 0)
-  }
-
-  /** 找到队列里第一个"现在能弹"的，弹出它的候选卡。没有则返回 false。 */
-  private tryOpenOffers(): boolean {
-    const i = this.queue.findIndex((q) => this.canOpen(q))
-    if (i < 0) return false
-    if (i > 0) {
-      const t = this.queue[0]
-      this.queue[0] = this.queue[i]
-      this.queue[i] = t
+    p.xp += v * p.st.xp
+    while (p.xp >= p.xpNext) {
+      p.xp -= p.xpNext
+      p.level++
+      p.xpNext = xpForLevel(p.level)
+      this.stats.level = p.level
+      this.queue.push('level')
+      this.emit({ t: 'levelup', level: p.level })
     }
-    this.openOffers()
-    return true
   }
 
   private openOffers(): void {
@@ -441,38 +393,11 @@ export class World {
     if (!o) return
     applyOffer(this, o)
     this.queue.shift()
-    if (!this.queue.includes('level')) this.pickOpen = false
-    if (!this.tryOpenOffers()) {
+    if (this.queue.length > 0) this.openOffers()
+    else {
       this.offers = []
       this.phase = 'play'
     }
-  }
-
-  // ───────────────────────── 波次 ─────────────────────────
-
-  /** 新的一波开始（由导演调用） */
-  beginWave(_n: number): void {
-    this.waveLevels = 0
-  }
-
-  /**
-   * 一波的句号：放浪涌扫清杂兵。保底：这一波如果一次都没升级，补一次——每波至少给一次选卡。
-   * 升级卡在稍后（SURGE.pickDelay 秒，等冲击波扫完）由 openPicks 弹出。
-   */
-  waveSweep(n: number): void {
-    this.stats.waves = Math.max(this.stats.waves, n)
-    this.mow.sweep(this, n)
-  }
-
-  /** 打开选卡窗口：保底升级 + 弹出这一波攒下的所有升级 */
-  openPicks(): void {
-    const p = this.player
-    if (this.waveLevels === 0 && !this.cfg.demo) this.addXp(Math.max(0, p.xpNext - p.xp) / (p.st.xp * this.xpDensity()) + 1e-6)
-    this.pickOpen = true
-  }
-
-  private xpDensity(): number {
-    return TUNE.xpByDensity > 0 ? 1 / Math.pow(this.sector.density, TUNE.xpByDensity) : 1
   }
 
   reroll(): boolean {
@@ -498,7 +423,7 @@ export class World {
     id: EnemyId,
     x: number,
     y: number,
-    o: { elite?: boolean; spawnT?: number; hpMul?: number; rush?: boolean } = {},
+    o: { elite?: boolean; spawnT?: number; hpMul?: number } = {},
   ): Enemy {
     const def = ENEMIES[id]
     const e = this.enemyPool.get()
@@ -512,11 +437,9 @@ export class World {
     e.y = y
     e.vx = e.vy = e.kx = e.ky = 0
     e.elite = !!o.elite
-    e.maxHp = e.hp = def.hp * hpMul * (e.elite ? TUNE.eliteHp : 1)
+    e.maxHp = e.hp = def.hp * hpMul * (e.elite ? 7 : 1)
     e.r = def.radius * (e.elite ? 1.45 : 1)
     e.speed = def.speed * TUNE.enemySpeed * Math.min(1.45, (1 + 0.012 * m) * this.threat.speed) * (e.elite ? 0.92 : 1)
-    // 杂兵的移速各不相同（按 id 散列，不吃随机数）：同一个阵型里的怪会渐渐拉开，不再齐步走
-    if (def.tier === 'fodder' && !e.elite) e.speed *= 1 + WAVE.speedSpread * (2 * speedHash(e.id) - 1)
     e.dmg = def.dmg * TUNE.enemyDmg * (1 + sc.dmgPerMin * m) * (e.elite ? 1.3 : 1)
     e.xp = def.xp * (e.elite ? 8 : 1)
     e.flash = 0
@@ -532,7 +455,6 @@ export class World {
     e.hitAt.fill(0)
     e.lastRing = 0
     e.qs = 0
-    e.rush = o.rush ? 1 : 0
     this.enemies.push(e)
     return e
   }
@@ -545,28 +467,8 @@ export class World {
     if (TUNE.flank > 0 && p.vx * p.vx + p.vy * p.vy > 40 * 40 && this.rng.next() < TUNE.flank) {
       a = Math.atan2(p.vy, p.vx) + this.rng.range(-TUNE.flankSpread, TUNE.flankSpread)
     }
-    const d = this.edgeDist(a, 50 + this.rng.range(0, 70) + extra)
+    const d = this.viewR + 50 + this.rng.range(0, 70) + extra
     return { x: this.player.x + Math.cos(a) * d, y: this.player.y + Math.sin(a) * d }
-  }
-
-  /**
-   * 沿 a 方向、刚好出了画面 margin 像素的距离（射线与视野矩形的交点 + margin）。
-   * 点状刷怪（圈 / 团 / 人流 / 补兵）用它：宽屏上下方向的刷怪点不再绕到"对角线那么远"的地方，
-   * 怪出现在画面边缘外一小段，而不是要在黑暗里走很久才露面。
-   */
-  edgeDist(a: number, margin: number): number {
-    const c = Math.abs(Math.cos(a))
-    const s = Math.abs(Math.sin(a))
-    const t = Math.min(c > 1e-6 ? this.viewHalfW / c : Infinity, s > 1e-6 ? this.viewHalfH / s : Infinity)
-    return t + margin
-  }
-
-  /**
-   * 沿 a 方向、使整条垂直于 a 的直线都在画面外 margin 像素的距离（视野矩形在 a 方向上的支撑距离 + margin）。
-   * 墙 / 纵队这类"一整条线"的阵型用它——线上任何一点都不会落进画面里。
-   */
-  edgeLine(a: number, margin: number): number {
-    return this.viewHalfW * Math.abs(Math.cos(a)) + this.viewHalfH * Math.abs(Math.sin(a)) + margin
   }
 
   spawnProjectile(
@@ -640,24 +542,25 @@ export class World {
     this.ebullets.push(b)
   }
 
-  /**
-   * 击杀的经验：直接入账。场上另外放出一颗纯演出的光点飞向飞船（不再需要"捡"，数量封顶，超出的就不画了）。
-   */
   addGem(x: number, y: number, value: number): void {
     if (value <= 0) return
-    this.addXp(value)
-    if (this.gems.length >= GEM_CAP) return
+    if (this.gems.length >= GEM_CAP) {
+      const g = this.gems[this.rng.int(0, this.gems.length)]
+      g.value += value
+      g.tier = tierOf(g.value)
+      return
+    }
     const g = this.gemPool.get()
     g.alive = true
     g.x = x
     g.y = y
     const a = this.rng.angle()
-    const sp = this.rng.range(30, 130)
-    g.vx = Math.cos(a) * sp
-    g.vy = Math.sin(a) * sp
+    const s = this.rng.range(20, 90)
+    g.vx = Math.cos(a) * s
+    g.vy = Math.sin(a) * s
     g.value = value
     g.tier = tierOf(value)
-    g.mag = true
+    g.mag = false
     g.magT = 0
     g.age = 0
     this.gems.push(g)
@@ -701,7 +604,6 @@ export class World {
     r.hitPlayer = false
     r.wide = 1
     r.quiet = false
-    r.fodder = false
     r.serial = ++this.ringSerial
     this.rings.push(r)
     return r
@@ -757,7 +659,7 @@ export class World {
     y: number,
     t: number,
     action: string,
-    o: { x2?: number; y2?: number; r?: number; color?: string; a?: number; b?: number; fx?: TeleFx; k?: number } = {},
+    o: { x2?: number; y2?: number; r?: number; color?: string; a?: number; b?: number; fx?: TeleFx } = {},
   ): Telegraph {
     const tl = this.telePool.get()
     tl.alive = true
@@ -773,7 +675,6 @@ export class World {
     tl.a = o.a ?? 0
     tl.b = o.b ?? 0
     tl.fx = o.fx ?? 0
-    tl.k = o.k ?? 1
     this.teles.push(tl)
     return tl
   }
@@ -857,18 +758,15 @@ export class World {
       const lowHp = p.hp < p.maxHp * 0.4
       const r = this.rng.next()
       if (r < 0.011 + luck * 0.02 + (lowHp ? 0.012 : 0)) this.addPickup('heal', e.x, e.y)
-      else if (r < 0.0135 + luck * 0.022 + (lowHp ? 0.012 : 0)) this.addPickup('bomb', e.x, e.y)
+      else if (r < 0.016 + luck * 0.025 + (lowHp ? 0.012 : 0)) this.addPickup('magnet', e.x, e.y)
+      else if (r < 0.0185 + luck * 0.027 + (lowHp ? 0.012 : 0)) this.addPickup('bomb', e.x, e.y)
     }
   }
 
   killBoss(b: Boss): void {
     b.alive = false
-    this.emit({ t: 'boss', id: b.id, what: 'dead', mini: b.mini })
-    if (b.mini > 0) {
-      this.killMini(b)
-      return
-    }
     this.stats.bossKilled = true
+    this.emit({ t: 'boss', id: b.id, what: 'dead' })
     this.addBlast(b.x, b.y, 220, '#ffffff', 0.7)
     // 清场：所有小怪化为经验
     for (const e of this.enemies) {
@@ -878,59 +776,6 @@ export class World {
       this.emit({ t: 'kill', x: e.x, y: e.y, r: e.r, color: e.def.color, elite: false, big: false })
       this.addGem(e.x, e.y, e.xp)
     }
-    this.clearHostile()
-    this.addPickup('chest', b.x - 24, b.y)
-    this.addPickup('chest', b.x + 24, b.y)
-    this.addPickup('cache', b.x, b.y + 26, Math.round(120 + this.time / 6))
-    this.stats.cleared = true
-    this.winT = 3.2
-    this.boss = null
-  }
-
-  /** 小 Boss 被击败：只清场上的杂兵（特殊兵种和精英留着），掉一个宝箱 + 补给 */
-  private killMini(b: Boss): void {
-    this.stats.minis++
-    this.addBlast(b.x, b.y, 170, '#ffffff', 0.6)
-    for (const e of this.enemies) {
-      if (!e.alive || e.elite || e.def.tier !== 'fodder') continue
-      e.alive = false
-      this.stats.kills++
-      this.emit({ t: 'kill', x: e.x, y: e.y, r: e.r, color: e.def.color, elite: false, big: false })
-      this.addGem(e.x, e.y, e.xp)
-    }
-    this.clearHostile()
-    this.addPickup('chest', b.x, b.y)
-    this.addPickup('cache', b.x + 24, b.y + 12, Math.round(60 + this.time / 8))
-    if (this.rng.chance(0.6)) this.addPickup('heal', b.x - 24, b.y + 12)
-    this.boss = null
-  }
-
-  /**
-   * 最终 Boss 登场：场上剩下的杂兵、特殊兵种和精英全部散去（不计击杀、没有奖励）。
-   * Boss 战是和 Boss 本体的对决，不是和上一波残兵的混战；之后每隔一阵补的杂兵才是 Boss 战里的"割草"。
-   */
-  dismissField(): void {
-    for (const e of this.enemies) {
-      if (!e.alive) continue
-      e.alive = false
-      this.emit({ t: 'kill', x: e.x, y: e.y, r: e.r, color: e.def.color, elite: false, big: false })
-    }
-    this.clearHostile()
-  }
-
-  /** 小 Boss 在最终 Boss 登场时撤场（没有奖励） */
-  retireMini(): void {
-    const b = this.boss
-    if (!b || !b.alive || b.mini === 0) return
-    b.alive = false
-    this.addBlast(b.x, b.y, 150, '#ffffff', 0.5)
-    this.emit({ t: 'boss', id: b.id, what: 'retire', mini: b.mini })
-    this.clearHostile()
-    this.boss = null
-  }
-
-  /** 清掉场上所有敌方的弹幕 / 光束 / 冲击环 / 预警 */
-  private clearHostile(): void {
     for (const bl of this.ebullets) bl.alive = false
     this.beams.forEach((bm) => {
       if (bm.hostile) bm.alive = false
@@ -939,6 +784,12 @@ export class World {
       if (r.hostile) r.alive = false
     })
     this.teles.forEach((t) => (t.alive = false))
+    this.addPickup('chest', b.x - 24, b.y)
+    this.addPickup('chest', b.x + 24, b.y)
+    this.addPickup('cache', b.x, b.y + 26, Math.round(120 + this.time / 6))
+    this.stats.cleared = true
+    this.winT = 3.2
+    this.boss = null
   }
 
   /**
@@ -968,15 +819,11 @@ export class World {
 
   /**
    * 最近的可攻击目标。Boss 一旦进入射程就是第一优先——
-   * 否则它身边永远围着小怪，自动瞄准会全打在杂兵身上，Boss 战就变成了拖时间；
-   * 第二优先是特殊兵种和精英（同理），最后才是杂兵。
+   * 否则它身边永远围着小怪，自动瞄准会全打在杂兵身上，Boss 战就变成了拖时间。
    */
   nearestTarget(x: number, y: number, range: number, filter?: (e: Enemy) => boolean): Target | undefined {
     const b = this.boss
     if (b && b.alive && b.intro <= 0 && Math.hypot(b.x - x, b.y - y) - b.r < range) return b
-    // 其次是特殊兵种和精英：杂兵有范围武器去割，重甲 / 狙击手要点名处理，否则它们会一直躲在人潮后面
-    const key = this.grid.nearest(x, y, range, (en) => en.alive && en.spawnT <= 0 && (en.elite || en.def.tier === 'special') && (!filter || filter(en)))
-    if (key) return key
     return this.grid.nearest(x, y, range, (en) => en.alive && en.spawnT <= 0 && (!filter || filter(en)))
   }
 
@@ -1218,8 +1065,6 @@ export class World {
       for (let i = 0; i < out.length; i++) {
         const e = out[i]
         if (!e.alive || e.lastRing === rg.serial) continue
-        // 浪涌只收割杂兵：特殊兵种和精英原地不动
-        if (rg.fodder && (e.elite || e.def.tier !== 'fodder')) continue
         const d = Math.hypot(e.x - rg.x, e.y - rg.y)
         if (d + e.r < r0 - 8 || d - e.r > rg.r + 4) continue
         e.lastRing = rg.serial
@@ -1228,7 +1073,7 @@ export class World {
         this.damageEnemy(e, rg.dmg, nx * rg.knock, ny * rg.knock, rg.quiet ? { slow: rg.slow, quiet: true, noCrit: true } : { slow: rg.slow })
       }
       const boss = this.boss
-      if (boss && boss.alive && !rg.fodder && boss.lastRing !== rg.serial) {
+      if (boss && boss.alive && boss.lastRing !== rg.serial) {
         const d = Math.hypot(boss.x - rg.x, boss.y - rg.y)
         if (d - boss.r <= rg.r + 4 && d + boss.r >= r0 - 8) {
           boss.lastRing = rg.serial
@@ -1350,66 +1195,12 @@ export class World {
     }
   }
 
-  // ───────────────────────── 引力井 ─────────────────────────
-
-  addWell(x: number, y: number): void {
-    const wl = this.wellPool.get()
-    wl.alive = true
-    wl.x = x
-    wl.y = y
-    wl.r = WELL.r
-    wl.life = wl.maxLife = WELL.life
-    wl.age = 0
-    this.wells.push(wl)
-    this.emit({ t: 'well', x, y, r: wl.r })
-  }
-
-  private updateWells(dt: number): void {
-    if (this.wells.length === 0) return
-    const p = this.player
-    const out = this.tmp
-    for (const wl of this.wells) {
-      if (!wl.alive) continue
-      wl.age += dt
-      wl.life -= dt
-      if (wl.life <= 0) {
-        wl.alive = false
-        continue
-      }
-      const arm = Math.min(1, wl.age / WELL.arm)
-      // 玩家：越靠近中心拉力越大；冲刺中不受影响
-      const dx = wl.x - p.x
-      const dy = wl.y - p.y
-      const d = Math.hypot(dx, dy) || 1
-      if (d < wl.r && p.dashT <= 0 && this.phase === 'play') {
-        const f = WELL.pull * (1 - d / wl.r) * arm
-        p.x += (dx / d) * f * dt
-        p.y += (dy / d) * f * dt
-      }
-      if (arm >= 1 && d < WELL.core + p.r) this.hurtPlayer(WELL.coreDmg * (1 + this.sector.dmgPerMin * (this.time / 60)), wl.x, wl.y, 'well')
-      // 敌人：杂兵被拽向中心，奇点内持续受伤
-      out.length = 0
-      this.grid.query(wl.x, wl.y, wl.r, out)
-      for (let i = 0; i < out.length; i++) {
-        const e = out[i]
-        if (!e.alive || e.spawnT > 0) continue
-        const ex = wl.x - e.x
-        const ey = wl.y - e.y
-        const ed = Math.hypot(ex, ey) || 1
-        const f = WELL.enemyPull * (1 - e.def.knockResist * 0.6) * arm * dt
-        e.kx += (ex / ed) * f
-        e.ky += (ey / ed) * f
-        if (ed < WELL.core * 1.7) this.damageEnemy(e, WELL.enemyDps * dt, 0, 0, { quiet: true, noCrit: true })
-      }
-    }
-  }
-
   // ───────────────────────── 拾取物 ─────────────────────────
 
   private updatePickups(dt: number): void {
     const p = this.player
-    // 拾取范围（宝箱 / 补给 / 回血 / 炸弹）；经验光点只是演出，一出生就飞向飞船
-    const pickR = p.st.magnet
+    const magR = p.st.magnet
+    const magR2 = magR * magR
     const steer = 1 - Math.exp(-PULL_STEER * dt)
 
     for (let i = 0; i < this.gems.length; i++) {
@@ -1419,6 +1210,7 @@ export class World {
       const dx = p.x - g.x
       const dy = p.y - g.y
       const d2 = dx * dx + dy * dy
+      if (!g.mag && d2 < magR2) g.mag = true
       if (g.mag) {
         g.magT += dt
         const d = Math.sqrt(d2) || 1
@@ -1429,6 +1221,7 @@ export class World {
         const rel = Math.hypot(g.vx - p.vx, g.vy - p.vy)
         if (d < 14 + rel * dt) {
           g.alive = false
+          this.addXp(g.value)
           this.emit({ t: 'gem', x: g.x, y: g.y, value: g.value })
           continue
         }
@@ -1448,7 +1241,7 @@ export class World {
       const dx = p.x - k.x
       const dy = p.y - k.y
       const d = Math.hypot(dx, dy) || 1
-      if (!k.mag && d < pickR) k.mag = true
+      if (!k.mag && d < magR * 0.55) k.mag = true
       let rel = 0
       if (k.mag) {
         // 进入吸附范围后一路追到手，不会因为玩家跑得比吸力快而悬在身后
@@ -1478,6 +1271,9 @@ export class World {
       case 'heal':
         p.hp = Math.min(p.maxHp, p.hp + Math.max(20, p.maxHp * 0.3))
         break
+      case 'magnet':
+        for (const g of this.gems) g.mag = true
+        break
       case 'bomb':
         this.bombAll()
         break
@@ -1505,7 +1301,6 @@ export class World {
     compact(this.blasts, this.blastPool)
     compact(this.bolts, this.boltPool)
     compact(this.teles, this.telePool)
-    compact(this.wells, this.wellPool)
   }
 }
 

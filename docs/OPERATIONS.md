@@ -5,7 +5,7 @@
 ## 1. 发布流程
 
 ```bash
-npm test                      # 201 项测试
+npm test                      # 182 项测试
 npm run build                 # 生成页面 → tsc（应用与脚本两套配置）→ vite build
 node scripts/e2e.mjs smoke    # 无头浏览器冒烟（含音频电平断言）
 node scripts/e2e.mjs mobile   # 改动了界面/触屏时再跑
@@ -73,11 +73,11 @@ gh api repos/littlebugged/aigames/commits/<sha>/check-suites \
 1. 在 `src/data/ids.ts` 登记新 id → TypeScript 会提示所有需要补齐的地方（数据、图标、词典…）。
 2. 补齐 `src/data/*`、`src/i18n/zh.ts` 与 `en.ts`（`tests/i18n.test.ts` 会拦住漏翻或占位符不一致）。
 3. 需要新行为时改 `src/game/*`（武器/敌人/Boss/升级逻辑），需要新画面时改 `src/render/*`。
-4. `npm test`（数据约束 + 确定性 + 稳定性）→ `npm run sim -- --all`（看机器人存活、击杀、进化、Boss 耗时有没有失衡）；新武器 / 改武器数值表时再跑 `npm run bench`，与同档位的老武器对照强度，再跑 `npx tsx scripts/bench.ts [武器 id…] [--levels 1,8,e]` 看"割草能力"（150 只杂兵围上来，第 4 / 8 / 14 秒时倒了几只）与对重甲的单体输出（1500 血的重甲兵被打死要几秒）——范围大 / 数量多的武器应该在前者占优，单体输出是另一条路；单件 DPS 好看不代表整局好用，再跑一遍 `npx tsx scripts/commit-weapons.ts --weapons <id> --ships vanguard,phantom --sector void --seeds 12`（整局只押这一把武器、别的随机，看通关率；`--weapons none` 是对照组）。
+4. `npm test`（数据约束 + 确定性 + 稳定性）→ `npm run sim -- --all`（看机器人存活、击杀、进化、Boss 耗时有没有失衡）；新武器 / 改武器数值表时再跑 `npm run bench`，与同档位的老武器对照强度；单件 DPS 好看不代表整局好用，再跑一遍 `npx tsx scripts/commit-weapons.ts --weapons <id> --ships vanguard,phantom --sector void --seeds 12`（整局只押这一把武器、别的随机，看通关率；`--weapons none` 是对照组）。
 5. `npm run build`：游戏指南页会自动带上新内容，无需手改文档。
 6. 无头截图确认：`node scripts/e2e.mjs play --sector void --ff 400 --wait 4 --name check`，看 `.e2e/check.png`。
 
-平衡参数集中在 `src/data/tuning.ts`（全局）与 `src/data/waves.ts`（每个星区的 12 波脚本、小 Boss 计划、`WAVE` 常量）；改了波的规模（`unitBase` / `unitGrowth` / 脚本权重）或人潮补兵的量（`FLOW`）后要重新拟合 `src/game/stats.ts` 的 `XP_CURVE`（目标：每波升 2～3 级、一局约 30 级，`sim.ts` 输出的"波末等级"一行就是对照）。机器人只是粗略的参照，**真实难度以人工试玩为准**。
+平衡参数集中在 `src/data/tuning.ts`；机器人只是粗略的参照，**真实难度以人工试玩为准**。
 
 ## 5. SEO 与可发现性
 
@@ -101,14 +101,13 @@ gh api repos/littlebugged/aigames/commits/<sha>/check-suites \
 | 玩家反馈卡顿 | 设置里把画质改为"中/低"，关闭屏幕震动与伤害数字；自动画质会在帧率持续偏低时自动降档 |
 | 存档丢失 | 存档只在玩家浏览器里（清除站点数据会丢失）；设置 → 导出存档可以备份，导入存档可以迁移 |
 | 构建失败 | 先本地 `npm run build` 复现；常见原因是新增 id 后某个词典/数据表没补齐（类型检查会报错） |
-| 想看某个时间点的画面 | `node scripts/e2e.mjs play --sector <fields\|wasteland\|void\|crucible> --ff <秒> --wait <秒> --name <文件名>`；想直接看第几波：`--wave N`（快进到第 N 波开始，`--wavet 秒` 再往这一波里走几秒） |
+| 想看某个时间点的画面 | `node scripts/e2e.mjs play --sector <fields\|wasteland\|void> --ff <秒> --wait <秒> --name <文件名>` |
 | 想测性能 | `node scripts/e2e.mjs perf --q high --dpr 2 --gpu 1`（`--gpu 1` 使用 Metal，`0` 为纯软件光栅化的最坏情况）。做 A/B：`--eval "__neon.renderer.bloomPass=()=>{}"` 在采样前往页面里注入一段脚本，软件光栅化下噪声较大，建议新旧版本交替各跑 4 次取平均 |
 | 想看 Boss 预警 / 手机竖屏 / 干净的截图 | `play ... --tele 1`（在玩家周围摆几条不同进度的预警）、`play ... --touch 1 --w 390 --h 844 --dpr 2`（按手机方式开）、`play ... --clean 1`（隐藏教学提示 / Toast / 横幅），`--clip x,y,w,h` 再截一张局部放大图 |
 | 想看光束 / 电弧 / 冲击波 / 敌方子弹 / 爆炸 | `play --lab fx --w 1280 --h 720 --clean 1`（清场后摆一张定格样张；`--dpr 3 --clip x,y,w,h` 放大看细节）；真实对局里等某个效果出现再定格：`play --ff 25 --gear laser,rail,arc,nova --glv 8 --evo 1 --catch beams --clean 1`（`--catch` 可取 `beams / bolts / rings / ebullets / hbeams / hrings / shells / landing / tethers`，`--skip N` 跳过前 N 次命中；`--run SEC` 抓到后放开暂停真实地再跑 SEC 秒，看烟和焦痕的后续）；子弹图鉴：`art --scale 5 --only bullets --sheeth 700` |
 | 想看某几张升级卡长什么样 | `play --ff 20 --gear howitzer --glv 4 --offers weapon:howitzer:5,weapon:siphon:1:new,passive:regen:1:new --w 1280 --h 720`（`--offers` 直接弹出升级面板并摆上这几张卡，格式 `种类:id:升到几级[:new\|evolve]`；先用 `--gear / --glv` 发好对应的武器，进化卡要配 `--glv 8`；`--dpr 2 --clip x,y,w,h` 放大看一张卡） |
 | 想看榴弹炮 / 虹吸索的造型 | `play --lab crowd --gear howitzer --glv 8 --catch shells --dpr 2 --clean 1`（`--lab crowd` 清场后把一圈定身敌人摆在飞船四周、再在远处摆两堆人群，飞船不动；`--catch landing --skip 3 --run 0.4` 看落地后的冲击 / 烟 / 焦痕）；`play --lab crowd --gear siphon --glv 8 [--evo 1] --catch tethers --dpr 2 --clean 1` 看钢索与夹爪 |
-| 想看某一波 / 小 Boss / 引力井 / 伏击 / 人潮 | `play --sector fields --wave 8 --catch mini --look mid --clean 1`（快进到第 8 波，一小步一小步往前跑到小 Boss 入场完毕那一帧再暂停）；`--catch` 的波次相关取值：`mini`（小 Boss 入场完毕）、`well`（引力井拉满）、`ambush`（伏击预警箭头亮起，配合 `--run 0.7` 看箭头与斜纹带）、`surge`（清场冲击波扫到屏幕中段）、`crowd`（玩家 520 单位内同时有 `--n` 只以上敌人，默认 70）、`multi`（群杀播报）、`strike`（陨火最后一段）；常用组合：`play --sector void --wave 5 --catch well --run 0.6 --gear orbit,missile,arc,chakram --glv 4 --clean 1`。机器人跑整局的平衡数据：`npx tsx scripts/sim.ts --all --seeds 12 --seconds 900`（`--ttk` 看各类特殊兵种 / 小 Boss 的击杀耗时，`--causes` 看死因，`--tune k=v,…` 不改源码扫参数；人潮补兵相关的键：`flow`（`FLOW.k`，`flow=0` 即关掉补兵、回到 v1.14 的脉冲节奏）、`flowrate`、`flowcap`、`catchup`、`spread`）。看"画面里是不是一直有怪"这种节奏问题，静态截图不够用——用真实时间逐帧拍（脚本在 `.tmp/`，不入库）再拼联系表，一眼就能看出有没有断档 |
-| 想看武器 / 拾取物的实物 | `play --gear orbit,chakram,drone,mine,missile --glv 6 [--evo 1] --ff 60 --dpr 3 --w 720 --h 440 --clean 1 --clip 215,95,290,250`（开局直接发武器、可指定等级 / 进化）；`play --pickups 1 --ff 30 --dpr 3 --clean 1`（清场后把四种拾取物摆成一排并暂停） |
+| 想看武器 / 拾取物的实物 | `play --gear orbit,chakram,drone,mine,missile --glv 6 [--evo 1] --ff 60 --dpr 3 --w 720 --h 440 --clean 1 --clip 215,95,290,250`（开局直接发武器、可指定等级 / 进化）；`play --pickups 1 --ff 30 --dpr 3 --clean 1`（清场后把五种拾取物摆成一排并暂停） |
 
 ## 8. 历史
 

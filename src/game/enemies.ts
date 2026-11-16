@@ -1,4 +1,3 @@
-import { WAVE } from '../data/waves'
 import type { Enemy } from './entities'
 import type { World } from './world'
 
@@ -18,12 +17,6 @@ export function updateEnemies(w: World, dt: number): void {
   const grid = w.grid
   const sep = w.tmp
   const recycleD2 = (w.viewR * 2.4) ** 2
-  // 杂兵被甩得太远（玩家一直在往反方向跑）就直接回收到屏幕边缘，不留"一长串掉队的怪"在地图另一头
-  const fodderRecycleD2 = (w.viewR * 1.8) ** 2
-  // 阵型里的杂兵在画面外会加速冲进来（"一波压上来"的感觉），一路减速，进入这个距离后恢复正常速度
-  const rushR = Math.min(w.viewHalfW, w.viewHalfH) * 1.15
-  // 离得比这更远的杂兵（不管是不是阵型里的）都会加速追赶
-  const catchR = w.viewR * 1.25
   const kd = Math.exp(-7 * dt)
   const tick = w.tick
 
@@ -50,13 +43,7 @@ export function updateEnemies(w: World, dt: number): void {
     let svy = 0
     const slowMul = e.slow > 0 ? 0.55 : 1
     if (e.slow > 0) e.slow -= dt
-    let rushMul = 1
-    if (e.rush > 0) {
-      // 离得远时全速冲，越靠近越慢，进了 rushR 恢复正常速度——平滑过渡，不会在玩家面前"急刹车"
-      if (d > rushR) rushMul = 1 + (WAVE.rush - 1) * Math.min(1, (d - rushR) / (rushR * 0.7))
-      else e.rush = 0
-    } else if (d > catchR && e.def.tier === 'fodder') rushMul = WAVE.catchUp
-    const sp = e.speed * slowMul * rushMul
+    const sp = e.speed * slowMul
     let canHurt = true
 
     if (e.stun > 0) {
@@ -280,12 +267,11 @@ export function updateEnemies(w: World, dt: number): void {
       }
     }
 
-    // 掉队太远的敌人（含特殊兵种和精英）传送回屏幕边缘：保持压力又不浪费算力，
-    // 也让"被甩在身后的重甲"不会永远留在地图另一头（血量保留，只是重新压上来）
-    {
+    // 掉队太远的小怪传送回屏幕边缘，保持压力又不浪费算力
+    if (!e.elite) {
       const rx = p.x - e.x
       const ry = p.y - e.y
-      if (rx * rx + ry * ry > (e.def.tier === 'fodder' && !e.elite ? fodderRecycleD2 : recycleD2 * 1.4)) {
+      if (rx * rx + ry * ry > recycleD2) {
         const pt = w.edgePoint()
         e.x = pt.x
         e.y = pt.y

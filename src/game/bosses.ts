@@ -12,62 +12,32 @@ interface BossSpec {
 
 /** Boss 基础数值（血量会再乘 TUNE.bossHp 与威胁等级） */
 const SPEC: Record<BossId, BossSpec> = {
-  overseer: { r: 58, hp: 14000, dmg: 26 },
-  fractal: { r: 48, hp: 15000, dmg: 24 },
-  maw: { r: 64, hp: 19000, dmg: 32 },
-  forge: { r: 62, hp: 21000, dmg: 34 },
+  overseer: { r: 58, hp: 12000, dmg: 26 },
+  fractal: { r: 48, hp: 16000, dmg: 24 },
+  maw: { r: 64, hp: 22000, dmg: 32 },
+  forge: { r: 62, hp: 26000, dmg: 34 },
 }
 
-/** 各 Boss 的基础血量（实际血量 = 基础值 × TUNE.bossHp × 威胁倍率；小 Boss 另乘 TUNE.miniHp） */
-export const BOSS_BASE_HP: Readonly<Record<BossId, number>> = {
-  overseer: SPEC.overseer.hp,
-  fractal: SPEC.fractal.hp,
-  maw: SPEC.maw.hp,
-  forge: SPEC.forge.hp,
-}
-
-/** 各 Boss 的标准体型（渲染按 b.r / 标准体型缩放小 Boss） */
-export const BOSS_R: Readonly<Record<BossId, number>> = {
-  overseer: SPEC.overseer.r,
-  fractal: SPEC.fractal.r,
-  maw: SPEC.maw.r,
-  forge: SPEC.forge.r,
-}
-
-/**
- * 小 Boss = 某个 Boss 的"先遣体"：同一套招式，体型小一圈、伤害低一点、少一两个阶段，血量远低于正主
- * （但仍是实打实的几十秒战斗，不是杂兵——血量见 TUNE.miniHp）。
- */
-const MINI_LOOK: Record<1 | 2, { r: number; dmg: number; atk: number; maxPhase: number; intro: number }> = {
-  1: { r: 0.66, dmg: 0.72, atk: 0.72, maxPhase: 1, intro: 1.6 },
-  2: { r: 0.8, dmg: 0.88, atk: 0.88, maxPhase: 2, intro: 1.8 },
-}
-
-/** mini：0 = 正主；1 / 2 = 小 Boss 的强度档 */
-export function spawnBoss(w: World, id: BossId, mini: 0 | 1 | 2 = 0): void {
+export function spawnBoss(w: World, id: BossId): void {
   const spec = SPEC[id]
-  const look = mini ? MINI_LOOK[mini] : null
   const p = w.player
   const b = new Boss()
   const a = w.rng.angle()
   b.alive = true
   b.id = id
-  b.mini = mini
-  b.maxPhase = look ? look.maxPhase : 2
   b.x = p.x + Math.cos(a) * w.viewR * 0.72
   b.y = p.y + Math.sin(a) * w.viewR * 0.72
-  b.r = spec.r * (look?.r ?? 1)
-  b.dmg = spec.dmg * (look?.dmg ?? 1)
-  b.atk = look?.atk ?? 1
-  b.maxHp = b.hp = spec.hp * (mini ? TUNE.miniHp[mini - 1] : TUNE.bossHp) * w.threat.hp
-  b.intro = look?.intro ?? 2.4
+  b.r = spec.r
+  b.dmg = spec.dmg
+  b.maxHp = b.hp = spec.hp * TUNE.bossHp * w.threat.hp
+  b.intro = 2.4
   b.t1 = 2.5
   b.t2 = 3.5
   b.t3 = 6
   b.hitAt.fill(0)
   w.boss = b
-  w.emit({ t: 'boss', id, what: 'spawn', mini })
-  w.emit({ t: 'warn', key: mini ? `boss.${id}.mini` : `boss.${id}.name`, sev: mini ? 1 : 2 })
+  w.emit({ t: 'boss', id, what: 'spawn' })
+  w.emit({ t: 'warn', key: `boss.${id}.name`, sev: 2 })
 }
 
 export function updateBoss(w: World, dt: number): void {
@@ -80,13 +50,13 @@ export function updateBoss(w: World, dt: number): void {
 
   // 阶段切换：血量跌破 66% / 33%
   const ratio = b.hp / b.maxHp
-  const np = Math.min(b.maxPhase, ratio > 0.66 ? 0 : ratio > 0.33 ? 1 : 2)
+  const np = ratio > 0.66 ? 0 : ratio > 0.33 ? 1 : 2
   if (np > b.phase && b.intro <= 0) {
     b.phase = np
     b.intro = 1.1
     for (const bl of w.ebullets) bl.alive = false
     w.addBlast(b.x, b.y, b.r * 2.6, '#ffffff', 0.5)
-    w.emit({ t: 'boss', id: b.id, what: 'phase', mini: b.mini })
+    w.emit({ t: 'boss', id: b.id, what: 'phase' })
     onPhaseChange(w, b)
   }
 
@@ -125,22 +95,17 @@ export function updateBoss(w: World, dt: number): void {
   }
 }
 
-/** 小 Boss 召唤的杂兵数量减半（向上取整，至少 2 只） */
-const addN = (b: Boss, n: number): number => (b.mini ? Math.max(2, Math.ceil(n / 2)) : n)
-
 function onPhaseChange(w: World, b: Boss): void {
   if (b.id === 'fractal') {
-    const n = addN(b, 6)
-    for (let i = 0; i < n; i++) {
-      const a = (i / n) * TAU
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * TAU
       w.spawnEnemy('splitter', b.x + Math.cos(a) * (b.r + 30), b.y + Math.sin(a) * (b.r + 30), {
         spawnT: 0.5,
       })
     }
   } else if (b.id === 'maw') {
-    const n = addN(b, 3)
-    for (let i = 0; i < n; i++) {
-      const a = (i / n) * TAU + 0.4
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * TAU + 0.4
       w.spawnEnemy('wraith', b.x + Math.cos(a) * (b.r + 60), b.y + Math.sin(a) * (b.r + 60), {
         spawnT: 0.5,
       })
@@ -148,7 +113,7 @@ function onPhaseChange(w: World, b: Boss): void {
   } else if (b.id === 'forge') {
     // 转阶段会打断熔切；炉门敞开，吐出一圈自爆怪（三阶段再混进冲锋者）
     killJets(b)
-    const n = addN(b, b.phase === 1 ? 4 : 6)
+    const n = b.phase === 1 ? 4 : 6
     for (let i = 0; i < n; i++) {
       const a = (i / n) * TAU + 0.3
       const id = b.phase === 2 && i % 2 === 1 ? 'charger' : 'bomber'
@@ -249,7 +214,7 @@ function overseer(w: World, b: Boss, dt: number): void {
       o.a += dt * (1.5 + b.phase * 0.25)
       o.x = b.x + Math.cos(o.a) * (b.r + 66)
       o.y = b.y + Math.sin(o.a) * (b.r + 66)
-      if (Math.hypot(p.x - o.x, p.y - o.y) < o.r + p.r) w.hurtPlayer(16 * b.atk, o.x, o.y, b.id)
+      if (Math.hypot(p.x - o.x, p.y - o.y) < o.r + p.r) w.hurtPlayer(16, o.x, o.y, b.id)
     }
   }
 
@@ -257,30 +222,28 @@ function overseer(w: World, b: Boss, dt: number): void {
 
   if (b.phase === 0) {
     if (b.t1 <= 0) {
-      radial(w, b.x, b.y, 14, b.ang, 175, 12 * b.atk, '#ff3ea5', 0, 'lens')
+      radial(w, b.x, b.y, 14, b.ang, 175, 12, '#ff3ea5', 0, 'lens')
       b.t1 = 2.6
     }
     if (b.t3 <= 0) {
-      const n = addN(b, 5)
-      for (let i = 0; i < n; i++) {
-        const a = (i / n) * TAU
+      for (let i = 0; i < 5; i++) {
+        const a = (i / 5) * TAU
         w.spawnEnemy('drone', b.x + Math.cos(a) * (b.r + 24), b.y + Math.sin(a) * (b.r + 24), { spawnT: 0.4 })
       }
       b.t3 = 7
     }
   } else if (b.phase === 1) {
     if (b.t1 <= 0) {
-      radial(w, b.x, b.y, 18, b.ang, 185, 12 * b.atk, '#ff3ea5', 0, 'lens')
+      radial(w, b.x, b.y, 18, b.ang, 185, 12, '#ff3ea5', 0, 'lens')
       b.t1 = 2.3
     }
     if (b.t2 <= 0) {
-      aimed(w, b, 3, 0.2, 260, 14 * b.atk)
+      aimed(w, b, 3, 0.2, 260, 14)
       b.t2 = 3.1
     }
     if (b.t3 <= 0) {
-      const n = addN(b, 3)
-      for (let i = 0; i < n; i++) {
-        const a = (i / n) * TAU + 0.5
+      for (let i = 0; i < 3; i++) {
+        const a = (i / 3) * TAU + 0.5
         w.spawnEnemy('shooter', b.x + Math.cos(a) * (b.r + 30), b.y + Math.sin(a) * (b.r + 30), {
           spawnT: 0.4,
         })
@@ -293,12 +256,12 @@ function overseer(w: World, b: Boss, dt: number): void {
     const cycle = b.spin % 4.2
     if (cycle < 2.6 && b.t1 <= 0) {
       const a = b.age * 2.6
-      w.spawnEnemyBullet(b.x, b.y, a, 165, 12 * b.atk, { color: '#ff3ea5', r: 6.5, kind: 'lens' })
-      w.spawnEnemyBullet(b.x, b.y, a + Math.PI, 165, 12 * b.atk, { color: '#ff3ea5', r: 6.5, kind: 'lens' })
+      w.spawnEnemyBullet(b.x, b.y, a, 165, 12, { color: '#ff3ea5', r: 6.5, kind: 'lens' })
+      w.spawnEnemyBullet(b.x, b.y, a + Math.PI, 165, 12, { color: '#ff3ea5', r: 6.5, kind: 'lens' })
       b.t1 = 0.1
     }
     if (b.t2 <= 0) {
-      aimed(w, b, 5, 0.17, 280, 14 * b.atk)
+      aimed(w, b, 5, 0.17, 280, 14)
       b.t2 = 2.6
     }
     if (b.t3 <= 0) {
@@ -330,7 +293,7 @@ function fractal(w: World, b: Boss, dt: number): void {
 
   if (b.t1 <= 0) {
     const n = 8 + b.phase * 2
-    radial(w, b.x, b.y, n, b.ang * 1.7, 190 + b.phase * 12, 11 * b.atk, '#9dff4d', 0, 'shard')
+    radial(w, b.x, b.y, n, b.ang * 1.7, 190 + b.phase * 12, 11, '#9dff4d', 0, 'shard')
     b.t1 = 2.4 - b.phase * 0.25
   }
 
@@ -348,7 +311,6 @@ function fractal(w: World, b: Boss, dt: number): void {
           color: '#9dff4d',
           a: 0,
           b: 30,
-          k: b.atk,
         })
       } else {
         w.addTele('line', p.x + off, p.y - 950, 1.15, 'beam', {
@@ -358,7 +320,6 @@ function fractal(w: World, b: Boss, dt: number): void {
           color: '#9dff4d',
           a: Math.PI / 2,
           b: 30,
-          k: b.atk,
         })
       }
     }
@@ -366,11 +327,11 @@ function fractal(w: World, b: Boss, dt: number): void {
   }
 
   if (b.phase >= 1 && b.t2 <= 0) {
-    aimed(w, b, b.phase === 1 ? 3 : 5, 0.22, 250, 13 * b.atk, '#c8ff66')
+    aimed(w, b, b.phase === 1 ? 3 : 5, 0.22, 250, 13, '#c8ff66')
     b.t2 = b.phase === 1 ? 3.2 : 2.3
   }
   if (b.phase === 0 && b.t2 <= 0) {
-    aimed(w, b, 1, 0, 230, 13 * b.atk, '#c8ff66')
+    aimed(w, b, 1, 0, 230, 13, '#c8ff66')
     b.t2 = 1.6
   }
 }
@@ -389,7 +350,7 @@ function maw(w: World, b: Boss, dt: number): void {
 
   // 引力：把玩家往中心拽，阶段越高越强；冲刺能挣脱
   if (p.dashT <= 0) {
-    const pull = [28, 40, 58][b.phase] * Math.min(1, 700 / Math.max(120, d))
+    const pull = [34, 50, 74][b.phase] * Math.min(1, 700 / Math.max(120, d))
     p.x += (dx / d) * pull * dt
     p.y += (dy / d) * pull * dt
   }
@@ -399,7 +360,7 @@ function maw(w: World, b: Boss, dt: number): void {
     const arms = [2, 3, 4][b.phase]
     b.spin += 0.23
     for (let i = 0; i < arms; i++) {
-      w.spawnEnemyBullet(b.x, b.y, b.spin + (i / arms) * TAU, 150 + b.phase * 12, 10 * b.atk, {
+      w.spawnEnemyBullet(b.x, b.y, b.spin + (i / arms) * TAU, 150 + b.phase * 12, 12, {
         color: '#c9a0ff',
         r: 6,
         life: 9,
@@ -418,7 +379,7 @@ function maw(w: World, b: Boss, dt: number): void {
     r.r = b.r
     r.maxR = 640
     r.speed = 250
-    r.dmg = 20 * b.atk
+    r.dmg = 22
     r.color = '#c9a0ff'
     b.t2 = [4.4, 3.6, 3.0][b.phase]
   }
@@ -432,7 +393,7 @@ function maw(w: World, b: Boss, dt: number): void {
       w.addTele('circle', p.x + ox + p.vx * 0.4, p.y + oy + p.vy * 0.4, 1.0, 'blast', {
         r: 74,
         color: '#c9a0ff',
-        a: 24 * b.atk,
+        a: 26,
       })
     }
     b.t3 = b.phase === 1 ? 4.2 : 3.2
@@ -504,13 +465,13 @@ function forge(w: World, b: Boss, dt: number): void {
   if (b.t3 <= 0) {
     b.state = 1
     b.stateT = 0.95
-    w.addTele('circle', b.x, b.y, 0.95, 'slam', { r: FORGE_ZONE, color: '#ff5a2e', a: 30 * b.atk, b: ph === 2 ? 2 : 1, k: b.atk })
+    w.addTele('circle', b.x, b.y, 0.95, 'slam', { r: FORGE_ZONE, color: '#ff5a2e', a: 30, b: ph === 2 ? 2 : 1 })
     return
   }
 
   // 余烬弹幕
   if (b.t1 <= 0) {
-    radial(w, b.x, b.y, [10, 14, 16][ph], b.age * 0.9, [150, 160, 170][ph], 13 * b.atk, FORGE_HOT, 0, 'ember')
+    radial(w, b.x, b.y, [10, 14, 16][ph], b.age * 0.9, [150, 160, 170][ph], 13, FORGE_HOT, 0, 'ember')
     b.t1 = [2.5, 2.2, 1.9][ph]
   }
 
@@ -522,7 +483,7 @@ function forge(w: World, b: Boss, dt: number): void {
       const dist = i === 0 ? 0 : w.rng.range(90, 280)
       const x = p.x + p.vx * 0.5 + Math.cos(a) * dist
       const y = p.y + p.vy * 0.5 + Math.sin(a) * dist
-      w.addTele('circle', x, y, 1.15 + i * 0.12, 'blast', { r: 72, color: FORGE_HOT, a: 24 * b.atk, fx: 1, x2: b.x, y2: b.y })
+      w.addTele('circle', x, y, 1.15 + i * 0.12, 'blast', { r: 72, color: FORGE_HOT, a: 24, fx: 1, x2: b.x, y2: b.y })
     }
     b.t2 = [3.4, 3.0, 2.7][ph]
   }
@@ -554,7 +515,7 @@ function startSweep(w: World, b: Boss, dx: number, dy: number): void {
     bm.life = bm.maxLife = FORGE_SWEEP[ph] + 0.4
     bm.tick = 0.1
     bm.tickT = 0
-    bm.dmg = 20 * b.atk
+    bm.dmg = 20
     bm.color = FORGE_HOT
     bm.style = 'boss'
     b.jets.push(bm)
@@ -597,7 +558,7 @@ export function runTelegraph(w: World, tl: Telegraph): void {
     bm.life = bm.maxLife = 0.7
     bm.tick = 0.1
     bm.tickT = 0
-    bm.dmg = 18 * tl.k
+    bm.dmg = 18
     bm.color = tl.color
     bm.warn = 0
     bm.style = 'boss'
@@ -626,7 +587,7 @@ export function runTelegraph(w: World, tl: Telegraph): void {
       r.r = 70
       r.maxR = 620
       r.speed = 280
-      r.dmg = 22 * tl.k
+      r.dmg = 22
       r.color = '#ff7a2e'
       r.delay = i * 0.55
     }

@@ -36,8 +36,7 @@ const stats = (o: Partial<RunStats> = {}): RunStats => ({
   killedBy: '',
   hurtBy: {},
   bestMulti: 0,
-  waves: 0,
-  minis: 0,
+  surges: 0,
   ...o,
 })
 
